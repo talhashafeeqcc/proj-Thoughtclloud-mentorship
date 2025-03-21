@@ -132,8 +132,8 @@ const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({ mentorId, o
           <FaCalendarAlt className="mr-2" /> {currentMonthName} {currentYear}
         </h2>
         <div className="space-x-2">
-          <button onClick={prevMonth} className="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded"><</button>
-          <button onClick={nextMonth} className="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded">></button>
+          <button onClick={prevMonth} className="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded">{"<"}</button>
+          <button onClick={nextMonth} className="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded">{">"}</button>
         </div>
       </div>
       <div className="grid grid-cols-7 gap-0.5 text-center">

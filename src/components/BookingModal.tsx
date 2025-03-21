@@ -1,130 +1,62 @@
-import React, { useState, useEffect } from 'react';
-import { FaTimes, FaCalendar, FaClock, FaCheckCircle, FaExclamationTriangle } from 'react-icons/fa';
-import { bookSession } from '../services/sessionService';
+import React from 'react';
 import { AvailabilitySlot } from '../types';
 
 interface BookingModalProps {
-  show: boolean;
+  isOpen: boolean;
+  slot: AvailabilitySlot | null;
   onClose: () => void;
-  mentorId: string;
-  mentorName: string;
-  onBook: (availabilitySlotId: string) => void;
-  selectedSlot?: AvailabilitySlot | null; // Optional selectedSlot prop
+  onConfirm: (slot: AvailabilitySlot) => void;
 }
 
-const BookingModal: React.FC<BookingModalProps> = ({ show, onClose, mentorId, mentorName, onBook, selectedSlot }) => {
-  const [error, setError] = useState<string | null>(null);
-  const [isPaymentProcessing, setIsPaymentProcessing] = useState(false);
-  const [paymentSuccess, setPaymentSuccess] = useState<boolean | null>(null);
-
-
-  const simulatePayment = (): Promise<boolean> => {
-    return new Promise((resolve) => {
-      setIsPaymentProcessing(true);
-      setPaymentSuccess(null); // Reset payment status
-      setTimeout(() => {
-        // Simulate successful payment 80% of the time
-        const isSuccessful = Math.random() < 0.8;
-        setIsPaymentProcessing(false);
-        setPaymentSuccess(isSuccessful);
-        resolve(isSuccessful);
-      }, 2000); // Simulate payment processing for 2 seconds
-    });
-  };
-
-
-  const handleBook = async () => {
-    if (!selectedSlot) {
-      setError('No time slot selected.');
-      return;
-    }
-    setError(null);
-
-    const paymentSuccessful = await simulatePayment();
-    if (paymentSuccessful) {
-      try {
-        await bookSession({
-          mentorId: mentorId,
-          menteeId: '2', // Assuming current user is always mentee with ID '2' for now
-          mentorName: mentorName,
-          menteeName: 'Jane Mentee', // Assuming current user is always Jane Mentee for now
-          date: selectedSlot.date, // Use date from selectedSlot
-          startTime: selectedSlot.startTime, // Use startTime from selectedSlot
-          endTime: selectedSlot.endTime,     // Use endTime from selectedSlot
-          status: 'upcoming',
-          title: 'Mentoring Session',
-          availabilitySlotId: selectedSlot.id,
-        });
-        onBook(selectedSlot.id); // Call onBook to handle UI update in parent component
-      } catch (bookingError: any) {
-        setError(bookingError.message || 'Failed to book session.');
-        setPaymentSuccess(false); // Payment might be successful, but booking failed
-      }
-    } else {
-      setError('Payment failed. Please try again.');
-    }
-  };
-
-  if (!show) {
-    return null;
+const BookingModal: React.FC<BookingModalProps> = ({ isOpen, slot, onClose, onConfirm }) => {
+  if (!isOpen || !slot) {
+    return null; // Don't render anything if the modal is closed or no slot is selected
   }
 
-
-  if (error) {
-    return <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center text-red-600">{error}</div>;
-  }
-
+  const formattedDate = new Date(slot.date).toLocaleDateString();
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center">
-      <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-md">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-semibold">Book Session with {mentorName}</h2>
-          <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
-            <FaTimes />
-          </button>
-        </div>
+    <div className="fixed z-10 inset-0 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+      <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+        <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true"></div>
 
-        {/* Time slot display - now displaying date, start and end times */}
-        {selectedSlot && (
-          <div className="mb-4">
-            <p className="block text-gray-700 flex items-center"><FaClock className="mr-2" /> Selected Time Slot:</p>
-            <p className="font-semibold">
-              {new Date(selectedSlot.date).toLocaleDateString()} <br />
-              {selectedSlot.startTime} - {selectedSlot.endTime}
-            </p>
+        {/* This element is to trick the browser into centering the modal contents. */}
+        <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+
+        <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+          <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+            <div className="sm:flex sm:items-start">
+              <div className="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
+                <h3 className="text-lg leading-6 font-medium text-gray-900" id="modal-title">
+                  Confirm Booking
+                </h3>
+                <div className="mt-2">
+                  <p className="text-sm text-gray-500">
+                    Date: {formattedDate}
+                  </p>
+                  <p className="text-sm text-gray-500">
+                    Time: {slot.startTime} - {slot.endTime}
+                  </p>
+                </div>
+              </div>
+            </div>
           </div>
-        )}
-
-
-        {error && <div className="text-red-600 mb-4 flex items-center"><FaExclamationTriangle className="mr-2" />{error}</div>}
-
-        {isPaymentProcessing && <div className="mb-4 text-blue-500">Processing Payment...</div>}
-
-        {paymentSuccess === true && (
-          <div className="mb-4 text-green-600 flex items-center"><FaCheckCircle className="mr-2" /> Payment Successful! Booking session...</div>
-        )}
-
-        {paymentSuccess === false && (
-          <div className="mb-4 text-red-600 flex items-center"><FaExclamationTriangle className="mr-2" /> Payment Failed. Please try again.</div>
-        )}
-
-
-        <div className="flex justify-end">
-          <button
-            onClick={onClose}
-            className="mr-2 px-4 py-2 bg-gray-300 hover:bg-gray-400 rounded"
-            disabled={isPaymentProcessing} // Disable cancel during payment
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleBook}
-            className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-            disabled={isPaymentProcessing || paymentSuccess === true || !selectedSlot} // Disable book during payment or after success or if no slot selected
-          >
-            Book & Pay
-          </button>
+          <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+            <button
+              type="button"
+              className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:ml-3 sm:w-auto sm:text-sm"
+              onClick={() => onConfirm(slot)}
+            >
+              Confirm Booking
+            </button>
+            <button
+              type="button"
+              className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
+              onClick={onClose}
+            >
+              Cancel
+            </button>
+          </div>
         </div>
       </div>
     </div>

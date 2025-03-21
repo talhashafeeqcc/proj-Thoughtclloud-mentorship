@@ -1,162 +1,115 @@
-import { v4 as uuidv4 } from 'uuid';
-import { User, MentorProfile } from '../types';
+import { User, Mentor, Mentee, LoginCredentials, RegisterData } from '../types';
 
-// Mock database
-let users: User[] = [
+// Mock user data with passwords (for demo purposes only - in a real app, passwords would be hashed and not stored like this)
+const users = [
   {
     id: '1',
-    email: 'mentor@example.com',
-    password: 'password123',
+    email: 'john.mentor@example.com',
     name: 'John Mentor',
-    role: 'mentor',
-    profilePicture: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&amp;auto=format&amp;fit=facearea&amp;facepad=2&amp;w=256&amp;h=256&amp;q=80'
+    role: 'mentor' as const,
+    profilePicture: 'https://randomuser.me/api/portraits/men/1.jpg',
+    password: 'password123' // In a real app, this would be hashed
   },
   {
     id: '2',
-    email: 'mentee@example.com',
-    password: 'password123',
+    email: 'jane.mentee@example.com',
     name: 'Jane Mentee',
-    role: 'mentee',
-    profilePicture: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?ixlib=rb-1.2.1&amp;auto=format&amp;fit=facearea&amp;facepad=2&amp;w=256&amp;h=256&amp;q=80'
+    role: 'mentee' as const,
+    profilePicture: 'https://randomuser.me/api/portraits/women/1.jpg',
+    password: 'password123'
+  },
+  {
+    id: '3',
+    email: 'alice.mentor@example.com',
+    name: 'Alice Mentor',
+    role: 'mentor' as const,
+    profilePicture: 'https://randomuser.me/api/portraits/women/2.jpg',
+    password: 'password123'
   }
 ];
 
 // Mock mentor profiles
-let mentorProfiles: MentorProfile[] = [
+const mentorProfiles: Partial<Mentor>[] = [
   {
     id: '1',
-    email: 'mentor@example.com',
-    password: 'password123',
+    email: 'john.mentor@example.com',
     name: 'John Mentor',
     role: 'mentor',
-    profilePicture: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&amp;auto=format&amp;fit=facearea&amp;facepad=2&amp;w=256&amp;h=256&amp;q=80',
-    bio: 'Experienced software engineer with 10+ years in the industry. Passionate about helping others grow in their careers.',
-    expertise: ['JavaScript', 'React', 'Node.js', 'Career Development'],
-    education: [
-      {
-        id: '1',
-        institution: 'MIT',
-        degree: 'Bachelor of Science',
-        fieldOfStudy: 'Computer Science',
-        from: '2008',
-        to: '2012'
-      }
-    ],
-    workExperience: [
-      {
-        id: '1',
-        company: 'Google',
-        position: 'Senior Software Engineer',
-        from: '2015',
-        to: 'Present',
-        current: true,
-        description: 'Leading frontend development for various projects.'
-      },
-      {
-        id: '2',
-        company: 'Facebook',
-        position: 'Software Engineer',
-        from: '2012',
-        to: '2015',
-        description: 'Worked on React core team.'
-      }
-    ],
-    certifications: [
-      {
-        id: '1',
-        name: 'AWS Certified Solutions Architect',
-        organization: 'Amazon Web Services',
-        issueDate: '2019-05-15'
-      }
-    ],
+    profilePicture: 'https://randomuser.me/api/portraits/men/1.jpg',
+    expertise: ['React', 'JavaScript', 'Node.js'],
+    bio: 'Senior developer with 10+ years of experience in web development.',
     sessionPrice: 75,
     availability: [
-      {
-        id: '1',
-        date: '2023-06-15',
-        startTime: '10:00',
-        endTime: '10:45',
-        isBooked: false
-      },
-      {
-        id: '2',
-        date: '2023-06-15',
-        startTime: '11:00',
-        endTime: '11:45',
-        isBooked: false
-      },
-      {
-        id: '3',
-        date: '2023-06-16',
-        startTime: '14:00',
-        endTime: '14:45',
-        isBooked: true
-      }
-    ],
-    portfolio: [
-      {
-        id: '1',
-        title: 'React Component Library',
-        description: 'A reusable component library built with React and TypeScript.',
-        link: 'https://github.com/johnmentor/react-components'
-      }
-    ],
-    rating: 4.8,
-    reviews: [
-      {
-        id: '1',
-        menteeId: '2',
-        menteeName: 'Jane Mentee',
-        rating: 5,
-        comment: 'John is an excellent mentor! He helped me understand complex React concepts in a simple way.',
-        date: '2023-05-20'
-      }
+      { id: 'slot1', date: '2023-06-15', startTime: '10:00', endTime: '10:45', isBooked: false },
+      { id: 'slot2', date: '2023-06-15', startTime: '11:00', endTime: '11:45', isBooked: false },
+      { id: 'slot3', date: '2023-06-16', startTime: '14:00', endTime: '14:45', isBooked: false },
+      { id: 'slot4', date: '2023-06-16', startTime: '15:00', endTime: '15:45', isBooked: false },
+      { id: 'slot5', date: '2023-06-17', startTime: '10:00', endTime: '10:45', isBooked: false },
+      { id: 'slot6', date: '2023-06-17', startTime: '11:00', endTime: '11:45', isBooked: false },
+    ]
+  },
+  {
+    id: '3',
+    email: 'alice.mentor@example.com',
+    name: 'Alice Mentor',
+    role: 'mentor',
+    profilePicture: 'https://randomuser.me/api/portraits/women/2.jpg',
+    expertise: ['Python', 'Data Science', 'Machine Learning'],
+    bio: 'Data scientist with expertise in machine learning and AI.',
+    sessionPrice: 90,
+    availability: [
+      { id: 'slot7', date: '2023-06-15', startTime: '13:00', endTime: '13:45', isBooked: false },
+      { id: 'slot8', date: '2023-06-15', startTime: '14:00', endTime: '14:45', isBooked: false },
+      { id: 'slot9', date: '2023-06-16', startTime: '10:00', endTime: '10:45', isBooked: false },
+      { id: 'slot10', date: '2023-06-16', startTime: '11:00', endTime: '11:45', isBooked: false },
     ]
   }
 ];
 
-// Get all users
+// Get all users (without passwords)
 export const getUsers = async (): Promise<User[]> => {
   return new Promise((resolve) => {
     setTimeout(() => {
-      resolve(users);
+      // Return users without passwords
+      const safeUsers = users.map(({ password, ...user }) => user);
+      resolve(safeUsers);
+    }, 500);
+  });
+};
+
+// Get all mentors
+export const getMentors = async (): Promise<Partial<Mentor>[]> => {
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      resolve(mentorProfiles);
+    }, 500);
+  });
+};
+
+// Get mentor by ID
+export const getMentorById = async (id: string): Promise<Partial<Mentor> | null> => {
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      const mentor = mentorProfiles.find((m) => m.id === id);
+      resolve(mentor || null);
     }, 300);
   });
 };
 
-// Get user by ID
+// Get mentor profile by ID (alias for getMentorById for backward compatibility)
+export const getMentorProfileById = async (id: string): Promise<Partial<Mentor> | null> => {
+  return getMentorById(id);
+};
+
+// Get user by ID (without password)
 export const getUserById = async (id: string): Promise<User | null> => {
   return new Promise((resolve) => {
     setTimeout(() => {
-      const user = users.find(u => u.id === id) || null;
-      resolve(user);
-    }, 300);
-  });
-};
-
-// Add new user
-export const addUser = async (userData: User): Promise<User> => {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      const newUser = {
-        ...userData,
-        id: uuidv4()
-      };
-      users = [...users, newUser];
-      resolve(newUser);
-    }, 300);
-  });
-};
-
-// Update user
-export const updateUser = async (id: string, userData: Partial<User>): Promise<User | null> => {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      const index = users.findIndex(u => u.id === id);
-      if (index !== -1) {
-        const updatedUser = { ...users[index], ...userData };
-        users = [...users.slice(0, index), updatedUser, ...users.slice(index + 1)];
-        resolve(updatedUser);
+      const user = users.find((u) => u.id === id);
+      if (user) {
+        // Return user without password
+        const { password, ...safeUser } = user;
+        resolve(safeUser);
       } else {
         resolve(null);
       }
@@ -164,51 +117,146 @@ export const updateUser = async (id: string, userData: Partial<User>): Promise<U
   });
 };
 
-// Get all mentor profiles
-export const getMentorProfiles = async (): Promise<MentorProfile[]> => {
-  return new Promise((resolve) => {
+// Login user
+export const loginUser = async (credentials: LoginCredentials): Promise<User> => {
+  return new Promise((resolve, reject) => {
     setTimeout(() => {
-      resolve(mentorProfiles);
-    }, 300);
-  });
-};
-
-// Get mentor profile by ID
-export const getMentorProfileById = async (id: string): Promise<MentorProfile | null> => {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      const profile = mentorProfiles.find(p => p.id === id) || null;
-      resolve(profile);
-    }, 300);
-  });
-};
-
-// Alias for getMentorProfileById to maintain compatibility
-export const getMentorProfile = getMentorProfileById;
-
-// Create or update mentor profile
-export const updateMentorProfile = async (id: string, profileData: Partial<MentorProfile>): Promise<MentorProfile | null> => {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      const index = mentorProfiles.findIndex(p => p.id === id);
-      if (index !== -1) {
-        const updatedProfile = { ...mentorProfiles[index], ...profileData };
-        mentorProfiles = [...mentorProfiles.slice(0, index), updatedProfile, ...mentorProfiles.slice(index + 1)];
-        resolve(updatedProfile);
+      const user = users.find((u) => u.email === credentials.email);
+      if (user && user.password === credentials.password) {
+        // Return user without password
+        const { password, ...safeUser } = user;
+        resolve(safeUser);
       } else {
-        // Create new profile if it doesn't exist
-        const newProfile = {
-          ...profileData,
-          id,
-          role: 'mentor',
-          availability: [],
-          portfolio: [],
-          reviews: [],
-          rating: 0
-        } as MentorProfile;
-        mentorProfiles = [...mentorProfiles, newProfile];
-        resolve(newProfile);
+        reject(new Error('Invalid email or password'));
       }
+    }, 500);
+  });
+};
+
+// Register user
+export const registerUser = async (userData: RegisterData): Promise<User> => {
+  return new Promise((resolve, reject) => {
+    setTimeout(() => {
+      // Check if user already exists
+      const existingUser = users.find((u) => u.email === userData.email);
+      if (existingUser) {
+        reject(new Error('User with this email already exists'));
+        return;
+      }
+
+      // Create new user with password
+      const newUser = {
+        id: String(users.length + 1),
+        email: userData.email,
+        name: userData.name,
+        role: userData.role,
+        password: userData.password
+      };
+
+      // Add to users array
+      users.push(newUser);
+
+      // If it's a mentor, create a mentor profile
+      if (userData.role === 'mentor') {
+        const newMentorProfile: Partial<Mentor> = {
+          id: newUser.id,
+          email: newUser.email,
+          name: newUser.name,
+          role: 'mentor',
+          expertise: [],
+          bio: '',
+          sessionPrice: 0,
+          availability: []
+        };
+        mentorProfiles.push(newMentorProfile);
+      }
+
+      // Return user without password
+      const { password, ...safeUser } = newUser;
+      resolve(safeUser);
+    }, 500);
+  });
+};
+
+// Update user profile
+export const updateUser = async (userId: string, profileData: Partial<User>): Promise<User> => {
+  return new Promise((resolve, reject) => {
+    setTimeout(() => {
+      const userIndex = users.findIndex((u) => u.id === userId);
+      if (userIndex === -1) {
+        reject(new Error('User not found'));
+        return;
+      }
+
+      // Update user data (preserving password)
+      const password = users[userIndex].password;
+      const updatedUser = { ...users[userIndex], ...profileData, password };
+      users[userIndex] = updatedUser;
+
+      // If it's a mentor, update mentor profile as well
+      if (updatedUser.role === 'mentor') {
+        const mentorIndex = mentorProfiles.findIndex((m) => m.id === userId);
+        if (mentorIndex !== -1) {
+          mentorProfiles[mentorIndex] = { ...mentorProfiles[mentorIndex], ...profileData };
+        }
+      }
+
+      // Return user without password
+      const { password: _, ...safeUser } = updatedUser;
+      resolve(safeUser);
+    }, 500);
+  });
+};
+
+// Update user profile (alias for updateUser for backward compatibility)
+export const updateUserProfile = async (userId: string, profileData: Partial<User>): Promise<User> => {
+  return updateUser(userId, profileData);
+};
+
+// Update mentor profile
+export const updateMentorProfile = async (mentorId: string, profileData: Partial<Mentor>): Promise<Partial<Mentor>> => {
+  return new Promise((resolve, reject) => {
+    setTimeout(() => {
+      const mentorIndex = mentorProfiles.findIndex((m) => m.id === mentorId);
+      if (mentorIndex === -1) {
+        reject(new Error('Mentor profile not found'));
+        return;
+      }
+
+      // Update mentor profile
+      const updatedProfile = { ...mentorProfiles[mentorIndex], ...profileData };
+      mentorProfiles[mentorIndex] = updatedProfile;
+
+      resolve(updatedProfile);
+    }, 500);
+  });
+};
+
+// Get current user from localStorage
+export const getCurrentUser = async (): Promise<User | null> => {
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      const userJson = localStorage.getItem('currentUser');
+      if (userJson) {
+        try {
+          const user = JSON.parse(userJson);
+          resolve(user);
+        } catch (error) {
+          resolve(null);
+        }
+      } else {
+        resolve(null);
+      }
+    }, 300);
+  });
+};
+
+// Logout user
+export const logoutUser = async (): Promise<void> => {
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      localStorage.removeItem('currentUser');
+      resolve();
     }, 300);
   });
 };
