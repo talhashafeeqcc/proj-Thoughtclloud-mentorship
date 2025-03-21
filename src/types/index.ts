@@ -7,9 +7,8 @@ export interface User {
     profilePicture?: string;
 }
 
-  export interface Availability {
+  export interface AvailabilitySlot {
     id: string;
-    date: string;
     startTime: string;
     endTime: string;
     isBooked: boolean;
@@ -55,7 +54,7 @@ export interface MentorProfile extends User {
     workExperience: WorkExperience[];
     certifications: Certification[];
     sessionPrice: number;
-    availability: Availability[];
+    availabilitySlots: AvailabilitySlot[];
     portfolio: PortfolioItem[];
     rating: number;
     reviews: Review[];
@@ -79,6 +78,7 @@ export interface Session {
   date: string;
   startTime: string;
   endTime: string;
-  status: 'upcoming' | 'completed' | 'cancelled'; // Example statuses
+  status: 'upcoming' | 'completed' | 'cancelled';
   title: string;
+  availabilitySlotId?: string;
 }

@@ -1,72 +1,63 @@
-import React, { useEffect, useState } from 'react';
-    import { getSessions } from '../../services/sessionService';
-    import { useAuth } from '../../context/AuthContext';
-    import { Session } from '../../types';
-    import SessionHistory from './SessionHistory';
-    import { Link } from 'react-router-dom';
+import React, { useState } from 'react';
+import AvailabilityCalendar from './AvailabilityCalendar';
+import BookingModal from '../BookingModal';
+import { AvailabilitySlot } from '../../types';
 
-    const MentorDashboard: React.FC = () => {
-      const { authState } = useAuth();
-      const [sessions, setSessions] = useState<Session[]>([]);
-      const [loading, setLoading] = useState(true);
-      const [error, setError] = useState<string | null>(null);
+const MentorDashboard: React.FC = () => {
+  const mentorId = '1'; // Replace with actual mentor ID
+  const mentorName = 'John Mentor'; // Replace with actual mentor name
+  const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
+  const [selectedSlot, setSelectedSlot] = useState<AvailabilitySlot | null>(null);
+  const [bookingSuccess, setBookingSuccess] = useState(false);
 
-      useEffect(() => {
-        const fetchSessions = async () => {
-          try {
-            if (authState.user?.id) {
-              const data = await getSessions(authState.user.id, 'mentor');
-              setSessions(data);
-            }
-          } catch (err: any) {
-            setError(err.message);
-          } finally {
-            setLoading(false);
-          }
-        };
 
-        fetchSessions();
-      }, [authState.user]);
+  const openBookingModal = () => {
+    setIsBookingModalOpen(true);
+    setBookingSuccess(false); // Reset success state when modal opens
+  };
 
-      if (loading) {
-        return <div>Loading sessions...</div>;
-      }
+  const closeBookingModal = () => {
+    setIsBookingModalOpen(false);
+    setSelectedSlot(null); // Clear selected slot when modal is closed
+  };
 
-      if (error) {
-        return <div>Error: {error}</div>;
-      }
+  const handleSlotSelect = (slot: AvailabilitySlot | null) => {
+    setSelectedSlot(slot);
+    if (slot) {
+      openBookingModal(); // Open booking modal when a slot is selected
+    }
+  };
 
-      const upcomingSessions = sessions.filter((session) => session.status === 'upcoming');
-      const pastSessions = sessions.filter((session) => session.status === 'completed' || session.status === 'cancelled');
+  const handleSessionBooked = (availabilitySlotId: string) => {
+    console.log('Session booked for slot ID:', availabilitySlotId);
+    setIsBookingModalOpen(false);
+    setSelectedSlot(null); // Clear selected slot after booking
+    setBookingSuccess(true);
+    setTimeout(() => {
+      setBookingSuccess(false); // Clear success message after a delay
+    }, 3000); // Success message disappears after 3 seconds
+  };
 
-      return (
-        <div>
-          <h1 className="text-2xl font-bold mb-4">Mentor Dashboard</h1>
-          <h2 className="text-xl font-semibold mb-2">Upcoming Sessions</h2>
-          {upcomingSessions.length === 0 ? (
-            <p>No upcoming sessions.</p>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {upcomingSessions.map((session) => (
-                <div key={session.id} className="bg-white rounded-lg shadow-md p-4">
-                  <h3 className="text-lg font-semibold">{session.title}</h3>
-                  <p className="text-gray-600">
-                    Date: {session.date}
-                    <br />
-                    Time: {session.startTime} - {session.endTime}
-                    <br />
-                    Mentee: {session.menteeName}
-                    <br />
-                    Status: {session.status}
-                  </p>
-                  <Link to={`/sessions/${session.id}`} className="text-blue-500 hover:underline">View Details</Link>
-                </div>
-              ))}
-            </div>
-          )}
-          <SessionHistory sessions={pastSessions} />
-        </div>
-      );
-    };
 
-    export default MentorDashboard;
+  return (
+    <div className="p-4">
+      <h2 className="text-2xl font-semibold mb-4">Mentor Dashboard</h2>
+      <AvailabilityCalendar mentorId={mentorId} onSlotSelect={handleSlotSelect} />
+
+      {selectedSlot && (
+        <BookingModal
+          show={isBookingModalOpen}
+          onClose={closeBookingModal}
+          mentorId={mentorId}
+          mentorName={mentorName}
+          onBook={handleSessionBooked}
+          selectedSlot={selectedSlot} // Pass the entire selectedSlot object
+        />
+      )}
+
+      {bookingSuccess && <div className="mt-4 text-green-600">Session booked successfully!</div>}
+    </div>
+  );
+};
+
+export default MentorDashboard;

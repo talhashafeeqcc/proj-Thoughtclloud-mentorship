@@ -1,143 +1,130 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { getMentorProfileById } from '../../services/userService';
-import { MentorProfile as IProfile, Session } from '../../types';
-import { bookSession } from '../../services/sessionService';
-import { useAuth } from '../../context/AuthContext';
+import { getMentor } from '../../services/userService';
+import { MentorProfile } from '../../types';
 import BookingModal from '../BookingModal';
 
-const MentorProfile: React.FC<{ mentor?: IProfile }> = ({ mentor: propsMentor }) => {
+const MentorProfileComponent: React.FC = () => {
   const { id } = useParams<{ id: string }>();
-  const [mentor, setMentor] = useState<IProfile | null>(propsMentor || null);
-  const [loading, setLoading] = useState(!propsMentor);
+  const [mentor, setMentor] = useState<MentorProfile | null>(null);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [showModal, setShowModal] = useState(false);
+  const [showBookingModal, setShowBookingModal] = useState(false);
   const [bookingSuccess, setBookingSuccess] = useState(false);
-  const [bookingError, setBookingError] = useState<string | null>(null);
-  const { authState } = useAuth();
+
 
   useEffect(() => {
-    // If mentor is provided via props, use that
-    if (propsMentor) {
-      setMentor(propsMentor);
-      setLoading(false);
-      return;
-    }
-
-    // Otherwise fetch mentor data
     const fetchMentor = async () => {
-      try {
-        if (id) {
-          const data = await getMentorProfileById(id);
-          setMentor(data);
+      if (id) {
+        try {
+          setLoading(true);
+          const mentorData = await getMentor(id);
+          setMentor(mentorData);
+        } catch (err: any) {
+          setError(err.message);
+        } finally {
+          setLoading(false);
         }
-      } catch (err: any) {
-        setError(err.message);
-      } finally {
-        setLoading(false);
       }
     };
 
     fetchMentor();
-  }, [id, propsMentor]);
+  }, [id]);
 
-  const handleBookSession = async (date: string, startTime: string, endTime: string) => {
-    if (!authState.user) {
-      setBookingError('You must be logged in to book a session.');
-      setShowModal(false);
-      return;
-    }
-
-    if (!mentor) {
-      setBookingError('Mentor data not loaded.');
-      setShowModal(false);
-      return;
-    }
-
-    const newSession: Omit<Session, 'id'> = {
-      mentorId: mentor.id,
-      menteeId: authState.user.id,
-      mentorName: mentor.name,
-      menteeName: authState.user.name,
-      date,
-      startTime,
-      endTime,
-      status: 'upcoming',
-      title: `Session with ${mentor.name}`,
-    };
-
-    try {
-      const session = await bookSession(newSession);
-      console.log('Booked session:', session);
-      setBookingSuccess(true);
-      setShowModal(false);
-    } catch (error: any) {
-      setBookingError(error.message);
-    }
+  const handleBookSession = () => {
+    setShowBookingModal(true);
+    setBookingSuccess(false); // Reset success state when modal opens
   };
 
+  const closeBookingModal = () => {
+    setShowBookingModal(false);
+  };
+
+  const handleSessionBooked = (availabilitySlotId: string) => {
+    console.log('Session booked for slot ID:', availabilitySlotId);
+    setShowBookingModal(false);
+    setBookingSuccess(true);
+    setTimeout(() => {
+      setBookingSuccess(false); // Clear success message after a delay
+    }, 3000); // Success message disappears after 3 seconds
+  };
+
+
   if (loading) {
-    return <div>Loading profile...</div>;
+    return <div>Loading mentor profile...</div>;
   }
 
-  if (error) {
-    return <div>Error: {error}</div>;
-  }
-
-  if (!mentor) {
-    return <div>Mentor not found.</div>;
+  if (error || !mentor) {
+    return <div>Error loading mentor profile: {error}</div>;
   }
 
   return (
-    <div>
-      <h1 className="text-2xl font-bold mb-4">{mentor.name}</h1>
-      <img src={mentor.profilePicture || 'https://via.placeholder.com/150'} alt={mentor.name} className="w-40 h-40 object-cover rounded-full mb-4" />
-      <p className="text-gray-600 mb-2">Expertise: {mentor.expertise?.join(', ') || 'No expertise listed'}</p>
-      <p className="mb-4">Bio: {mentor.bio || 'No bio available.'}</p>
-      <h2 className="text-xl font-semibold mb-2">Education</h2>
-      {mentor.education && mentor.education.length > 0 ? (
+    <div className="bg-white p-8 rounded-lg shadow-md">
+      <div className="flex items-center mb-6">
+        <img className="w-24 h-24 rounded-full object-cover mr-4" src={mentor.profilePicture || 'https://via.placeholder.com/150'} alt={mentor.name} />
+        <div>
+          <h2 className="text-2xl font-bold">{mentor.name}</h2>
+          <p className="text-gray-700">{mentor.expertise.join(', ')}</p>
+        </div>
+      </div>
+
+      <div className="mb-6">
+        <h3 className="text-xl font-semibold mb-2">About Me</h3>
+        <p className="text-gray-800">{mentor.bio}</p>
+      </div>
+
+      <div className="mb-6">
+        <h3 className="text-xl font-semibold mb-2">Education</h3>
         <ul>
-          {mentor.education.map((edu) => (
+          {mentor.education.map(edu => (
             <li key={edu.id} className="mb-2">
-              {edu.degree} in {edu.fieldOfStudy} at {edu.institution} ({edu.from} - {edu.to})
+              <strong>{edu.degree}</strong> in {edu.fieldOfStudy} from {edu.institution} ({edu.from} - {edu.to})
             </li>
           ))}
         </ul>
-      ) : (
-        <p>No education information available.</p>
-      )}
-      <h2 className="text-xl font-semibold mb-2">Work Experience</h2>
-      {mentor.workExperience && mentor.workExperience.length > 0 ? (
+      </div>
+
+      <div className="mb-6">
+        <h3 className="text-xl font-semibold mb-2">Work Experience</h3>
         <ul>
-          {mentor.workExperience.map((work) => (
-            <li key={work.id} className="mb-2">
-              {work.position} at {work.company} ({work.from} - {work.to || 'Present'})
+          {mentor.workExperience.map(exp => (
+            <li key={exp.id} className="mb-2">
+              <strong>{exp.position}</strong> at {exp.company} ({exp.from} - {exp.to || 'Present'})
             </li>
           ))}
         </ul>
-      ) : (
-        <p>No work experience information available.</p>
-      )}
+      </div>
 
-      <button onClick={() => setShowModal(true)} className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
-        Book Session
-      </button>
+      <div className="mb-6">
+        <h3 className="text-xl font-semibold mb-2">Certifications</h3>
+        <ul>
+          {mentor.certifications.map(cert => (
+            <li key={cert.id} className="mb-2">
+              {cert.name} from {cert.organization} (Issued on {cert.issueDate})
+            </li>
+          ))}
+        </ul>
+      </div>
 
-      {bookingSuccess && (
-        <div className="mt-2 text-green-600">Session booked successfully!</div>
-      )}
-      {bookingError && (
-        <div className="mt-2 text-red-600">{bookingError}</div>
-      )}
+      <div>
+        <button
+          onClick={handleBookSession}
+          className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
+        >
+          Book a Session
+        </button>
+        {bookingSuccess && <div className="mt-2 text-green-600">Session booked successfully!</div>}
+      </div>
 
       <BookingModal
-        show={showModal}
-        onClose={() => setShowModal(false)}
-        onBook={handleBookSession}
+        show={showBookingModal}
+        onClose={closeBookingModal}
+        mentorId={mentor.id}
         mentorName={mentor.name}
+        onBook={handleSessionBooked}
       />
     </div>
   );
 };
 
-export default MentorProfile;
+export default MentorProfileComponent;

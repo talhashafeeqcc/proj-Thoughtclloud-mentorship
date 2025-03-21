@@ -1,4 +1,12 @@
-import { Session } from '../types';
+import { Session, AvailabilitySlot } from '../types';
+
+    // Mock availability slots data
+    const availabilitySlots: AvailabilitySlot[] = [
+      { id: 'as-1', startTime: '10:00', endTime: '10:45', isBooked: false },
+      { id: 'as-2', startTime: '11:00', endTime: '11:45', isBooked: false },
+      { id: 'as-3', startTime: '14:00', endTime: '14:45', isBooked: false },
+      { id: 'as-4', startTime: '15:00', endTime: '15:45', isBooked: false },
+    ];
 
     // Mock session data
     let sessions: Session[] = [
@@ -13,6 +21,7 @@ import { Session } from '../types';
         endTime: '10:45',
         status: 'upcoming',
         title: 'React Fundamentals',
+        availabilitySlotId: 'as-1',
       },
       {
         id: '2',
@@ -25,6 +34,7 @@ import { Session } from '../types';
         endTime: '14:45',
         status: 'upcoming',
         title: 'Advanced State Management',
+        availabilitySlotId: 'as-3',
       },
       {
         id: '3',
@@ -37,6 +47,7 @@ import { Session } from '../types';
         endTime: '11:45',
         status: 'completed',
         title: 'Career Advice',
+        availabilitySlotId: 'as-2',
       },
     ];
 
@@ -60,10 +71,23 @@ import { Session } from '../types';
             return;
           }
 
-          if (!newSession.date || !newSession.startTime || !newSession.endTime) {
-            reject(new Error('Date, start time, and end time are required.'));
+          if (!newSession.availabilitySlotId) {
+            reject(new Error('Please select an availability slot.'));
             return;
           }
+
+          const selectedSlot = availabilitySlots.find(slot => slot.id === newSession.availabilitySlotId);
+
+          if (!selectedSlot) {
+            reject(new Error('Invalid availability slot selected.'));
+            return;
+          }
+
+          if (selectedSlot.isBooked) {
+            reject(new Error('This slot is already booked.'));
+            return;
+          }
+
 
           const mentorExists = sessions.some((session) => session.mentorId === newSession.mentorId);
           const menteeExists = sessions.some((session) => session.menteeId === newSession.menteeId);
@@ -86,13 +110,26 @@ import { Session } from '../types';
               endTime: '00:00',
               status: 'completed',
               title: 'Dummy Session',
+              availabilitySlotId: 'as-1' //dummy
             });
           }
+
+          // Mark the slot as booked
+          selectedSlot.isBooked = true;
 
           const id = String(Math.max(...sessions.map((s) => Number(s.id)), 0) + 1);
           const session = { id, ...newSession };
           sessions.push(session);
           resolve(session);
         }, 500);
+      });
+    };
+
+    export const getMentorAvailability = async (mentorId: string): Promise<AvailabilitySlot[]> => {
+      return new Promise((resolve) => {
+        setTimeout(() => {
+          // For now, return all slots. In a real app, you'd filter by mentorId and date.
+          resolve(availabilitySlots.filter(slot => !slot.isBooked));
+        }, 200);
       });
     };
