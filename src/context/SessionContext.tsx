@@ -1,7 +1,13 @@
-import React, { createContext, useContext, useReducer, useEffect } from 'react';
-import { Session } from '../types';
-import { getSessions, createSession, updateSession, cancelSession } from '../services/sessionService';
-import { useAuth } from './AuthContext';
+import React, { createContext, useContext, useReducer, useEffect } from "react";
+import { Session } from "../types";
+import {
+  getSessions,
+  createSession,
+  updateSession,
+  cancelSession,
+} from "../services/sessionService";
+import { useAuth } from "./AuthContext";
+import { getDatabase } from "../services/database/db";
 
 // Define the context state type
 interface SessionState {
@@ -14,8 +20,13 @@ interface SessionState {
 interface SessionContextType {
   sessionState: SessionState;
   fetchUserSessions: () => Promise<void>;
-  bookSession: (sessionData: Omit<Session, 'id' | 'status' | 'paymentStatus'>) => Promise<Session>;
-  updateSessionDetails: (id: string, updates: Partial<Session>) => Promise<Session>;
+  bookSession: (
+    sessionData: Omit<Session, "id" | "status" | "paymentStatus">
+  ) => Promise<Session>;
+  updateSessionDetails: (
+    id: string,
+    updates: Partial<Session>
+  ) => Promise<Session>;
   cancelUserSession: (id: string) => Promise<void>;
 }
 
@@ -24,11 +35,22 @@ const SessionContext = createContext<SessionContextType | undefined>(undefined);
 
 // Define action types
 type SessionAction =
-  | { type: 'FETCH_SESSIONS_START' | 'BOOK_SESSION_START' | 'UPDATE_SESSION_START' | 'CANCEL_SESSION_START' }
-  | { type: 'FETCH_SESSIONS_SUCCESS'; payload: Session[] }
-  | { type: 'BOOK_SESSION_SUCCESS' | 'UPDATE_SESSION_SUCCESS'; payload: Session }
-  | { type: 'CANCEL_SESSION_SUCCESS'; payload: string }
-  | { type: 'SESSION_ERROR'; payload: string };
+  | {
+      type:
+        | "FETCH_SESSIONS_START"
+        | "BOOK_SESSION_START"
+        | "UPDATE_SESSION_START"
+        | "CANCEL_SESSION_START"
+        | "INIT_DB_START";
+    }
+  | { type: "FETCH_SESSIONS_SUCCESS"; payload: Session[] }
+  | {
+      type: "BOOK_SESSION_SUCCESS" | "UPDATE_SESSION_SUCCESS";
+      payload: Session;
+    }
+  | { type: "CANCEL_SESSION_SUCCESS"; payload: string }
+  | { type: "INIT_DB_SUCCESS" }
+  | { type: "SESSION_ERROR"; payload: string };
 
 // Initial state
 const initialState: SessionState = {
@@ -38,32 +60,41 @@ const initialState: SessionState = {
 };
 
 // Reducer function
-const sessionReducer = (state: SessionState, action: SessionAction): SessionState => {
+const sessionReducer = (
+  state: SessionState,
+  action: SessionAction
+): SessionState => {
   switch (action.type) {
-    case 'FETCH_SESSIONS_START':
-    case 'BOOK_SESSION_START':
-    case 'UPDATE_SESSION_START':
-    case 'CANCEL_SESSION_START':
+    case "INIT_DB_START":
+    case "FETCH_SESSIONS_START":
+    case "BOOK_SESSION_START":
+    case "UPDATE_SESSION_START":
+    case "CANCEL_SESSION_START":
       return {
         ...state,
         loading: true,
         error: null,
       };
-    case 'FETCH_SESSIONS_SUCCESS':
+    case "INIT_DB_SUCCESS":
+      return {
+        ...state,
+        loading: false,
+      };
+    case "FETCH_SESSIONS_SUCCESS":
       return {
         ...state,
         sessions: action.payload,
         loading: false,
         error: null,
       };
-    case 'BOOK_SESSION_SUCCESS':
+    case "BOOK_SESSION_SUCCESS":
       return {
         ...state,
         sessions: [...state.sessions, action.payload],
         loading: false,
         error: null,
       };
-    case 'UPDATE_SESSION_SUCCESS':
+    case "UPDATE_SESSION_SUCCESS":
       return {
         ...state,
         sessions: state.sessions.map((session) =>
@@ -72,16 +103,18 @@ const sessionReducer = (state: SessionState, action: SessionAction): SessionStat
         loading: false,
         error: null,
       };
-    case 'CANCEL_SESSION_SUCCESS':
+    case "CANCEL_SESSION_SUCCESS":
       return {
         ...state,
         sessions: state.sessions.map((session) =>
-          session.id === action.payload ? { ...session, status: 'cancelled' } : session
+          session.id === action.payload
+            ? { ...session, status: "cancelled" }
+            : session
         ),
         loading: false,
         error: null,
       };
-    case 'SESSION_ERROR':
+    case "SESSION_ERROR":
       return {
         ...state,
         loading: false,
@@ -93,10 +126,37 @@ const sessionReducer = (state: SessionState, action: SessionAction): SessionStat
 };
 
 // Provider component
-export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({
+  children,
+}) => {
   const [sessionState, dispatch] = useReducer(sessionReducer, initialState);
   const { authState } = useAuth();
   const { user } = authState;
+
+  // Initialize database connection
+  useEffect(() => {
+    const initDb = async () => {
+      dispatch({ type: "INIT_DB_START" });
+      try {
+        await getDatabase();
+        dispatch({ type: "INIT_DB_SUCCESS" });
+      } catch (error) {
+        console.error(
+          "Failed to initialize database in SessionContext:",
+          error
+        );
+        dispatch({
+          type: "SESSION_ERROR",
+          payload:
+            error instanceof Error
+              ? error.message
+              : "Failed to initialize database",
+        });
+      }
+    };
+
+    initDb();
+  }, []);
 
   // Fetch user sessions when user changes
   useEffect(() => {
@@ -109,49 +169,57 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const fetchUserSessions = async () => {
     if (!user) return;
 
-    dispatch({ type: 'FETCH_SESSIONS_START' });
+    dispatch({ type: "FETCH_SESSIONS_START" });
     try {
       const sessions = await getSessions(user.id);
-      dispatch({ type: 'FETCH_SESSIONS_SUCCESS', payload: sessions });
+      dispatch({ type: "FETCH_SESSIONS_SUCCESS", payload: sessions });
     } catch (error) {
       dispatch({
-        type: 'SESSION_ERROR',
-        payload: error instanceof Error ? error.message : 'Failed to fetch sessions',
+        type: "SESSION_ERROR",
+        payload:
+          error instanceof Error ? error.message : "Failed to fetch sessions",
       });
     }
   };
 
   // Book a session
-  const bookSession = async (sessionData: Omit<Session, 'id' | 'status' | 'paymentStatus'>): Promise<Session> => {
-    dispatch({ type: 'BOOK_SESSION_START' });
+  const bookSession = async (
+    sessionData: Omit<Session, "id" | "status" | "paymentStatus">
+  ): Promise<Session> => {
+    dispatch({ type: "BOOK_SESSION_START" });
     try {
       const newSession = await createSession({
         ...sessionData,
-        status: 'scheduled',
-        paymentStatus: 'pending',
+        status: "scheduled",
+        paymentStatus: "pending",
       });
-      dispatch({ type: 'BOOK_SESSION_SUCCESS', payload: newSession });
+      dispatch({ type: "BOOK_SESSION_SUCCESS", payload: newSession });
       return newSession;
     } catch (error) {
       dispatch({
-        type: 'SESSION_ERROR',
-        payload: error instanceof Error ? error.message : 'Failed to book session',
+        type: "SESSION_ERROR",
+        payload:
+          error instanceof Error ? error.message : "Failed to book session",
       });
       throw error;
     }
   };
 
   // Update session details
-  const updateSessionDetails = async (id: string, updates: Partial<Session>): Promise<Session> => {
-    dispatch({ type: 'UPDATE_SESSION_START' });
+  const updateSessionDetails = async (
+    id: string,
+    updates: Partial<Session>
+  ): Promise<Session> => {
+    dispatch({ type: "UPDATE_SESSION_START" });
     try {
       const updatedSession = await updateSession(id, updates);
-      dispatch({ type: 'UPDATE_SESSION_SUCCESS', payload: updatedSession });
+      dispatch({ type: "UPDATE_SESSION_SUCCESS", payload: updatedSession });
       return updatedSession;
     } catch (error) {
       dispatch({
-        type: 'SESSION_ERROR',
-        payload: error instanceof Error ? error.message : 'Failed to update session',
+        type: "SESSION_ERROR",
+        payload:
+          error instanceof Error ? error.message : "Failed to update session",
       });
       throw error;
     }
@@ -159,14 +227,15 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   // Cancel a session
   const cancelUserSession = async (id: string): Promise<void> => {
-    dispatch({ type: 'CANCEL_SESSION_START' });
+    dispatch({ type: "CANCEL_SESSION_START" });
     try {
       await cancelSession(id);
-      dispatch({ type: 'CANCEL_SESSION_SUCCESS', payload: id });
+      dispatch({ type: "CANCEL_SESSION_SUCCESS", payload: id });
     } catch (error) {
       dispatch({
-        type: 'SESSION_ERROR',
-        payload: error instanceof Error ? error.message : 'Failed to cancel session',
+        type: "SESSION_ERROR",
+        payload:
+          error instanceof Error ? error.message : "Failed to cancel session",
       });
       throw error;
     }
@@ -181,14 +250,18 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
     cancelUserSession,
   };
 
-  return <SessionContext.Provider value={contextValue}>{children}</SessionContext.Provider>;
+  return (
+    <SessionContext.Provider value={contextValue}>
+      {children}
+    </SessionContext.Provider>
+  );
 };
 
 // Custom hook to use the session context
 export const useSession = (): SessionContextType => {
   const context = useContext(SessionContext);
   if (context === undefined) {
-    throw new Error('useSession must be used within a SessionProvider');
+    throw new Error("useSession must be used within a SessionProvider");
   }
   return context;
 };

@@ -1,247 +1,434 @@
-import { User, Mentor, Mentee, LoginCredentials, RegisterData } from '../types';
+import { User, Mentor, LoginCredentials, RegisterData } from "../types";
+import { getDatabase } from "./database/db";
+import { v4 as uuidv4 } from "uuid";
+import { getMentorByUserId } from "./mentorService";
+import type { RxDocument } from "rxdb";
 
-// Mock user data with passwords (for demo purposes only - in a real app, passwords would be hashed and not stored like this)
-const users = [
-  {
-    id: '1',
-    email: 'john.mentor@example.com',
-    name: 'John Mentor',
-    role: 'mentor' as const,
-    profilePicture: 'https://randomuser.me/api/portraits/men/1.jpg',
-    password: 'password123' // In a real app, this would be hashed
-  },
-  {
-    id: '2',
-    email: 'jane.mentee@example.com',
-    name: 'Jane Mentee',
-    role: 'mentee' as const,
-    profilePicture: 'https://randomuser.me/api/portraits/women/1.jpg',
-    password: 'password123'
-  },
-  {
-    id: '3',
-    email: 'alice.mentor@example.com',
-    name: 'Alice Mentor',
-    role: 'mentor' as const,
-    profilePicture: 'https://randomuser.me/api/portraits/women/2.jpg',
-    password: 'password123'
-  }
-];
+// Define document interfaces
+interface UserDocument {
+  id: string;
+  email: string;
+  name: string;
+  role: string;
+  password: string;
+  profilePicture?: string;
+  createdAt: number;
+  updatedAt: number;
+  toJSON: () => UserDocument;
+}
 
-// Mock mentor profiles
-const mentorProfiles: Partial<Mentor>[] = [
-  {
-    id: '1',
-    email: 'john.mentor@example.com',
-    name: 'John Mentor',
-    role: 'mentor',
-    profilePicture: 'https://randomuser.me/api/portraits/men/1.jpg',
-    expertise: ['React', 'JavaScript', 'Node.js'],
-    bio: 'Senior developer with 10+ years of experience in web development.',
-    sessionPrice: 75,
-    availability: [
-      { id: 'slot1', date: '2023-06-15', startTime: '10:00', endTime: '10:45', isBooked: false },
-      { id: 'slot2', date: '2023-06-15', startTime: '11:00', endTime: '11:45', isBooked: false },
-      { id: 'slot3', date: '2023-06-16', startTime: '14:00', endTime: '14:45', isBooked: false },
-      { id: 'slot4', date: '2023-06-16', startTime: '15:00', endTime: '15:45', isBooked: false },
-      { id: 'slot5', date: '2023-06-17', startTime: '10:00', endTime: '10:45', isBooked: false },
-      { id: 'slot6', date: '2023-06-17', startTime: '11:00', endTime: '11:45', isBooked: false },
-    ]
-  },
-  {
-    id: '3',
-    email: 'alice.mentor@example.com',
-    name: 'Alice Mentor',
-    role: 'mentor',
-    profilePicture: 'https://randomuser.me/api/portraits/women/2.jpg',
-    expertise: ['Python', 'Data Science', 'Machine Learning'],
-    bio: 'Data scientist with expertise in machine learning and AI.',
-    sessionPrice: 90,
-    availability: [
-      { id: 'slot7', date: '2023-06-15', startTime: '13:00', endTime: '13:45', isBooked: false },
-      { id: 'slot8', date: '2023-06-15', startTime: '14:00', endTime: '14:45', isBooked: false },
-      { id: 'slot9', date: '2023-06-16', startTime: '10:00', endTime: '10:45', isBooked: false },
-      { id: 'slot10', date: '2023-06-16', startTime: '11:00', endTime: '11:45', isBooked: false },
-    ]
-  }
-];
+interface MentorDocument {
+  id: string;
+  userId: string;
+  expertise: string[];
+  bio: string;
+  sessionPrice: number;
+  yearsOfExperience?: number;
+  portfolio: any[];
+  certifications: any[];
+  education: any[];
+  workExperience: any[];
+  createdAt: number;
+  updatedAt: number;
+  toJSON: () => MentorDocument;
+}
+
+// Simple password comparison function
+// In a real app, you would use bcrypt.compare or similar
+const comparePasswords = (plain: string, hashed: string): boolean => {
+  // Check if the hashed password starts with our mock prefix
+  return hashed.startsWith(`hashed_${plain}_`);
+};
 
 // Get all users (without passwords)
 export const getUsers = async (): Promise<User[]> => {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      // Return users without passwords
-      const safeUsers = users.map(({ password, ...user }) => user);
-      resolve(safeUsers);
-    }, 500);
-  });
+  try {
+    const db = await getDatabase();
+    const users = await db.users.find().exec();
+
+    // Return users without passwords
+    return users.map((user: RxDocument<UserDocument>) => {
+      const { password, ...safeUser } = user.toJSON();
+      return safeUser as User;
+    });
+  } catch (error) {
+    console.error("Error fetching users:", error);
+    throw error;
+  }
 };
 
-// Get all mentors
+// Get all mentors with their profiles
 export const getMentors = async (): Promise<Partial<Mentor>[]> => {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      resolve(mentorProfiles);
-    }, 500);
-  });
+  try {
+    const db = await getDatabase();
+    const mentorProfiles = await db.mentors.find().exec();
+    const userProfiles = await db.users
+      .find({
+        selector: {
+          role: "mentor",
+        },
+      })
+      .exec();
+
+    // Map user data to mentor profiles
+    return await Promise.all(
+      mentorProfiles.map(async (mentorDoc: RxDocument<MentorDocument>) => {
+        const mentor = mentorDoc.toJSON();
+        const userDoc = userProfiles.find(
+          (u: RxDocument<UserDocument>) => u.id === mentor.userId
+        );
+
+        if (!userDoc) return mentor;
+
+        const user = userDoc.toJSON();
+        const { password, ...safeUser } = user;
+
+        // Combine user and mentor data
+        return {
+          ...mentor,
+          email: safeUser.email,
+          name: safeUser.name,
+          role: safeUser.role,
+          profilePicture: safeUser.profilePicture,
+        };
+      })
+    );
+  } catch (error) {
+    console.error("Error fetching mentors:", error);
+    throw error;
+  }
 };
 
 // Get mentor by ID
-export const getMentorById = async (id: string): Promise<Partial<Mentor> | null> => {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      const mentor = mentorProfiles.find((m) => m.id === id);
-      resolve(mentor || null);
-    }, 300);
-  });
+export const getMentorById = async (
+  id: string
+): Promise<Partial<Mentor> | null> => {
+  try {
+    const db = await getDatabase();
+    const mentorDoc = await db.mentors.findOne(id).exec();
+
+    if (!mentorDoc) return null;
+
+    const mentor = mentorDoc.toJSON();
+    const userDoc = await db.users.findOne(mentor.userId).exec();
+
+    if (!userDoc) return mentor;
+
+    const user = userDoc.toJSON();
+    const { password, ...safeUser } = user;
+
+    // Combine user and mentor data
+    return {
+      ...mentor,
+      email: safeUser.email,
+      name: safeUser.name,
+      role: safeUser.role,
+      profilePicture: safeUser.profilePicture,
+    };
+  } catch (error) {
+    console.error("Error fetching mentor by ID:", error);
+    throw error;
+  }
 };
 
 // Get mentor profile by ID (alias for getMentorById for backward compatibility)
-export const getMentorProfileById = async (id: string): Promise<Partial<Mentor> | null> => {
+export const getMentorProfileById = async (
+  id: string
+): Promise<Partial<Mentor> | null> => {
   return getMentorById(id);
 };
 
 // Get user by ID (without password)
 export const getUserById = async (id: string): Promise<User | null> => {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      const user = users.find((u) => u.id === id);
-      if (user) {
-        // Return user without password
-        const { password, ...safeUser } = user;
-        resolve(safeUser);
-      } else {
-        resolve(null);
-      }
-    }, 300);
-  });
+  try {
+    const db = await getDatabase();
+    const userDoc = await db.users.findOne(id).exec();
+
+    if (!userDoc) return null;
+
+    const user = userDoc.toJSON();
+    const { password, ...safeUser } = user;
+    return safeUser as User;
+  } catch (error) {
+    console.error("Error fetching user by ID:", error);
+    throw error;
+  }
 };
 
 // Login user
-export const loginUser = async (credentials: LoginCredentials): Promise<User> => {
-  return new Promise((resolve, reject) => {
-    setTimeout(() => {
-      const user = users.find((u) => u.email === credentials.email);
-      if (user && user.password === credentials.password) {
-        // Return user without password
-        const { password, ...safeUser } = user;
-        resolve(safeUser);
-      } else {
-        reject(new Error('Invalid email or password'));
-      }
-    }, 500);
-  });
+export const loginUser = async (
+  credentials: LoginCredentials
+): Promise<User> => {
+  try {
+    const db = await getDatabase();
+    const users = await db.users
+      .find({
+        selector: {
+          email: credentials.email,
+        },
+      })
+      .exec();
+
+    if (users.length === 0) {
+      throw new Error("Invalid email or password");
+    }
+
+    const user = users[0].toJSON();
+
+    // Compare password
+    if (!comparePasswords(credentials.password, user.password)) {
+      throw new Error("Invalid email or password");
+    }
+
+    // Return user without password
+    const { password, ...safeUser } = user;
+    return safeUser as User;
+  } catch (error) {
+    console.error("Error during login:", error);
+    throw error;
+  }
 };
+
+// Extended RegisterData with optional profilePicture
+interface ExtendedRegisterData extends RegisterData {
+  profilePicture?: string;
+}
 
 // Register user
 export const registerUser = async (userData: RegisterData): Promise<User> => {
-  return new Promise((resolve, reject) => {
-    setTimeout(() => {
-      // Check if user already exists
-      const existingUser = users.find((u) => u.email === userData.email);
-      if (existingUser) {
-        reject(new Error('User with this email already exists'));
-        return;
-      }
+  try {
+    const db = await getDatabase();
 
-      // Create new user with password
-      const newUser = {
-        id: String(users.length + 1),
-        email: userData.email,
-        name: userData.name,
-        role: userData.role,
-        password: userData.password
+    // Check if user already exists
+    const existingUsers = await db.users
+      .find({
+        selector: {
+          email: userData.email,
+        },
+      })
+      .exec();
+
+    if (existingUsers.length > 0) {
+      throw new Error("User with this email already exists");
+    }
+
+    // Generate a unique ID
+    const userId = uuidv4();
+    const now = Date.now();
+
+    // Create new user with hashed password
+    const newUser = {
+      id: userId,
+      email: userData.email,
+      name: userData.name,
+      role: userData.role,
+      password: `hashed_${userData.password}_${now}`, // In real app, use proper hashing
+      profilePicture: (userData as ExtendedRegisterData).profilePicture || "",
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    // Insert user
+    await db.users.insert(newUser);
+
+    // If it's a mentor, create a mentor profile
+    if (userData.role === "mentor") {
+      const newMentorProfile = {
+        id: uuidv4(),
+        userId: userId,
+        expertise: [],
+        bio: "",
+        sessionPrice: 0,
+        yearsOfExperience: 0,
+        portfolio: [],
+        certifications: [],
+        education: [],
+        workExperience: [],
+        createdAt: now,
+        updatedAt: now,
       };
 
-      // Add to users array
-      users.push(newUser);
+      await db.mentors.insert(newMentorProfile);
+    }
 
-      // If it's a mentor, create a mentor profile
-      if (userData.role === 'mentor') {
-        const newMentorProfile: Partial<Mentor> = {
-          id: newUser.id,
-          email: newUser.email,
-          name: newUser.name,
-          role: 'mentor',
-          expertise: [],
-          bio: '',
-          sessionPrice: 0,
-          availability: []
-        };
-        mentorProfiles.push(newMentorProfile);
-      }
+    // If it's a mentee, create a mentee profile
+    if (userData.role === "mentee") {
+      const newMenteeProfile = {
+        id: uuidv4(),
+        userId: userId,
+        interests: [],
+        bio: "",
+        goals: [],
+        currentPosition: "",
+        createdAt: now,
+        updatedAt: now,
+      };
 
-      // Return user without password
-      const { password, ...safeUser } = newUser;
-      resolve(safeUser);
-    }, 500);
-  });
+      await db.mentees.insert(newMenteeProfile);
+    }
+
+    // Return user without password
+    const { password, ...safeUser } = newUser;
+    return safeUser as User;
+  } catch (error) {
+    console.error("Error during registration:", error);
+    throw error;
+  }
 };
 
 // Update user profile
-export const updateUser = async (userId: string, profileData: Partial<User>): Promise<User> => {
-  return new Promise((resolve, reject) => {
-    setTimeout(() => {
-      const userIndex = users.findIndex((u) => u.id === userId);
-      if (userIndex === -1) {
-        reject(new Error('User not found'));
-        return;
-      }
+export const updateUser = async (
+  userId: string,
+  profileData: Partial<User>
+): Promise<User> => {
+  try {
+    const db = await getDatabase();
+    const userDoc = await db.users.findOne(userId).exec();
 
-      // Update user data (preserving password)
-      const password = users[userIndex].password;
-      const updatedUser = { ...users[userIndex], ...profileData, password };
-      users[userIndex] = updatedUser;
+    if (!userDoc) {
+      throw new Error("User not found");
+    }
 
-      // If it's a mentor, update mentor profile as well
-      if (updatedUser.role === 'mentor') {
-        const mentorIndex = mentorProfiles.findIndex((m) => m.id === userId);
-        if (mentorIndex !== -1) {
-          mentorProfiles[mentorIndex] = { ...mentorProfiles[mentorIndex], ...profileData };
-        }
-      }
+    const user = userDoc.toJSON();
 
-      // Return user without password
-      const { password: _, ...safeUser } = updatedUser;
-      resolve(safeUser);
-    }, 500);
-  });
+    // Update only allowed fields, preserving password and other fields
+    const updatedUser = {
+      ...user,
+      ...profileData,
+      password: user.password, // Preserve existing password
+      updatedAt: Date.now(),
+    };
+
+    // Save updated user
+    await userDoc.update({
+      $set: updatedUser,
+    });
+
+    // Return user without password
+    const { password, ...safeUser } = updatedUser;
+    return safeUser as User;
+  } catch (error) {
+    console.error("Error updating user:", error);
+    throw error;
+  }
 };
 
 // Update user profile (alias for updateUser for backward compatibility)
-export const updateUserProfile = async (userId: string, profileData: Partial<User>): Promise<User> => {
+export const updateUserProfile = async (
+  userId: string,
+  profileData: Partial<User>
+): Promise<User> => {
   return updateUser(userId, profileData);
 };
 
+// Extended Mentor type to include yearsOfExperience
+interface ExtendedMentor extends Partial<Mentor> {
+  yearsOfExperience?: number;
+}
+
 // Update mentor profile
-export const updateMentorProfile = async (mentorId: string, profileData: Partial<Mentor>): Promise<Partial<Mentor>> => {
-  return new Promise((resolve, reject) => {
-    setTimeout(() => {
-      const mentorIndex = mentorProfiles.findIndex((m) => m.id === mentorId);
-      if (mentorIndex === -1) {
-        reject(new Error('Mentor profile not found'));
-        return;
+export const updateMentorProfile = async (
+  userId: string,
+  profileData: ExtendedMentor
+): Promise<Partial<Mentor>> => {
+  try {
+    const db = await getDatabase();
+
+    // First get the mentor profile by user ID
+    const mentorDocs = await db.mentors
+      .find({
+        selector: {
+          userId: userId,
+        },
+      })
+      .exec();
+
+    if (mentorDocs.length === 0) {
+      throw new Error("Mentor profile not found");
+    }
+
+    const mentorDoc = mentorDocs[0];
+    const mentor = mentorDoc.toJSON();
+    const now = Date.now();
+
+    // Update mentor profile
+    const updatedProfile: Record<string, any> = {
+      ...mentor,
+      bio: profileData.bio !== undefined ? profileData.bio : mentor.bio,
+      expertise:
+        profileData.expertise !== undefined
+          ? profileData.expertise
+          : mentor.expertise,
+      sessionPrice:
+        profileData.sessionPrice !== undefined
+          ? profileData.sessionPrice
+          : mentor.sessionPrice,
+      updatedAt: now,
+    };
+
+    // Only include these fields if they are in the updates
+    if (profileData.portfolio) updatedProfile.portfolio = profileData.portfolio;
+    if (profileData.certifications)
+      updatedProfile.certifications = profileData.certifications;
+    if (profileData.education) updatedProfile.education = profileData.education;
+    if (profileData.workExperience)
+      updatedProfile.workExperience = profileData.workExperience;
+    if (profileData.yearsOfExperience)
+      updatedProfile.yearsOfExperience = profileData.yearsOfExperience;
+
+    // Save updated profile
+    await mentorDoc.update({
+      $set: updatedProfile,
+    });
+
+    // Update user data if provided
+    if (profileData.name || profileData.email || profileData.profilePicture) {
+      const userDoc = await db.users.findOne(userId).exec();
+
+      if (userDoc) {
+        const user = userDoc.toJSON();
+        const updatedUser = {
+          ...user,
+          name: profileData.name !== undefined ? profileData.name : user.name,
+          email:
+            profileData.email !== undefined ? profileData.email : user.email,
+          profilePicture:
+            profileData.profilePicture !== undefined
+              ? profileData.profilePicture
+              : user.profilePicture,
+          updatedAt: now,
+        };
+
+        await userDoc.update({
+          $set: updatedUser,
+        });
       }
+    }
 
-      // Update mentor profile
-      const updatedProfile = { ...mentorProfiles[mentorIndex], ...profileData };
-      mentorProfiles[mentorIndex] = updatedProfile;
-
-      resolve(updatedProfile);
-    }, 500);
-  });
+    // Return the full updated mentor profile
+    const updatedMentor = await getMentorByUserId(userId);
+    return updatedMentor || updatedProfile;
+  } catch (error: unknown) {
+    console.error(`Failed to update mentor profile:`, error);
+    if (error instanceof Error) {
+      throw new Error(`Failed to update mentor profile: ${error.message}`);
+    } else {
+      throw new Error(`Failed to update mentor profile: Unknown error`);
+    }
+  }
 };
 
 // Get current user from localStorage
 export const getCurrentUser = async (): Promise<User | null> => {
   return new Promise((resolve) => {
     setTimeout(() => {
-      const userJson = localStorage.getItem('currentUser');
+      const userJson = localStorage.getItem("currentUser");
       if (userJson) {
         try {
           const user = JSON.parse(userJson);
           resolve(user);
         } catch (error) {
+          console.error("Error parsing user data from localStorage:", error);
           resolve(null);
         }
       } else {
@@ -255,7 +442,7 @@ export const getCurrentUser = async (): Promise<User | null> => {
 export const logoutUser = async (): Promise<void> => {
   return new Promise((resolve) => {
     setTimeout(() => {
-      localStorage.removeItem('currentUser');
+      localStorage.removeItem("currentUser");
       resolve();
     }, 300);
   });

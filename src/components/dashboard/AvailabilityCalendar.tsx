@@ -1,19 +1,27 @@
-import React, { useState, useEffect } from 'react';
-import { FaCalendarAlt } from 'react-icons/fa';
-import { getMentorProfileById } from '../../services/userService'; // Import userService functions
-import { AvailabilitySlot } from '../../types';
+import React, { useState, useEffect } from "react";
+import { FaCalendarAlt } from "react-icons/fa";
+import { getMentorById } from "../../services/mentorService"; // Updated import
+import { getMentorAvailability } from "../../services/sessionService"; // Added import for availability
+import { AvailabilitySlot } from "../../types";
 
 interface AvailabilityCalendarProps {
   mentorId: string;
   onSlotSelect: (slot: AvailabilitySlot | null) => void;
 }
 
-const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({ mentorId, onSlotSelect }) => {
+const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
+  mentorId,
+  onSlotSelect,
+}) => {
   const [selectedDate, setSelectedDate] = useState(new Date());
-  const [availabilitySlots, setAvailabilitySlots] = useState<AvailabilitySlot[]>([]);
+  const [availabilitySlots, setAvailabilitySlots] = useState<
+    AvailabilitySlot[]
+  >([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [selectedDaySlots, setSelectedDaySlots] = useState<AvailabilitySlot[]>([]);
+  const [selectedDaySlots, setSelectedDaySlots] = useState<AvailabilitySlot[]>(
+    []
+  );
   const [selectedDay, setSelectedDay] = useState<number | null>(null); // Track selected day
 
   useEffect(() => {
@@ -21,18 +29,19 @@ const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({ mentorId, o
       setLoading(true);
       setError(null);
       try {
-        const profile = await getMentorProfileById(mentorId);
-        if (profile && profile.availabilitySlots) {
-          // Filter slots for the currently selected month and year
-          const filteredSlots = profile.availabilitySlots.filter(slot => {
-            const slotDate = new Date(slot.date);
-            return slotDate.getMonth() === selectedDate.getMonth() &&
-                   slotDate.getFullYear() === selectedDate.getFullYear();
-          });
-          setAvailabilitySlots(filteredSlots);
-        } else {
-          setAvailabilitySlots([]); // No slots or profile found, set to empty array
-        }
+        // Use the RxDB service to fetch availability
+        const slots = await getMentorAvailability(mentorId);
+
+        // Filter slots for the currently selected month and year
+        const filteredSlots = slots.filter((slot) => {
+          const slotDate = new Date(slot.date);
+          return (
+            slotDate.getMonth() === selectedDate.getMonth() &&
+            slotDate.getFullYear() === selectedDate.getFullYear()
+          );
+        });
+
+        setAvailabilitySlots(filteredSlots);
       } catch (err: any) {
         setError(err.message);
       } finally {
@@ -43,7 +52,6 @@ const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({ mentorId, o
     fetchAvailability();
   }, [mentorId, selectedDate]); // Refetch slots when mentorId or selectedDate changes
 
-
   const daysInMonth = (date: Date) => {
     return new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
   };
@@ -53,39 +61,53 @@ const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({ mentorId, o
   };
 
   const prevMonth = () => {
-    setSelectedDate(new Date(selectedDate.getFullYear(), selectedDate.getMonth() - 1));
+    setSelectedDate(
+      new Date(selectedDate.getFullYear(), selectedDate.getMonth() - 1)
+    );
     setSelectedDay(null); // Reset selected day when month changes
     setSelectedDaySlots([]); // Clear displayed slots
     onSlotSelect(null); // Clear selected slot
   };
 
   const nextMonth = () => {
-    setSelectedDate(new Date(selectedDate.getFullYear(), selectedDate.getMonth() + 1));
+    setSelectedDate(
+      new Date(selectedDate.getFullYear(), selectedDate.getMonth() + 1)
+    );
     setSelectedDay(null); // Reset selected day when month changes
     setSelectedDaySlots([]); // Clear displayed slots
     onSlotSelect(null); // Clear selected slot
   };
 
-  const currentMonthName = selectedDate.toLocaleString('default', { month: 'long' });
+  const currentMonthName = selectedDate.toLocaleString("default", {
+    month: "long",
+  });
   const currentYear = selectedDate.getFullYear();
   const days = daysInMonth(selectedDate);
   const startDay = firstDayOfMonth(selectedDate);
 
-  const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
   const calendarDays = [];
 
   // Add empty cells for days before the first day of the month
   for (let i = 0; i < startDay; i++) {
-    calendarDays.push(<div key={`empty-${i}`} className="p-2 border text-gray-300"></div>);
+    calendarDays.push(
+      <div key={`empty-${i}`} className="p-2 border text-gray-300"></div>
+    );
   }
 
-  const handleDayClick = (day: number, hasSlots: boolean, formattedDate: string) => {
+  const handleDayClick = (
+    day: number,
+    hasSlots: boolean,
+    formattedDate: string
+  ) => {
     setSelectedDay(day);
     setSelectedDaySlots([]); // Clear previously selected slots
     onSlotSelect(null); // Clear any previously selected slot
 
     if (hasSlots) {
-      const slotsForDay = availabilitySlots.filter(slot => slot.date === formattedDate);
+      const slotsForDay = availabilitySlots.filter(
+        (slot) => slot.date === formattedDate
+      );
       setSelectedDaySlots(slotsForDay);
     }
   };
@@ -94,21 +116,27 @@ const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({ mentorId, o
     onSlotSelect(slot); // Pass the selected slot to the parent component
   };
 
-
   // Add days of the month
   for (let day = 1; day <= days; day++) {
-    const currentDate = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), day);
-    const formattedDate = currentDate.toISOString().split('T')[0]; // YYYY-MM-DD
+    const currentDate = new Date(
+      selectedDate.getFullYear(),
+      selectedDate.getMonth(),
+      day
+    );
+    const formattedDate = currentDate.toISOString().split("T")[0]; // YYYY-MM-DD
 
     // Check if there are slots for this day
-    const hasSlots = availabilitySlots.some(slot => slot.date === formattedDate);
+    const hasSlots = availabilitySlots.some(
+      (slot) => slot.date === formattedDate
+    );
     const isSelectedDay = day === selectedDay;
-
 
     calendarDays.push(
       <div
         key={`day-${day}`}
-        className={`p-2 border hover:bg-gray-100 cursor-pointer ${hasSlots ? 'bg-green-100' : ''} ${isSelectedDay ? 'bg-blue-200' : ''}`}
+        className={`p-2 border hover:bg-gray-100 cursor-pointer ${
+          hasSlots ? "bg-green-100" : ""
+        } ${isSelectedDay ? "bg-blue-200" : ""}`}
         onClick={() => handleDayClick(day, hasSlots, formattedDate)}
       >
         {day}
@@ -121,9 +149,10 @@ const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({ mentorId, o
   }
 
   if (error) {
-    return <div className="text-red-500">Error loading availability: {error}</div>;
+    return (
+      <div className="text-red-500">Error loading availability: {error}</div>
+    );
   }
-
 
   return (
     <div className="bg-white rounded-lg shadow-md p-4">
@@ -132,21 +161,37 @@ const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({ mentorId, o
           <FaCalendarAlt className="mr-2" /> {currentMonthName} {currentYear}
         </h2>
         <div className="space-x-2">
-          <button onClick={prevMonth} className="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded">{"<"}</button>
-          <button onClick={nextMonth} className="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded">{">"}</button>
+          <button
+            onClick={prevMonth}
+            className="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded"
+          >
+            {"<"}
+          </button>
+          <button
+            onClick={nextMonth}
+            className="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded"
+          >
+            {">"}
+          </button>
         </div>
       </div>
       <div className="grid grid-cols-7 gap-0.5 text-center">
-        {dayNames.map(day => <div key={day} className="p-2 font-semibold">{day}</div>)}
+        {dayNames.map((day) => (
+          <div key={day} className="p-2 font-semibold">
+            {day}
+          </div>
+        ))}
         {calendarDays}
       </div>
 
       {/* Display time slots for the selected day */}
       {selectedDaySlots.length > 0 && (
         <div className="mt-4">
-          <h3 className="text-lg font-semibold mb-2">Available Slots for {selectedDate.toLocaleDateString()}</h3>
+          <h3 className="text-lg font-semibold mb-2">
+            Available Slots for {selectedDate.toLocaleDateString()}
+          </h3>
           <ul className="grid grid-cols-2 gap-2">
-            {selectedDaySlots.map(slot => (
+            {selectedDaySlots.map((slot) => (
               <li
                 key={slot.id}
                 className="bg-gray-100 p-2 rounded cursor-pointer hover:bg-gray-200"
