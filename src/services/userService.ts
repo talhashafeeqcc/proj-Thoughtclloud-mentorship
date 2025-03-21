@@ -9,7 +9,7 @@ let users: User[] = [
     password: 'password123',
     name: 'John Mentor',
     role: 'mentor',
-    profilePicture: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80'
+    profilePicture: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&amp;auto=format&amp;fit=facearea&amp;facepad=2&amp;w=256&amp;h=256&amp;q=80'
   },
   {
     id: '2',
@@ -17,7 +17,7 @@ let users: User[] = [
     password: 'password123',
     name: 'Jane Mentee',
     role: 'mentee',
-    profilePicture: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?ixlib=rb-1.2.1&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80'
+    profilePicture: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?ixlib=rb-1.2.1&amp;auto=format&amp;fit=facearea&amp;facepad=2&amp;w=256&amp;h=256&amp;q=80'
   }
 ];
 
@@ -29,7 +29,7 @@ let mentorProfiles: MentorProfile[] = [
     password: 'password123',
     name: 'John Mentor',
     role: 'mentor',
-    profilePicture: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80',
+    profilePicture: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&amp;auto=format&amp;fit=facearea&amp;facepad=2&amp;w=256&amp;h=256&amp;q=80',
     bio: 'Experienced software engineer with 10+ years in the industry. Passionate about helping others grow in their careers.',
     expertise: ['JavaScript', 'React', 'Node.js', 'Career Development'],
     education: [
@@ -182,6 +182,9 @@ export const getMentorProfileById = async (id: string): Promise<MentorProfile | 
     }, 300);
   });
 };
+
+// Alias for getMentorProfileById to maintain compatibility
+export const getMentorProfile = getMentorProfileById;
 
 // Create or update mentor profile
 export const updateMentorProfile = async (id: string, profileData: Partial<MentorProfile>): Promise<MentorProfile | null> => {
