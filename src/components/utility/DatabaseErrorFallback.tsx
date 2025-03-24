@@ -1,6 +1,9 @@
 import React, { useState } from "react";
 import { resetAndInitializeDatabase } from "../../services/database/db";
-import { retryBootstrap, nucleaReset } from "../../services/database/bootstrap";
+import {
+  retryBootstrap,
+  nuclearReset,
+} from "../../services/database/bootstrap";
 
 /**
  * A fallback component that displays when database initialization fails.
@@ -91,7 +94,7 @@ const DatabaseErrorFallback: React.FC = () => {
 
     try {
       // Execute nuclear reset
-      const success = await nucleaReset();
+      const success = await nuclearReset();
 
       if (success) {
         setMessage("Nuclear reset successful! Reloading application...");

@@ -1,4 +1,12 @@
-import React, { createContext, useContext, useReducer, useEffect } from "react";
+import React, {
+  createContext,
+  useContext,
+  useReducer,
+  useEffect,
+  useCallback,
+  useRef,
+  useMemo,
+} from "react";
 import { Session } from "../types";
 import {
   getSessions,
@@ -133,122 +141,235 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({
   const { authState } = useAuth();
   const { user } = authState;
 
-  // Initialize database connection
+  // Refs to track state without triggering re-renders
+  const userIdRef = useRef<string | null>(null);
+  const isFetchingRef = useRef<boolean>(false);
+  const isDbInitializedRef = useRef<boolean>(false);
+  const mountedRef = useRef<boolean>(true);
+  const fetchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Initialize database only once
   useEffect(() => {
+    mountedRef.current = true;
+
+    if (isDbInitializedRef.current) return;
+
     const initDb = async () => {
       dispatch({ type: "INIT_DB_START" });
       try {
         await getDatabase();
-        dispatch({ type: "INIT_DB_SUCCESS" });
+        if (mountedRef.current) {
+          isDbInitializedRef.current = true;
+          dispatch({ type: "INIT_DB_SUCCESS" });
+        }
       } catch (error) {
         console.error(
           "Failed to initialize database in SessionContext:",
           error
         );
-        dispatch({
-          type: "SESSION_ERROR",
-          payload:
-            error instanceof Error
-              ? error.message
-              : "Failed to initialize database",
-        });
+        if (mountedRef.current) {
+          dispatch({
+            type: "SESSION_ERROR",
+            payload:
+              error instanceof Error
+                ? error.message
+                : "Failed to initialize database",
+          });
+        }
       }
     };
 
     initDb();
-  }, []);
 
-  // Fetch user sessions when user changes
+    return () => {
+      mountedRef.current = false;
+      if (fetchTimeoutRef.current) {
+        clearTimeout(fetchTimeoutRef.current);
+      }
+    };
+  }, []); // Empty deps - run once
+
+  const doFetchSessions = async (userId: string) => {
+    if (!mountedRef.current || isFetchingRef.current) return;
+
+    isFetchingRef.current = true;
+
+    if (mountedRef.current) {
+      dispatch({ type: "FETCH_SESSIONS_START" });
+    }
+
+    try {
+      const sessions = await getSessions(userId);
+      if (mountedRef.current) {
+        dispatch({ type: "FETCH_SESSIONS_SUCCESS", payload: sessions });
+      }
+    } catch (error) {
+      console.error("Error fetching sessions:", error);
+      if (mountedRef.current) {
+        dispatch({
+          type: "SESSION_ERROR",
+          payload:
+            error instanceof Error ? error.message : "Failed to fetch sessions",
+        });
+      }
+    } finally {
+      if (mountedRef.current) {
+        isFetchingRef.current = false;
+      }
+    }
+  };
+
+  const fetchUserSessions = useCallback(async () => {
+    if (!user || !mountedRef.current) return;
+
+    const currentUserId = user.id;
+
+    if (userIdRef.current === currentUserId && isFetchingRef.current) {
+      return;
+    }
+
+    userIdRef.current = currentUserId;
+
+    if (fetchTimeoutRef.current) {
+      clearTimeout(fetchTimeoutRef.current);
+    }
+
+    fetchTimeoutRef.current = setTimeout(() => {
+      if (mountedRef.current) {
+        doFetchSessions(currentUserId);
+      }
+    }, 50);
+  }, [user]);
+
   useEffect(() => {
-    if (user) {
-      fetchUserSessions();
+    if (!user || !mountedRef.current) {
+      userIdRef.current = null;
+      return;
+    }
+
+    const currentUserId = user.id;
+
+    if (userIdRef.current !== currentUserId) {
+      userIdRef.current = currentUserId;
+
+      if (fetchTimeoutRef.current) {
+        clearTimeout(fetchTimeoutRef.current);
+      }
+
+      fetchTimeoutRef.current = setTimeout(() => {
+        if (mountedRef.current) {
+          doFetchSessions(currentUserId);
+        }
+      }, 50);
     }
   }, [user]);
 
-  // Fetch user sessions
-  const fetchUserSessions = async () => {
-    if (!user) return;
+  // Book a session with proper type handling
+  const bookSession = useCallback(
+    async (
+      sessionData: Omit<Session, "id" | "status" | "paymentStatus">
+    ): Promise<Session> => {
+      if (!mountedRef.current) throw new Error("Component unmounted");
 
-    dispatch({ type: "FETCH_SESSIONS_START" });
-    try {
-      const sessions = await getSessions(user.id);
-      dispatch({ type: "FETCH_SESSIONS_SUCCESS", payload: sessions });
-    } catch (error) {
-      dispatch({
-        type: "SESSION_ERROR",
-        payload:
-          error instanceof Error ? error.message : "Failed to fetch sessions",
-      });
-    }
-  };
+      dispatch({ type: "BOOK_SESSION_START" });
+      try {
+        // Cast to the proper type to resolve TS error
+        const dataWithRequiredFields = {
+          ...sessionData,
+          availabilitySlotId: sessionData.availabilitySlotId || "", // Ensure this is never undefined
+          status: "scheduled" as const,
+          paymentStatus: "pending" as const,
+        };
 
-  // Book a session
-  const bookSession = async (
-    sessionData: Omit<Session, "id" | "status" | "paymentStatus">
-  ): Promise<Session> => {
-    dispatch({ type: "BOOK_SESSION_START" });
-    try {
-      const newSession = await createSession({
-        ...sessionData,
-        status: "scheduled",
-        paymentStatus: "pending",
-      });
-      dispatch({ type: "BOOK_SESSION_SUCCESS", payload: newSession });
-      return newSession;
-    } catch (error) {
-      dispatch({
-        type: "SESSION_ERROR",
-        payload:
-          error instanceof Error ? error.message : "Failed to book session",
-      });
-      throw error;
-    }
-  };
+        const newSession = await createSession(dataWithRequiredFields);
+
+        if (!mountedRef.current) throw new Error("Component unmounted");
+
+        dispatch({ type: "BOOK_SESSION_SUCCESS", payload: newSession });
+        return newSession;
+      } catch (error) {
+        if (mountedRef.current) {
+          dispatch({
+            type: "SESSION_ERROR",
+            payload:
+              error instanceof Error ? error.message : "Failed to book session",
+          });
+        }
+        throw error;
+      }
+    },
+    []
+  );
 
   // Update session details
-  const updateSessionDetails = async (
-    id: string,
-    updates: Partial<Session>
-  ): Promise<Session> => {
-    dispatch({ type: "UPDATE_SESSION_START" });
-    try {
-      const updatedSession = await updateSession(id, updates);
-      dispatch({ type: "UPDATE_SESSION_SUCCESS", payload: updatedSession });
-      return updatedSession;
-    } catch (error) {
-      dispatch({
-        type: "SESSION_ERROR",
-        payload:
-          error instanceof Error ? error.message : "Failed to update session",
-      });
-      throw error;
-    }
-  };
+  const updateSessionDetails = useCallback(
+    async (id: string, updates: Partial<Session>): Promise<Session> => {
+      if (!mountedRef.current) throw new Error("Component unmounted");
+
+      dispatch({ type: "UPDATE_SESSION_START" });
+      try {
+        const updatedSession = await updateSession(id, updates);
+
+        if (!mountedRef.current) throw new Error("Component unmounted");
+
+        dispatch({ type: "UPDATE_SESSION_SUCCESS", payload: updatedSession });
+        return updatedSession;
+      } catch (error) {
+        if (mountedRef.current) {
+          dispatch({
+            type: "SESSION_ERROR",
+            payload:
+              error instanceof Error
+                ? error.message
+                : "Failed to update session",
+          });
+        }
+        throw error;
+      }
+    },
+    []
+  );
 
   // Cancel a session
-  const cancelUserSession = async (id: string): Promise<void> => {
+  const cancelUserSession = useCallback(async (id: string): Promise<void> => {
+    if (!mountedRef.current) throw new Error("Component unmounted");
+
     dispatch({ type: "CANCEL_SESSION_START" });
     try {
       await cancelSession(id);
+
+      if (!mountedRef.current) throw new Error("Component unmounted");
+
       dispatch({ type: "CANCEL_SESSION_SUCCESS", payload: id });
     } catch (error) {
-      dispatch({
-        type: "SESSION_ERROR",
-        payload:
-          error instanceof Error ? error.message : "Failed to cancel session",
-      });
+      if (mountedRef.current) {
+        dispatch({
+          type: "SESSION_ERROR",
+          payload:
+            error instanceof Error ? error.message : "Failed to cancel session",
+        });
+      }
       throw error;
     }
-  };
+  }, []);
 
-  // Create the context value
-  const contextValue: SessionContextType = {
-    sessionState,
-    fetchUserSessions,
-    bookSession,
-    updateSessionDetails,
-    cancelUserSession,
-  };
+  // Create a stable context value with useMemo to prevent unnecessary re-renders in consumers
+  const contextValue = useMemo(
+    () => ({
+      sessionState,
+      fetchUserSessions,
+      bookSession,
+      updateSessionDetails,
+      cancelUserSession,
+    }),
+    [
+      sessionState,
+      fetchUserSessions,
+      bookSession,
+      updateSessionDetails,
+      cancelUserSession,
+    ]
+  );
 
   return (
     <SessionContext.Provider value={contextValue}>

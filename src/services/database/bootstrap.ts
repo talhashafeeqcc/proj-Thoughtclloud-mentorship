@@ -69,7 +69,7 @@ export const retryBootstrap = async () => {
 
 // Nuclear option - completely reset browser storage for this domain
 // Only used as a last resort
-export const nucleaReset = async (): Promise<boolean> => {
+export const nuclearReset = async (): Promise<boolean> => {
   try {
     console.warn("🔥 EXECUTING NUCLEAR RESET - CLEARING ALL DOMAIN STORAGE 🔥");
 

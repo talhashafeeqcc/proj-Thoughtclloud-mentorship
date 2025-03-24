@@ -13,20 +13,27 @@ import SessionDetailsPage from "./pages/SessionDetailsPage";
 import NotFoundPage from "./pages/NotFoundPage";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
 import DatabaseErrorFallback from "./components/utility/DatabaseErrorFallback";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 
 // Import database module - this will trigger bootstrap
-import {
-  databaseBootstrapStatus,
-  isBootstrapComplete,
-  nucleaReset,
-} from "./services/database";
+import { databaseBootstrapStatus, nuclearReset } from "./services/database";
 
 function App() {
   const [dbError, setDbError] = useState(false);
   const [initializing, setInitializing] = useState(true);
+  const initialCheckDone = useRef(false);
+  const intervalIdRef = useRef<NodeJS.Timeout | null>(null);
+  // Add a ref to track component mounted state
+  const isMounted = useRef(true);
 
   useEffect(() => {
+    // Set up mount tracking
+    isMounted.current = true;
+
+    // Only perform initialization once
+    if (initialCheckDone.current) return;
+    initialCheckDone.current = true;
+
     // Check if URL contains forcereset parameter
     const urlParams = new URLSearchParams(window.location.search);
     const forceReset = urlParams.get("forcereset");
@@ -34,7 +41,7 @@ function App() {
     if (forceReset) {
       // Execute nuclear reset if the forcereset parameter is present
       console.log("Force reset parameter detected, performing nuclear reset");
-      nucleaReset().then(() => {
+      nuclearReset().then(() => {
         // Clean URL by removing the parameter
         window.history.replaceState(
           {},
@@ -44,44 +51,65 @@ function App() {
       });
     }
 
-    // Check database initialization status
-    const checkStatus = () => {
-      // Wait for bootstrap to complete or fail
-      if (databaseBootstrapStatus.completed) {
-        console.log("Bootstrap completed successfully");
-        setDbError(false);
-        setInitializing(false);
-      } else if (databaseBootstrapStatus.error) {
-        console.error("Bootstrap failed:", databaseBootstrapStatus.error);
-        setDbError(true);
-        setInitializing(false);
-      } else if (localStorage.getItem("db_hard_reset_needed") === "true") {
-        console.log("Hard reset needed flag detected");
-        setDbError(true);
-        setInitializing(false);
-      }
-    };
-
-    // Check immediately
+    // Check database initialization status once immediately
     checkStatus();
 
     // Check periodically
-    const interval = setInterval(checkStatus, 1000);
+    intervalIdRef.current = setInterval(checkStatus, 1000);
 
     // If initialization takes too long, show error
-    const timeout = setTimeout(() => {
-      if (initializing) {
+    const timeoutId = setTimeout(() => {
+      if (isMounted.current && initializing) {
         console.warn("Database initialization timed out");
         setDbError(true);
         setInitializing(false);
+        if (intervalIdRef.current) {
+          clearInterval(intervalIdRef.current); // Stop checking on timeout
+        }
       }
     }, 8000); // 8 second timeout
 
     return () => {
-      clearInterval(interval);
-      clearTimeout(timeout);
+      // Handle cleanup
+      isMounted.current = false;
+      if (intervalIdRef.current) {
+        clearInterval(intervalIdRef.current);
+      }
+      clearTimeout(timeoutId);
     };
-  }, [initializing]);
+
+    // Skip dependency array warnings - this effect should only run once
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Separate function to check database status
+  const checkStatus = () => {
+    if (!isMounted.current) return;
+
+    // Wait for bootstrap to complete or fail
+    if (databaseBootstrapStatus.completed) {
+      console.log("Bootstrap completed successfully");
+      setDbError(false);
+      setInitializing(false);
+      if (intervalIdRef.current) {
+        clearInterval(intervalIdRef.current); // Stop checking once bootstrap completes
+      }
+    } else if (databaseBootstrapStatus.error) {
+      console.error("Bootstrap failed:", databaseBootstrapStatus.error);
+      setDbError(true);
+      setInitializing(false);
+      if (intervalIdRef.current) {
+        clearInterval(intervalIdRef.current); // Stop checking on error
+      }
+    } else if (localStorage.getItem("db_hard_reset_needed") === "true") {
+      console.log("Hard reset needed flag detected");
+      setDbError(true);
+      setInitializing(false);
+      if (intervalIdRef.current) {
+        clearInterval(intervalIdRef.current); // Stop checking if reset needed
+      }
+    }
+  };
 
   // Show loading state while initializing
   if (initializing) {

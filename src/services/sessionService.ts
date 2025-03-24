@@ -48,6 +48,15 @@ interface ExtendedSession extends Session {
   title?: string;
 }
 
+/**
+ * Helper function to convert a readonly array to a mutable array
+ * This resolves type compatibility issues when returning RxDB documents
+ */
+function toMutableArray<T>(array: readonly T[] | undefined | null): T[] {
+  if (!array) return [];
+  return JSON.parse(JSON.stringify(array)) as T[];
+}
+
 // Get all sessions for a user (either as mentor or mentee)
 export const getSessions = async (userId: string): Promise<Session[]> => {
   try {
@@ -416,7 +425,7 @@ export const getMentorAvailability = async (
     if (mentor.availability) {
       // Log each availability slot to help with debugging
       console.log("Availability slots:");
-      mentor.availability.forEach((slot: AvailabilitySlot, index: number) => {
+      mentor.availability.forEach((slot: any, index: number) => {
         console.log(`Slot ${index + 1}:`, {
           id: slot.id,
           date: slot.date,
@@ -427,7 +436,8 @@ export const getMentorAvailability = async (
       });
     }
 
-    return mentor.availability || [];
+    // Convert from DeepReadonlyArray to mutable array
+    return toMutableArray<AvailabilitySlot>(mentor.availability);
   } catch (error) {
     console.error("Error fetching mentor availability:", error);
     throw error;

@@ -24,15 +24,111 @@ if (process.env.NODE_ENV !== "production") {
   addRxPlugin(RxDBDevModePlugin);
 }
 
-// Define database type with proper collection types
-export type UserCollection = RxCollection<any, any, any, any>;
-export type MentorCollection = RxCollection<any, any, any, any>;
-export type MenteeCollection = RxCollection<any, any, any, any>;
-export type SessionCollection = RxCollection<any, any, any, any>;
-export type AvailabilityCollection = RxCollection<any, any, any, any>;
-export type RatingCollection = RxCollection<any, any, any, any>;
-export type PaymentCollection = RxCollection<any, any, any, any>;
+// Define proper collection types with more specific typing
+export type UserDocument = {
+  id: string;
+  email: string;
+  name: string;
+  role: string;
+  password: string;
+  profilePicture?: string;
+  createdAt: number;
+  updatedAt: number;
+};
 
+export type MentorDocument = {
+  id: string;
+  userId: string;
+  expertise: string[]; // Changed from specialization
+  bio: string;
+  sessionPrice: number; // Changed from hourlyRate
+  yearsOfExperience: number; // Changed from experience
+  portfolio: any[]; // Added field
+  certifications: any[]; // Added field
+  education: any[]; // Added field
+  workExperience: any[]; // Added field
+  availability?: any[]; // Added optional field
+  createdAt: number;
+  updatedAt: number;
+};
+
+export type MenteeDocument = {
+  id: string;
+  userId: string;
+  interests: string[];
+  bio: string;
+  goals: string[] | string; // Updated to allow both string and array
+  currentPosition?: string; // Added optional field
+  createdAt: number;
+  updatedAt: number;
+};
+
+export type SessionDocument = {
+  id: string;
+  mentorId: string;
+  menteeId: string;
+  date?: string; // Added optional field
+  startTime: string | number; // Allow both string and number
+  endTime: string | number; // Allow both string and number
+  status: string;
+  paymentStatus?: string; // Added optional field
+  paymentAmount?: number; // Added optional field
+  notes: string;
+  meetingLink?: string; // Added optional field
+  availabilityId?: string; // Added optional field
+  createdAt: number;
+  updatedAt: number;
+};
+
+export type AvailabilityDocument = {
+  id: string;
+  mentorId: string;
+  date?: string; // Added optional field
+  dayOfWeek?: number; // Made optional
+  startTime: string;
+  endTime: string;
+  isBooked?: boolean; // Added optional field
+  createdAt: number;
+  updatedAt: number;
+};
+
+export type RatingDocument = {
+  id: string;
+  sessionId: string;
+  mentorId?: string; // Added optional field
+  menteeId?: string; // Added optional field
+  rating?: number; // Made optional
+  feedback?: string; // Made optional
+  score?: number; // Added optional field for compatibility
+  review?: string; // Added optional field for compatibility
+  date?: string; // Added optional field
+  createdAt: number;
+  updatedAt: number;
+};
+
+export type PaymentDocument = {
+  id: string;
+  sessionId: string;
+  mentorId?: string; // Added optional field
+  menteeId?: string; // Added optional field
+  amount: number;
+  status: string;
+  date?: string; // Added optional field
+  transactionId?: string; // Added optional field
+  createdAt: number;
+  updatedAt: number;
+};
+
+// Define collection types with proper typing
+export type UserCollection = RxCollection<UserDocument>;
+export type MentorCollection = RxCollection<MentorDocument>;
+export type MenteeCollection = RxCollection<MenteeDocument>;
+export type SessionCollection = RxCollection<SessionDocument>;
+export type AvailabilityCollection = RxCollection<AvailabilityDocument>;
+export type RatingCollection = RxCollection<RatingDocument>;
+export type PaymentCollection = RxCollection<PaymentDocument>;
+
+// Define the database type with proper collection types
 export type ThoughtclloudDatabase = RxDatabase<{
   users: UserCollection;
   mentors: MentorCollection;
@@ -45,44 +141,6 @@ export type ThoughtclloudDatabase = RxDatabase<{
 
 // Database instance
 let dbPromise: Promise<ThoughtclloudDatabase> | null = null;
-
-// Centralized error handling for database operations
-const handleDatabaseError = (error: any) => {
-  console.error("Database error:", error);
-
-  // Check for schema version errors - RxDB error code DB6 indicates schema conflict
-  if (error.message && error.message.includes("DB6")) {
-    console.log("Schema version mismatch detected. Clearing database...");
-
-    // Set flag to indicate schema error
-    if (typeof window !== "undefined") {
-      localStorage.setItem("schema_error", "true");
-
-      try {
-        // Clear localStorage except the schema_error flag
-        const schemaError = localStorage.getItem("schema_error");
-        localStorage.clear();
-        localStorage.setItem("schema_error", schemaError || "true");
-
-        // Force close and delete the IndexedDB database
-        indexedDB.deleteDatabase("thoughtcllouddb");
-
-        console.log(
-          "Database cleared due to schema changes. Reloading page..."
-        );
-
-        // Reload the page to initialize fresh database
-        setTimeout(() => {
-          window.location.reload();
-        }, 500);
-      } catch (clearError) {
-        console.error("Error while clearing database:", clearError);
-      }
-    }
-  }
-
-  return Promise.reject(error);
-};
 
 // Forceful database deletion - this ensures all connections are closed and database is deleted
 const forceDeleteDatabase = async (dbName: string): Promise<boolean> => {
@@ -267,7 +325,6 @@ export const getDatabase = async (): Promise<ThoughtclloudDatabase> => {
     return dbPromise;
   } catch (error) {
     console.error("Error initializing database:", error);
-    // Simple error handling - just log the error and reject the promise
     return Promise.reject(error);
   }
 };

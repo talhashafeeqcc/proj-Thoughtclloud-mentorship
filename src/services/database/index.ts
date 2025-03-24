@@ -1,51 +1,29 @@
-// Re-export all database functionality
-import {
-  getDatabase,
+// Main database module
+// Simply re-export everything from db.ts and bootstrap.ts
+
+// Export database functions
+export { 
+  getDatabase, 
   clearDatabase,
   initializeDatabaseWithSampleData,
-  resetAndInitializeDatabase,
-  ThoughtclloudDatabase,
-  UserCollection,
-  MentorCollection,
-  MenteeCollection,
-  SessionCollection,
-  AvailabilityCollection,
-  RatingCollection,
-  PaymentCollection,
-} from "./db";
+  resetAndInitializeDatabase 
+} from './db';
 
-// Import bootstrap to ensure it has been executed
-import {
+// Export bootstrap functions and status
+export { 
   databaseBootstrapStatus,
   isBootstrapComplete,
-  retryBootstrap,
-  nucleaReset,
-} from "./bootstrap";
+  retryBootstrap, 
+  nuclearReset 
+} from './bootstrap';
 
-// Export all database types and functions
-export {
-  getDatabase,
-  clearDatabase,
-  initializeDatabaseWithSampleData,
-  resetAndInitializeDatabase,
-  ThoughtclloudDatabase,
-  UserCollection,
-  MentorCollection,
-  MenteeCollection,
-  SessionCollection,
-  AvailabilityCollection,
-  RatingCollection,
-  PaymentCollection,
-  databaseBootstrapStatus,
-  isBootstrapComplete,
-  retryBootstrap,
-  nucleaReset,
-};
+// Import bootstrap to ensure it's initialized
+import { databaseBootstrapStatus, isBootstrapComplete } from './bootstrap';
 
 // Export a simple function to check if database bootstrap has completed
 export const hasBootstrapped = () => isBootstrapComplete();
 
-// The mere importing of this file will trigger the bootstrap process
+// Log bootstrap status on module load
 console.log(
   "Database module loaded, bootstrap status:",
   databaseBootstrapStatus.completed
