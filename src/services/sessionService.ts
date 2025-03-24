@@ -92,24 +92,6 @@ export const getSessions = async (userId: string): Promise<Session[]> => {
       return safeUser;
     });
 
-    // Get availability information
-    // const availabilityIds = sessionData.map(
-    //   (session: SessionDocument) => session.availabilityId
-    // );
-    // const availabilityDocs = await db.availability
-    //   .find({
-    //     selector: {
-    //       id: {
-    //         $in: availabilityIds,
-    //       },
-    //     },
-    //   })
-    //   .exec();
-
-    // const availabilityData = availabilityDocs.map(
-    //   (doc: RxDocument<any>) => doc.toJSON() as AvailabilityDocument
-    // );
-
     // Map session data to full Session objects
     return sessionData.map((session: SessionDocument) => {
       const mentor = userData.find(
@@ -399,30 +381,53 @@ export const getMentorAvailability = async (
 ): Promise<AvailabilitySlot[]> => {
   try {
     const db = await getDatabase();
+    console.log("Fetching availability for mentor:", mentorId);
 
-    // First, get all availability for this mentor
-    const availabilityDocs = await db.availability
-      .find({
-        selector: {
-          mentorId: mentorId,
-          // Removed isBooked from the selector since it's no longer indexed
-        },
-      })
-      .exec();
+    // Try to directly find the mentor document by ID first
+    let mentorDoc = await db.mentors.findOne(mentorId).exec();
 
-    // Then filter in memory to get only available slots
-    return availabilityDocs
-      .map((doc: RxDocument<any>) => {
-        const availability = doc.toJSON() as AvailabilityDocument;
-        return {
-          id: availability.id,
-          date: availability.date,
-          startTime: availability.startTime,
-          endTime: availability.endTime,
-          isBooked: availability.isBooked,
-        };
-      })
-      .filter((slot: AvailabilitySlot) => !slot.isBooked); // Add type to fix TypeScript error
+    // If not found, try finding it by userId
+    if (!mentorDoc) {
+      console.log("Mentor not found by ID, trying to find by userId");
+      const mentorDocs = await db.mentors
+        .find({
+          selector: {
+            userId: mentorId,
+          },
+        })
+        .exec();
+
+      if (mentorDocs.length === 0) {
+        console.error("Mentor profile not found for ID or userId:", mentorId);
+        return [];
+      }
+
+      mentorDoc = mentorDocs[0];
+    }
+
+    const mentor = mentorDoc.toJSON();
+    console.log(
+      "Found mentor profile with availability count:",
+      mentor.availability ? mentor.availability.length : 0
+    );
+
+    // Return the availability slots directly from the mentor profile
+    // Ensure we're returning the raw data without any date modifications
+    if (mentor.availability) {
+      // Log each availability slot to help with debugging
+      console.log("Availability slots:");
+      mentor.availability.forEach((slot: AvailabilitySlot, index: number) => {
+        console.log(`Slot ${index + 1}:`, {
+          id: slot.id,
+          date: slot.date,
+          startTime: slot.startTime,
+          endTime: slot.endTime,
+          isBooked: slot.isBooked,
+        });
+      });
+    }
+
+    return mentor.availability || [];
   } catch (error) {
     console.error("Error fetching mentor availability:", error);
     throw error;

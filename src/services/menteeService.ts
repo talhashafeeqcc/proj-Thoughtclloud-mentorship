@@ -332,9 +332,12 @@ export const updateMenteeProfile = async (
 ): Promise<ExtendedMentee | null> => {
   try {
     const db = await getDatabase();
+    console.log("Updating mentee profile:", id);
+
     const menteeDoc = await db.mentees.findOne(id).exec();
 
     if (!menteeDoc) {
+      console.error("Mentee profile not found:", id);
       return null;
     }
 
@@ -343,19 +346,18 @@ export const updateMenteeProfile = async (
 
     // Prepare mentee updates
     const menteeUpdates: Partial<MenteeDocument> = {
-      interests: updates.interests,
-      bio: updates.bio,
-      goals: updates.goals,
-      currentPosition: updates.currentPosition,
+      interests:
+        updates.interests !== undefined ? updates.interests : mentee.interests,
+      bio: updates.bio !== undefined ? updates.bio : mentee.bio,
+      goals: updates.goals !== undefined ? updates.goals : mentee.goals,
+      currentPosition:
+        updates.currentPosition !== undefined
+          ? updates.currentPosition
+          : mentee.currentPosition,
       updatedAt: now,
     };
 
-    // Filter out undefined values
-    Object.keys(menteeUpdates).forEach((key) => {
-      if (menteeUpdates[key as keyof typeof menteeUpdates] === undefined) {
-        delete menteeUpdates[key as keyof typeof menteeUpdates];
-      }
-    });
+    console.log("Updating mentee data:", menteeUpdates);
 
     // Update mentee data
     await menteeDoc.update({
@@ -367,19 +369,18 @@ export const updateMenteeProfile = async (
       const userDoc = await db.users.findOne(mentee.userId).exec();
 
       if (userDoc) {
+        const user = userDoc.toJSON();
         const userUpdates: Partial<UserDocument> = {
-          name: updates.name,
-          email: updates.email,
-          profilePicture: updates.profilePicture,
+          name: updates.name !== undefined ? updates.name : user.name,
+          email: updates.email !== undefined ? updates.email : user.email,
+          profilePicture:
+            updates.profilePicture !== undefined
+              ? updates.profilePicture
+              : user.profilePicture,
           updatedAt: now,
         };
 
-        // Filter out undefined values
-        Object.keys(userUpdates).forEach((key) => {
-          if (userUpdates[key as keyof typeof userUpdates] === undefined) {
-            delete userUpdates[key as keyof typeof userUpdates];
-          }
-        });
+        console.log("Updating user data:", userUpdates);
 
         await userDoc.update({
           $set: userUpdates,
@@ -388,7 +389,12 @@ export const updateMenteeProfile = async (
     }
 
     // Return updated mentee profile
-    return getMenteeById(id);
+    const updatedMentee = await getMenteeById(id);
+    if (!updatedMentee) {
+      console.error("Failed to fetch updated mentee profile");
+      throw new Error("Failed to fetch updated mentee profile");
+    }
+    return updatedMentee;
   } catch (error) {
     console.error(`Failed to update mentee with ID ${id}:`, error);
     throw new Error(`Failed to update mentee with ID ${id}`);

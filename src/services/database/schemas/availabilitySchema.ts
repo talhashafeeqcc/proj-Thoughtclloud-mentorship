@@ -1,6 +1,6 @@
 export const availabilitySchema = {
   title: "Availability Schema",
-  version: 1,
+  version: 0,
   description: "Schema for mentor availability slots",
   primaryKey: "id",
   type: "object",

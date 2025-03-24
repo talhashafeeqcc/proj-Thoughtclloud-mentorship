@@ -1,24 +1,21 @@
 import React, { useState, useEffect } from "react";
 import AvailabilityCalendar from "./AvailabilityCalendar";
 import AvailabilityManager from "./AvailabilityManager";
-import BookingModal from "../BookingModal";
-import { AvailabilitySlot } from "../../types";
 import { useAuth } from "../../context/AuthContext";
-import { getMentorByUserId } from "../../services/mentorService";
-import { FaCalendarAlt, FaCalendarCheck } from "react-icons/fa";
+import { useSession } from "../../context/SessionContext";
+import { getMentorByUserId } from "../../services/userService";
+import { FaCalendarAlt, FaCalendarCheck, FaList } from "react-icons/fa";
+import SessionList from "./SessionList";
 
 const MentorDashboard: React.FC = () => {
   const { authState } = useAuth();
+  const { sessionState, fetchUserSessions, cancelUserSession } = useSession();
+  
   const [mentorId, setMentorId] = useState<string>("");
   const [mentorName, setMentorName] = useState<string>("");
-  const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
-  const [selectedSlot, setSelectedSlot] = useState<AvailabilitySlot | null>(
-    null
-  );
-  const [bookingSuccess, setBookingSuccess] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState("calendar"); // 'calendar' or 'manage'
+  const [activeTab, setActiveTab] = useState("sessions"); // 'sessions', 'calendar', or 'manage'
 
   // Fetch mentor profile data
   useEffect(() => {
@@ -40,38 +37,19 @@ const MentorDashboard: React.FC = () => {
 
     fetchMentorData();
   }, [authState.user]);
-
-  const openBookingModal = () => {
-    setIsBookingModalOpen(true);
-    setBookingSuccess(false); // Reset success state when modal opens
-  };
-
-  const closeBookingModal = () => {
-    setIsBookingModalOpen(false);
-    setSelectedSlot(null); // Clear selected slot when modal is closed
-  };
-
-  const handleSlotSelect = (slot: AvailabilitySlot | null) => {
-    setSelectedSlot(slot);
-    if (slot) {
-      openBookingModal(); // Open booking modal when a slot is selected
+  
+  // Fetch sessions
+  useEffect(() => {
+    if (authState.user) {
+      fetchUserSessions();
     }
-  };
-
-  const handleSessionBooked = (availabilitySlotId: string) => {
-    console.log("Session booked for slot ID:", availabilitySlotId);
-    setIsBookingModalOpen(false);
-    setSelectedSlot(null); // Clear selected slot after booking
-    setBookingSuccess(true);
-    setTimeout(() => {
-      setBookingSuccess(false); // Clear success message after a delay
-    }, 3000); // Success message disappears after 3 seconds
-  };
+  }, [authState.user, fetchUserSessions]);
 
   if (loading) {
     return (
       <div className="flex justify-center items-center h-64">
-        <div className="text-xl">Loading mentor dashboard...</div>
+        <div className="inline-block w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+        <div className="ml-3 text-xl">Loading mentor dashboard...</div>
       </div>
     );
   }
@@ -95,59 +73,69 @@ const MentorDashboard: React.FC = () => {
   }
 
   return (
-    <div className="mb-8">
-      <h2 className="text-2xl font-semibold mb-6">Mentor Dashboard</h2>
-
-      {/* Dashboard Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        <div className="bg-blue-50 p-4 rounded-lg shadow">
-          <h3 className="font-medium text-lg mb-2 text-blue-800">
-            Upcoming Sessions
-          </h3>
-          <p className="text-2xl font-bold">0</p>
-        </div>
-        <div className="bg-green-50 p-4 rounded-lg shadow">
-          <h3 className="font-medium text-lg mb-2 text-green-800">
-            Completed Sessions
-          </h3>
-          <p className="text-2xl font-bold">0</p>
-        </div>
-        <div className="bg-purple-50 p-4 rounded-lg shadow">
-          <h3 className="font-medium text-lg mb-2 text-purple-800">
-            Average Rating
-          </h3>
-          <p className="text-2xl font-bold">N/A</p>
-        </div>
-      </div>
-
-      {/* Tab Navigation */}
+    <div>
+      {/* Tabs */}
       <div className="border-b border-gray-200 mb-6">
-        <nav className="flex space-x-8">
+        <nav className="-mb-px flex space-x-6">
+          <button
+            onClick={() => setActiveTab("sessions")}
+            className={`py-2 px-1 border-b-2 font-medium text-sm ${
+              activeTab === "sessions"
+                ? "border-blue-500 text-blue-600"
+                : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+            }`}
+          >
+            <FaList className="inline-block mr-2" /> My Sessions
+          </button>
           <button
             onClick={() => setActiveTab("calendar")}
-            className={`py-4 px-1 font-medium text-sm border-b-2 ${
+            className={`py-2 px-1 border-b-2 font-medium text-sm ${
               activeTab === "calendar"
                 ? "border-blue-500 text-blue-600"
                 : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-            } flex items-center`}
+            }`}
           >
-            <FaCalendarAlt className="mr-2" /> View Calendar
+            <FaCalendarAlt className="inline-block mr-2" /> View Availability
           </button>
           <button
             onClick={() => setActiveTab("manage")}
-            className={`py-4 px-1 font-medium text-sm border-b-2 ${
+            className={`py-2 px-1 border-b-2 font-medium text-sm ${
               activeTab === "manage"
                 ? "border-blue-500 text-blue-600"
                 : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-            } flex items-center`}
+            }`}
           >
-            <FaCalendarCheck className="mr-2" /> Manage Availability
+            <FaCalendarCheck className="inline-block mr-2" /> Manage Availability
           </button>
         </nav>
       </div>
 
       {/* Tab Content */}
-      {activeTab === "calendar" ? (
+      {activeTab === "sessions" ? (
+        <div>
+          <h3 className="text-xl font-semibold mb-4 flex items-center">
+            <FaList className="mr-2" /> Your Mentoring Sessions
+          </h3>
+          
+          {sessionState.loading ? (
+            <div className="text-center py-8">
+              <div className="inline-block w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+              <p className="mt-2">Loading your sessions...</p>
+            </div>
+          ) : sessionState.error ? (
+            <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-6">
+              <p className="font-bold">Error</p>
+              <p>{sessionState.error}</p>
+            </div>
+          ) : (
+            <SessionList 
+              sessions={sessionState.sessions} 
+              onCancelSession={cancelUserSession}
+              currentUserId={authState.user?.id || ''}
+            />
+          )}
+        </div>
+      ) : activeTab === "calendar" ? (
         <div>
           <h3 className="text-xl font-semibold mb-4 flex items-center">
             <FaCalendarAlt className="mr-2" /> Your Availability Calendar
@@ -158,28 +146,11 @@ const MentorDashboard: React.FC = () => {
           </p>
           <AvailabilityCalendar
             mentorId={mentorId}
-            onSlotSelect={handleSlotSelect}
+            onSlotSelect={() => {}}
           />
         </div>
       ) : (
         <AvailabilityManager mentorId={mentorId} />
-      )}
-
-      {selectedSlot && (
-        <BookingModal
-          show={isBookingModalOpen}
-          onClose={closeBookingModal}
-          mentorId={mentorId}
-          mentorName={mentorName}
-          onBook={handleSessionBooked}
-          selectedSlot={selectedSlot}
-        />
-      )}
-
-      {bookingSuccess && (
-        <div className="mt-4 p-3 bg-green-100 text-green-800 rounded">
-          Session booked successfully!
-        </div>
       )}
     </div>
   );

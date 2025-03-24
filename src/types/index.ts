@@ -3,7 +3,7 @@ export interface User {
   id: string;
   email: string;
   name: string;
-  role: "mentor" | "mentee";
+  role: "mentor" | "mentee" | "admin";
   profilePicture?: string;
 }
 
@@ -69,6 +69,7 @@ export interface AvailabilitySlot {
   startTime: string;
   endTime: string;
   isBooked: boolean;
+  mentorId: string;
 }
 
 export interface Session {
@@ -127,7 +128,7 @@ export interface LoginCredentials {
 
 export interface RegisterData extends LoginCredentials {
   name: string;
-  role: "mentor" | "mentee";
+  role: "mentor" | "mentee" | "admin";
 }
 
 // Payment Types

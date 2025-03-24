@@ -1,8 +1,5 @@
 import React, { useState } from "react";
-import {
-  clearDatabase,
-  initializeDatabaseWithSampleData,
-} from "../../services/database/db";
+import { resetAndInitializeDatabase } from "../../services/database/db";
 
 /**
  * A utility component that allows resetting the database.
@@ -21,21 +18,25 @@ const ResetDatabase: React.FC = () => {
     if (!confirmReset) return;
 
     setIsResetting(true);
-    setMessage(null);
+    setMessage("Resetting database...");
     setError(null);
 
     try {
-      await clearDatabase();
-      setMessage("Database cleared successfully.");
+      // Use the utility function to reset and re-initialize
+      const success = await resetAndInitializeDatabase();
 
-      // Re-initialize with sample data
-      await initializeDatabaseWithSampleData();
-      setMessage("Database reset and re-initialized with sample data.");
+      if (success) {
+        setMessage(
+          "Database reset and re-initialized with sample data successfully."
+        );
 
-      // Reload the page after a short delay
-      setTimeout(() => {
-        window.location.reload();
-      }, 1500);
+        // Reload the page after a short delay
+        setTimeout(() => {
+          window.location.reload();
+        }, 1500);
+      } else {
+        throw new Error("Reset failed");
+      }
     } catch (err: any) {
       setError(`Failed to reset database: ${err.message}`);
     } finally {

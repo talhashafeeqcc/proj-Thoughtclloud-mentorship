@@ -13,7 +13,7 @@ export const seedDatabase = async (db: ThoughtclloudDatabase) => {
 
   console.log("Seeding database with initial data");
 
-  // Create users
+  // Create users with fixed IDs for debugging
   const johnUser = {
     id: uuidv4(),
     email: "john.mentor@example.com",
@@ -25,6 +25,7 @@ export const seedDatabase = async (db: ThoughtclloudDatabase) => {
     updatedAt: now,
   };
 
+  // Use fixed ID for Alice to match the one in the error message
   const aliceUser = {
     id: uuidv4(),
     email: "alice.mentor@example.com",
@@ -47,12 +48,42 @@ export const seedDatabase = async (db: ThoughtclloudDatabase) => {
     updatedAt: now,
   };
 
-  // Insert users
-  await db.users.bulkInsert([johnUser, aliceUser, janeUser]);
-
-  // Create mentor profiles
-  const johnMentor = {
+  const tomUser = {
     id: uuidv4(),
+    email: "tom.mentee@example.com",
+    name: "Tom Mentee",
+    role: "mentee" as const,
+    password: hashPassword("password123"),
+    profilePicture: "https://randomuser.me/api/portraits/men/2.jpg",
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  // Admin user
+  const adminUser = {
+    id: uuidv4(),
+    email: "admin@thoughtclloud.com",
+    name: "Admin User",
+    role: "admin" as const,
+    password: hashPassword("admin123"),
+    profilePicture: "https://randomuser.me/api/portraits/men/3.jpg",
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  // Insert users
+  await db.users.bulkInsert([
+    johnUser,
+    aliceUser,
+    janeUser,
+    tomUser,
+    adminUser,
+  ]);
+
+  // Create mentor profiles with fixed IDs for debugging
+  // Using the mentorId from the error message for debugging
+  const johnMentor = {
+    id: "cdbbf668-c542-4b50-a0b6-4b2dd3015496", // Fixed ID matching the error message
     userId: johnUser.id,
     expertise: ["React", "JavaScript", "Node.js"],
     bio: "Senior developer with 10+ years of experience in web development.",
@@ -155,7 +186,7 @@ export const seedDatabase = async (db: ThoughtclloudDatabase) => {
   // Insert mentor profiles
   await db.mentors.bulkInsert([johnMentor, aliceMentor]);
 
-  // Create mentee profile
+  // Create mentee profiles with fixed IDs for debugging
   const janeMentee = {
     id: uuidv4(),
     userId: janeUser.id,
@@ -167,99 +198,314 @@ export const seedDatabase = async (db: ThoughtclloudDatabase) => {
     updatedAt: now,
   };
 
-  // Insert mentee profile
-  await db.mentees.bulkInsert([janeMentee]);
+  // Using the menteeId from the error message for debugging
+  const tomMentee = {
+    id: "3eda177b-df37-46f2-91fe-034c4c822265", // Fixed ID matching the error message
+    userId: tomUser.id,
+    interests: ["Data Science", "AI", "Python"],
+    bio: "Computer science graduate interested in machine learning.",
+    goals: ["Learn data analysis", "Build ML models"],
+    currentPosition: "Data Analyst Intern",
+    createdAt: now,
+    updatedAt: now,
+  };
 
-  // Create availability slots for John
-  const johnAvailability = [
-    {
-      id: uuidv4(),
-      mentorId: johnMentor.id,
-      date: "2023-06-15",
-      startTime: "10:00",
-      endTime: "10:45",
-      isBooked: false,
-      createdAt: now,
-      updatedAt: now,
-    },
-    {
-      id: uuidv4(),
-      mentorId: johnMentor.id,
-      date: "2023-06-15",
-      startTime: "11:00",
-      endTime: "11:45",
-      isBooked: false,
-      createdAt: now,
-      updatedAt: now,
-    },
-    {
-      id: uuidv4(),
-      mentorId: johnMentor.id,
-      date: "2023-06-16",
-      startTime: "14:00",
-      endTime: "14:45",
-      isBooked: false,
-      createdAt: now,
-      updatedAt: now,
-    },
-    {
-      id: uuidv4(),
-      mentorId: johnMentor.id,
-      date: "2023-06-16",
-      startTime: "15:00",
-      endTime: "15:45",
-      isBooked: false,
-      createdAt: now,
-      updatedAt: now,
-    },
-  ];
+  // Insert mentee profiles
+  await db.mentees.bulkInsert([janeMentee, tomMentee]);
+
+  // Create availability slots for John - current date and upcoming days
+  const today = new Date();
+  const formatDate = (date: Date): string => date.toISOString().split("T")[0];
+
+  const currentDate = formatDate(today);
+
+  // Tomorrow's date
+  const tomorrow = new Date(today);
+  tomorrow.setDate(today.getDate() + 1);
+  const tomorrowDate = formatDate(tomorrow);
+
+  // Day after tomorrow's date
+  const dayAfterTomorrow = new Date(today);
+  dayAfterTomorrow.setDate(today.getDate() + 2);
+  const dayAfterTomorrowDate = formatDate(dayAfterTomorrow);
+
+  // Past date (7 days ago)
+  const pastDate = new Date(today);
+  pastDate.setDate(today.getDate() - 7);
+  const sevenDaysAgo = formatDate(pastDate);
+
+  const johnAvailabilitySlot1 = {
+    id: uuidv4(),
+    mentorId: johnMentor.id,
+    date: currentDate,
+    startTime: "10:00",
+    endTime: "10:45",
+    isBooked: false,
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  const johnAvailabilitySlot2 = {
+    id: uuidv4(),
+    mentorId: johnMentor.id,
+    date: currentDate,
+    startTime: "11:00",
+    endTime: "11:45",
+    isBooked: false,
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  const johnAvailabilitySlot3 = {
+    id: uuidv4(),
+    mentorId: johnMentor.id,
+    date: tomorrowDate,
+    startTime: "14:00",
+    endTime: "14:45",
+    isBooked: false,
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  const johnAvailabilitySlot4 = {
+    id: uuidv4(),
+    mentorId: johnMentor.id,
+    date: tomorrowDate,
+    startTime: "15:00",
+    endTime: "15:45",
+    isBooked: false,
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  const johnAvailabilitySlot5 = {
+    id: uuidv4(),
+    mentorId: johnMentor.id,
+    date: sevenDaysAgo,
+    startTime: "09:00",
+    endTime: "09:45",
+    isBooked: true, // This slot will be used for a completed session
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  // Add availability for day after tomorrow for John
+  const johnAvailabilitySlot6 = {
+    id: uuidv4(),
+    mentorId: johnMentor.id,
+    date: dayAfterTomorrowDate,
+    startTime: "11:00",
+    endTime: "11:45",
+    isBooked: false,
+    createdAt: now,
+    updatedAt: now,
+  };
 
   // Create availability slots for Alice
-  const aliceAvailability = [
-    {
-      id: uuidv4(),
-      mentorId: aliceMentor.id,
-      date: "2023-06-15",
-      startTime: "13:00",
-      endTime: "13:45",
-      isBooked: false,
-      createdAt: now,
-      updatedAt: now,
-    },
-    {
-      id: uuidv4(),
-      mentorId: aliceMentor.id,
-      date: "2023-06-15",
-      startTime: "14:00",
-      endTime: "14:45",
-      isBooked: false,
-      createdAt: now,
-      updatedAt: now,
-    },
-    {
-      id: uuidv4(),
-      mentorId: aliceMentor.id,
-      date: "2023-06-16",
-      startTime: "10:00",
-      endTime: "10:45",
-      isBooked: false,
-      createdAt: now,
-      updatedAt: now,
-    },
-    {
-      id: uuidv4(),
-      mentorId: aliceMentor.id,
-      date: "2023-06-16",
-      startTime: "11:00",
-      endTime: "11:45",
-      isBooked: false,
-      createdAt: now,
-      updatedAt: now,
-    },
+  const aliceAvailabilitySlot1 = {
+    id: uuidv4(),
+    mentorId: aliceMentor.id,
+    date: currentDate,
+    startTime: "13:00",
+    endTime: "13:45",
+    isBooked: false,
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  const aliceAvailabilitySlot2 = {
+    id: uuidv4(),
+    mentorId: aliceMentor.id,
+    date: currentDate,
+    startTime: "14:00",
+    endTime: "14:45",
+    isBooked: false,
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  const aliceAvailabilitySlot3 = {
+    id: uuidv4(),
+    mentorId: aliceMentor.id,
+    date: tomorrowDate,
+    startTime: "10:00",
+    endTime: "10:45",
+    isBooked: false,
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  const aliceAvailabilitySlot4 = {
+    id: uuidv4(),
+    mentorId: aliceMentor.id,
+    date: tomorrowDate,
+    startTime: "11:00",
+    endTime: "11:45",
+    isBooked: false,
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  const aliceAvailabilitySlot5 = {
+    id: uuidv4(),
+    mentorId: aliceMentor.id,
+    date: sevenDaysAgo,
+    startTime: "13:00",
+    endTime: "13:45",
+    isBooked: true, // This slot will be used for a completed session
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  // Add availability for day after tomorrow for Alice
+  const aliceAvailabilitySlot6 = {
+    id: uuidv4(),
+    mentorId: aliceMentor.id,
+    date: dayAfterTomorrowDate,
+    startTime: "14:00",
+    endTime: "14:45",
+    isBooked: false,
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  // Insert all availability slots
+  const availabilitySlots = [
+    johnAvailabilitySlot1,
+    johnAvailabilitySlot2,
+    johnAvailabilitySlot3,
+    johnAvailabilitySlot4,
+    johnAvailabilitySlot5,
+    johnAvailabilitySlot6, // Add the new slot
+    aliceAvailabilitySlot1,
+    aliceAvailabilitySlot2,
+    aliceAvailabilitySlot3,
+    aliceAvailabilitySlot4,
+    aliceAvailabilitySlot5,
+    aliceAvailabilitySlot6, // Add the new slot
   ];
 
-  // Insert availability slots
-  await db.availability.bulkInsert([...johnAvailability, ...aliceAvailability]);
+  await db.availability.bulkInsert(availabilitySlots);
+
+  // Create sample completed sessions for reviews and payments
+  const completedSession1 = {
+    id: uuidv4(),
+    mentorId: johnMentor.id,
+    menteeId: janeMentee.id,
+    date: sevenDaysAgo,
+    startTime: "09:00",
+    endTime: "09:45",
+    status: "completed",
+    paymentStatus: "completed",
+    paymentAmount: johnMentor.sessionPrice,
+    notes: "React fundamentals session",
+    meetingLink: "https://meet.example.com/abc123",
+    availabilityId: johnAvailabilitySlot5.id,
+    createdAt: now - 1000000, // Some time in the past
+    updatedAt: now - 500000,
+  };
+
+  const completedSession2 = {
+    id: uuidv4(),
+    mentorId: aliceMentor.id,
+    menteeId: tomMentee.id,
+    date: sevenDaysAgo,
+    startTime: "13:00",
+    endTime: "13:45",
+    status: "completed",
+    paymentStatus: "completed",
+    paymentAmount: aliceMentor.sessionPrice,
+    notes: "Introduction to machine learning",
+    meetingLink: "https://meet.example.com/def456",
+    availabilityId: aliceAvailabilitySlot5.id,
+    createdAt: now - 1000000, // Some time in the past
+    updatedAt: now - 500000,
+  };
+
+  // Add a pending session with payment needed
+  const pendingSession = {
+    id: uuidv4(),
+    mentorId: johnMentor.id,
+    menteeId: tomMentee.id,
+    date: formatDate(tomorrow),
+    startTime: "16:00",
+    endTime: "16:45",
+    status: "scheduled",
+    paymentStatus: "pending",
+    paymentAmount: johnMentor.sessionPrice,
+    notes: "Discuss advanced React concepts",
+    meetingLink: "https://meet.example.com/abc123",
+    availabilityId: uuidv4(),
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  // Insert sessions
+  await db.sessions.bulkInsert([
+    completedSession1,
+    completedSession2,
+    pendingSession,
+  ]);
+
+  // Create sample payments for the completed sessions
+  const payment1 = {
+    id: uuidv4(),
+    sessionId: completedSession1.id,
+    mentorId: johnMentor.id,
+    menteeId: janeMentee.id,
+    amount: johnMentor.sessionPrice,
+    status: "completed",
+    date: sevenDaysAgo,
+    transactionId: `tx_${Math.random().toString(36).substring(2, 15)}`,
+    createdAt: now - 995000,
+    updatedAt: now - 995000,
+  };
+
+  const payment2 = {
+    id: uuidv4(),
+    sessionId: completedSession2.id,
+    mentorId: aliceMentor.id,
+    menteeId: tomMentee.id,
+    amount: aliceMentor.sessionPrice,
+    status: "completed",
+    date: sevenDaysAgo,
+    transactionId: `tx_${Math.random().toString(36).substring(2, 15)}`,
+    createdAt: now - 995000,
+    updatedAt: now - 995000,
+  };
+
+  // Insert payments
+  await db.payments.bulkInsert([payment1, payment2]);
+
+  // Create sample ratings
+  const rating1 = {
+    id: uuidv4(),
+    sessionId: completedSession1.id,
+    mentorId: johnMentor.id,
+    menteeId: janeMentee.id,
+    score: 5,
+    review:
+      "Great session! John explained React concepts clearly and provided practical examples.",
+    date: sevenDaysAgo,
+    createdAt: now - 490000,
+    updatedAt: now - 490000,
+  };
+
+  const rating2 = {
+    id: uuidv4(),
+    sessionId: completedSession2.id,
+    mentorId: aliceMentor.id,
+    menteeId: tomMentee.id,
+    score: 4,
+    review:
+      "Alice is very knowledgeable about machine learning. Would recommend!",
+    date: sevenDaysAgo,
+    createdAt: now - 490000,
+    updatedAt: now - 490000,
+  };
+
+  // Insert ratings
+  await db.ratings.bulkInsert([rating1, rating2]);
 
   console.log("Database seeded successfully!");
 };

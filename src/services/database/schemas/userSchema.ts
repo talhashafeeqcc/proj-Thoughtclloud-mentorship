@@ -19,7 +19,8 @@ export const userSchema = {
     },
     role: {
       type: "string",
-      enum: ["mentor", "mentee"],
+      enum: ["mentor", "mentee", "admin"],
+      maxLength: 20,
     },
     password: {
       type: "string",
@@ -48,6 +49,6 @@ export const userSchema = {
   ],
   indexes: [
     ["email", "id"],
-    ["role", "id"]
+    ["role", "id"],
   ],
 };

@@ -9,14 +9,14 @@ import {
 import { getDatabase } from "../services/database/db";
 
 // Define the context type
-interface AuthContextType {
+export interface AuthContextType {
   authState: AuthState;
   login: (email: string, password: string) => Promise<void>;
   register: (data: {
     name: string;
     email: string;
     password: string;
-    role: "mentor" | "mentee";
+    role: "mentor" | "mentee" | "admin";
     profilePicture?: string;
   }) => Promise<void>;
   logout: () => Promise<void>;
@@ -92,9 +92,7 @@ const authReducer = (state: AuthState, action: AuthAction): AuthState => {
 };
 
 // Provider component
-export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
-  children,
-}) => {
+export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [authState, dispatch] = useReducer(authReducer, initialState);
 
   // Ensure database is initialized
@@ -104,6 +102,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         await getDatabase();
       } catch (error) {
         console.error("Failed to initialize database:", error);
+        dispatch({
+          type: "AUTH_ERROR",
+          payload: "Failed to initialize application. Please refresh the page.",
+        });
       }
     };
 
@@ -116,11 +118,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       try {
         const user = await getCurrentUser();
         if (user) {
+          console.log("Loaded user from storage:", user.id);
           dispatch({ type: "LOGIN_SUCCESS", payload: user });
         } else {
+          console.log("No user found in storage");
           dispatch({ type: "LOGOUT_SUCCESS" });
         }
       } catch (error) {
+        console.error("Error loading user:", error);
         dispatch({ type: "LOGOUT_SUCCESS" });
       }
     };
@@ -149,7 +154,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     name: string;
     email: string;
     password: string;
-    role: "mentor" | "mentee";
+    role: "mentor" | "mentee" | "admin";
     profilePicture?: string;
   }) => {
     dispatch({ type: "REGISTER_START" });
@@ -204,13 +209,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   return (
     <AuthContext.Provider value={contextValue}>{children}</AuthContext.Provider>
   );
-};
+}
 
 // Custom hook to use the auth context
-export const useAuth = (): AuthContextType => {
+export function useAuth(): AuthContextType {
   const context = useContext(AuthContext);
   if (context === undefined) {
     throw new Error("useAuth must be used within an AuthProvider");
   }
   return context;
-};
+}

@@ -2,8 +2,10 @@ import React, { useState, useEffect } from "react";
 import { v4 as uuidv4 } from "uuid";
 import { FaCalendarPlus, FaTrash } from "react-icons/fa";
 import { AvailabilitySlot } from "../../types";
-import { getMentorAvailability } from "../../services/sessionService";
-import { updateMentorProfile } from "../../services/userService";
+import {
+  updateMentorProfile,
+  getMentorByUserId,
+} from "../../services/userService";
 import { useAuth } from "../../context/AuthContext";
 
 interface AvailabilityManagerProps {
@@ -33,8 +35,24 @@ const AvailabilityManager: React.FC<AvailabilityManagerProps> = ({
       setLoading(true);
       setError(null);
       try {
-        const slots = await getMentorAvailability(mentorId);
-        setAvailabilitySlots(slots);
+        console.log("Fetching availability for mentorId:", mentorId);
+
+        // First get the current mentor profile to ensure we're working with the latest data
+        if (authState.user?.id) {
+          const currentProfile = await getMentorByUserId(authState.user.id);
+          if (!currentProfile) {
+            throw new Error("Failed to fetch mentor profile");
+          }
+
+          console.log("Mentor profile found:", currentProfile.id);
+
+          // Use the availability directly from the mentor profile
+          const slots = currentProfile.availability || [];
+          console.log("Found availability slots:", slots.length);
+          setAvailabilitySlots(slots);
+        } else {
+          throw new Error("User not authenticated");
+        }
       } catch (err: any) {
         console.error("Error fetching availability:", err);
         setError(err.message || "Failed to load availability slots");
@@ -46,7 +64,7 @@ const AvailabilityManager: React.FC<AvailabilityManagerProps> = ({
     if (mentorId) {
       fetchAvailability();
     }
-  }, [mentorId]);
+  }, [mentorId, authState.user?.id]);
 
   // Add new availability slot
   const handleAddSlot = async (e: React.FormEvent) => {
@@ -64,6 +82,15 @@ const AvailabilityManager: React.FC<AvailabilityManagerProps> = ({
       return;
     }
 
+    // Validate date is not in the past
+    const selectedDate = new Date(date);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    if (selectedDate < today) {
+      setError("Cannot add slots for past dates");
+      return;
+    }
+
     setIsSubmitting(true);
     setError(null);
     setSuccessMessage(null);
@@ -76,6 +103,7 @@ const AvailabilityManager: React.FC<AvailabilityManagerProps> = ({
         startTime,
         endTime,
         isBooked: false,
+        mentorId: mentorId,
       };
 
       // Create updated slots array including existing and new slot
@@ -83,10 +111,28 @@ const AvailabilityManager: React.FC<AvailabilityManagerProps> = ({
 
       // Update mentor profile with new availability
       if (authState.user?.id) {
-        await updateMentorProfile(authState.user.id, {
+        console.log(
+          "Updating mentor profile with new availability:",
+          updatedSlots
+        );
+
+        // First get the current mentor profile
+        const currentProfile = await getMentorByUserId(authState.user.id);
+        if (!currentProfile) {
+          throw new Error("Failed to fetch current mentor profile");
+        }
+
+        // Update the profile with new availability
+        const updatedProfile = await updateMentorProfile(authState.user.id, {
+          ...currentProfile,
           availability: updatedSlots,
         });
 
+        if (!updatedProfile) {
+          throw new Error("Failed to update mentor profile");
+        }
+
+        // Update local state with the new slots
         setAvailabilitySlots(updatedSlots);
         setSuccessMessage("Availability slot added successfully");
 
@@ -124,11 +170,18 @@ const AvailabilityManager: React.FC<AvailabilityManagerProps> = ({
 
       // Update mentor profile with filtered slots
       if (authState.user?.id) {
-        await updateMentorProfile(authState.user.id, {
+        console.log(
+          "Updating mentor profile with filtered availability:",
+          updatedSlots
+        );
+
+        const updatedProfile = await updateMentorProfile(authState.user.id, {
           availability: updatedSlots,
         });
 
-        setAvailabilitySlots(updatedSlots);
+        // Get the availability slots directly from the updated profile
+        console.log("Updated profile:", updatedProfile.id);
+        setAvailabilitySlots(updatedProfile.availability || []);
         setSuccessMessage("Availability slot deleted successfully");
       } else {
         throw new Error("User not authenticated");

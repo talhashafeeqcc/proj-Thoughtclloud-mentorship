@@ -1,13 +1,15 @@
-import React from "react";
+import React, { useState } from "react";
 import { AvailabilitySlot } from "../types";
+import PaymentProcessor from "./PaymentProcessor";
 
 interface BookingModalProps {
   show: boolean;
   selectedSlot: AvailabilitySlot;
   onClose: () => void;
-  onBook: (availabilitySlotId: string) => void;
+  onBook: () => void;
   mentorId: string;
   mentorName: string;
+  sessionPrice?: number;
 }
 
 const BookingModal: React.FC<BookingModalProps> = ({
@@ -17,12 +19,32 @@ const BookingModal: React.FC<BookingModalProps> = ({
   onBook,
   mentorId,
   mentorName,
+  sessionPrice = 0,
 }) => {
+  const [bookingConfirmed, setBookingConfirmed] = useState(false);
+  const [sessionId, setSessionId] = useState<string | null>(null);
+
   if (!show || !selectedSlot) {
     return null; // Don't render anything if the modal is closed or no slot is selected
   }
 
   const formattedDate = new Date(selectedSlot.date).toLocaleDateString();
+
+  const handleConfirmBooking = () => {
+    setBookingConfirmed(true);
+    // Call onBook without passing selectedSlot.id
+    onBook();
+  };
+
+  const handlePaymentSuccess = () => {
+    // Payment completed successfully
+    onClose();
+  };
+
+  const handlePaymentCancel = () => {
+    // Reset booking state
+    setBookingConfirmed(false);
+  };
 
   return (
     <div
@@ -46,40 +68,71 @@ const BookingModal: React.FC<BookingModalProps> = ({
         </span>
 
         <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
-          <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
-            <div className="sm:flex sm:items-start">
-              <div className="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
-                <h3
-                  className="text-lg leading-6 font-medium text-gray-900"
-                  id="modal-title"
-                >
-                  Confirm Booking with {mentorName}
-                </h3>
-                <div className="mt-2">
-                  <p className="text-sm text-gray-500">Date: {formattedDate}</p>
-                  <p className="text-sm text-gray-500">
-                    Time: {selectedSlot.startTime} - {selectedSlot.endTime}
-                  </p>
+          {!bookingConfirmed ? (
+            <>
+              <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                <div className="sm:flex sm:items-start">
+                  <div className="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left w-full">
+                    <h3
+                      className="text-lg leading-6 font-medium text-gray-900"
+                      id="modal-title"
+                    >
+                      Confirm Booking with {mentorName}
+                    </h3>
+                    <div className="mt-2">
+                      <p className="text-sm text-gray-500">
+                        Date: {formattedDate}
+                      </p>
+                      <p className="text-sm text-gray-500">
+                        Time: {selectedSlot.startTime} - {selectedSlot.endTime}
+                      </p>
+                      {sessionPrice > 0 && (
+                        <p className="text-sm text-gray-500 mt-2">
+                          Session Price:{" "}
+                          <span className="font-medium">
+                            ${sessionPrice.toFixed(2)}
+                          </span>
+                        </p>
+                      )}
+                      <div className="mt-4 text-sm text-gray-500">
+                        <p>By confirming this booking:</p>
+                        <ul className="list-disc pl-5 mt-2">
+                          <li>You'll be asked to complete payment</li>
+                          <li>The session will be added to your calendar</li>
+                          <li>You'll receive a confirmation email</li>
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
+              <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                <button
+                  type="button"
+                  className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:ml-3 sm:w-auto sm:text-sm"
+                  onClick={handleConfirmBooking}
+                >
+                  Confirm Booking
+                </button>
+                <button
+                  type="button"
+                  className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
+                  onClick={onClose}
+                >
+                  Cancel
+                </button>
+              </div>
+            </>
+          ) : (
+            <div className="p-6">
+              <PaymentProcessor
+                sessionId={sessionId || "temp-session-id"} // This should be the actual session ID from backend
+                amount={sessionPrice}
+                onSuccess={handlePaymentSuccess}
+                onCancel={handlePaymentCancel}
+              />
             </div>
-          </div>
-          <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
-            <button
-              type="button"
-              className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:ml-3 sm:w-auto sm:text-sm"
-              onClick={() => onBook(selectedSlot.id)}
-            >
-              Confirm Booking
-            </button>
-            <button
-              type="button"
-              className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
-              onClick={onClose}
-            >
-              Cancel
-            </button>
-          </div>
+          )}
         </div>
       </div>
     </div>

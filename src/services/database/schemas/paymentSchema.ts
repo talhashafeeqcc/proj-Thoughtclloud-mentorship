@@ -1,13 +1,18 @@
-export const sessionSchema = {
-  title: "Session Schema",
+export const paymentSchema = {
+  title: "Payment Schema",
   version: 0,
-  description: "Schema for mentoring sessions",
+  description: "Schema for payment records",
   primaryKey: "id",
   type: "object",
   properties: {
     id: {
       type: "string",
       maxLength: 100,
+    },
+    sessionId: {
+      type: "string",
+      maxLength: 100,
+      ref: "sessions",
     },
     mentorId: {
       type: "string",
@@ -19,48 +24,23 @@ export const sessionSchema = {
       maxLength: 100,
       ref: "mentees",
     },
-    availabilityId: {
-      type: "string",
-      maxLength: 100,
-      ref: "availability",
-    },
-    date: {
-      type: "string",
-      maxLength: 50,
-    },
-    startTime: {
-      type: "string",
-      maxLength: 50,
-    },
-    endTime: {
-      type: "string",
-      maxLength: 50,
+    amount: {
+      type: "number",
+      minimum: 0,
     },
     status: {
-      type: "string",
-      enum: ["scheduled", "completed", "cancelled"],
-      default: "scheduled",
-      maxLength: 20,
-    },
-    paymentStatus: {
       type: "string",
       enum: ["pending", "completed", "refunded"],
       default: "pending",
       maxLength: 20,
     },
-    paymentAmount: {
-      type: "number",
-      default: 0,
-    },
-    notes: {
+    date: {
       type: "string",
-      maxLength: 1000,
-      default: "",
+      maxLength: 50,
     },
-    meetingLink: {
+    transactionId: {
       type: "string",
-      maxLength: 500,
-      default: "",
+      maxLength: 100,
     },
     createdAt: {
       type: "number",
@@ -71,18 +51,20 @@ export const sessionSchema = {
   },
   required: [
     "id",
+    "sessionId",
     "mentorId",
     "menteeId",
+    "amount",
+    "status",
     "date",
-    "startTime",
-    "endTime",
+    "transactionId",
     "createdAt",
     "updatedAt",
   ],
   indexes: [
+    ["sessionId", "id"],
     ["mentorId", "id"],
     ["menteeId", "id"],
-    ["date", "id"],
     ["status", "id"],
   ],
 };
