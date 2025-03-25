@@ -1,24 +1,27 @@
-import React from 'react';
-import { Link } from 'react-router-dom';
+import React from "react";
+import { Link } from "react-router-dom";
 
 const HomePage: React.FC = () => {
   return (
     <div className="space-y-16">
       {/* Hero Section */}
-      <section className="text-center py-16 px-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg shadow-xl">
-        <h1 className="text-4xl md:text-5xl font-bold mb-6">Find Your Perfect Mentor</h1>
+      <section className="text-center py-16 px-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-xl">
+        <h1 className="text-4xl md:text-5xl font-bold mb-6">
+          Find Your Perfect Mentor
+        </h1>
         <p className="text-xl md:text-2xl mb-8 max-w-3xl mx-auto">
-          Connect with experienced professionals who can guide you through your career journey
+          Connect with experienced professionals who can guide you through your
+          career journey
         </p>
         <div className="flex flex-col sm:flex-row justify-center gap-4">
-          <Link 
-            to="/mentors" 
+          <Link
+            to="/mentors"
             className="bg-white text-indigo-600 hover:bg-indigo-50 px-8 py-3 rounded-md font-semibold text-lg"
           >
             Find a Mentor
           </Link>
-          <Link 
-            to="/register" 
+          <Link
+            to="/register"
             className="bg-indigo-800 hover:bg-indigo-900 text-white px-8 py-3 rounded-md font-semibold text-lg"
           >
             Become a Mentor
@@ -36,27 +39,30 @@ const HomePage: React.FC = () => {
             </div>
             <h3 className="text-xl font-semibold mb-3">Find a Mentor</h3>
             <p className="text-gray-600">
-              Browse our diverse community of experienced mentors across various fields and industries.
+              Browse our diverse community of experienced mentors across various
+              fields and industries.
             </p>
           </div>
-          
+
           <div className="text-center p-6 bg-white rounded-lg shadow-md">
             <div className="bg-indigo-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
               <span className="text-indigo-600 text-2xl font-bold">2</span>
             </div>
             <h3 className="text-xl font-semibold mb-3">Book a Session</h3>
             <p className="text-gray-600">
-              Schedule a one-on-one session at a time that works for both you and your mentor.
+              Schedule a one-on-one session at a time that works for both you
+              and your mentor.
             </p>
           </div>
-          
+
           <div className="text-center p-6 bg-white rounded-lg shadow-md">
             <div className="bg-indigo-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
               <span className="text-indigo-600 text-2xl font-bold">3</span>
             </div>
             <h3 className="text-xl font-semibold mb-3">Grow Together</h3>
             <p className="text-gray-600">
-              Connect, learn, and develop your skills with personalized guidance from your mentor.
+              Connect, learn, and develop your skills with personalized guidance
+              from your mentor.
             </p>
           </div>
         </div>
@@ -64,37 +70,47 @@ const HomePage: React.FC = () => {
 
       {/* Featured Mentors */}
       <section className="py-12 bg-gray-100 rounded-lg">
-        <h2 className="text-3xl font-bold text-center mb-12">Featured Mentors</h2>
+        <h2 className="text-3xl font-bold text-center mb-12">
+          Featured Mentors
+        </h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto">
           {/* This would typically be mapped from actual data */}
           <div className="bg-white rounded-lg shadow-md overflow-hidden">
-            <img 
-              src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80" 
-              alt="John Mentor" 
+            <img
+              src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80"
+              alt="John Mentor"
               className="w-full h-48 object-cover"
             />
             <div className="p-6">
               <h3 className="text-xl font-semibold mb-2">John Mentor</h3>
-              <p className="text-gray-600 mb-3">Senior Software Engineer at Google</p>
+              <p className="text-gray-600 mb-3">
+                Senior Software Engineer at Google
+              </p>
               <div className="flex mb-3">
-                <span className="bg-indigo-100 text-indigo-800 text-xs px-2 py-1 rounded mr-2">JavaScript</span>
-                <span className="bg-indigo-100 text-indigo-800 text-xs px-2 py-1 rounded mr-2">React</span>
-                <span className="bg-indigo-100 text-indigo-800 text-xs px-2 py-1 rounded">Node.js</span>
+                <span className="bg-indigo-100 text-indigo-800 text-xs px-2 py-1 rounded mr-2">
+                  JavaScript
+                </span>
+                <span className="bg-indigo-100 text-indigo-800 text-xs px-2 py-1 rounded mr-2">
+                  React
+                </span>
+                <span className="bg-indigo-100 text-indigo-800 text-xs px-2 py-1 rounded">
+                  Node.js
+                </span>
               </div>
-              <Link 
-                to="/mentors/1" 
+              <Link
+                to="/mentors/1"
                 className="block text-center bg-indigo-600 hover:bg-indigo-700 text-white py-2 rounded-md"
               >
                 View Profile
               </Link>
             </div>
           </div>
-          
+
           {/* Add more featured mentors here */}
         </div>
         <div className="text-center mt-8">
-          <Link 
-            to="/mentors" 
+          <Link
+            to="/mentors"
             className="inline-block bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-md"
           >
             View All Mentors
@@ -104,13 +120,15 @@ const HomePage: React.FC = () => {
 
       {/* Testimonials */}
       <section className="py-12">
-        <h2 className="text-3xl font-bold text-center mb-12">What Our Users Say</h2>
+        <h2 className="text-3xl font-bold text-center mb-12">
+          What Our Users Say
+        </h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
           <div className="bg-white p-6 rounded-lg shadow-md">
             <div className="flex items-center mb-4">
-              <img 
-                src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?ixlib=rb-1.2.1&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80" 
-                alt="Jane Mentee" 
+              <img
+                src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?ixlib=rb-1.2.1&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80"
+                alt="Jane Mentee"
                 className="w-12 h-12 rounded-full mr-4"
               />
               <div>
@@ -119,10 +137,12 @@ const HomePage: React.FC = () => {
               </div>
             </div>
             <p className="text-gray-700 italic">
-              "Working with my mentor has been transformative for my career. I've gained confidence and skills that helped me land my dream job."
+              "Working with my mentor has been transformative for my career.
+              I've gained confidence and skills that helped me land my dream
+              job."
             </p>
           </div>
-          
+
           {/* Add more testimonials here */}
         </div>
       </section>

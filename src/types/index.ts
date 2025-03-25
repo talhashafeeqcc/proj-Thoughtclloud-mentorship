@@ -3,12 +3,12 @@ export interface User {
   id: string;
   email: string;
   name: string;
-  role: 'mentor' | 'mentee';
+  role: "mentor" | "mentee" | "admin";
   profilePicture?: string;
 }
 
 export interface Mentor extends User {
-  role: 'mentor';
+  role: "mentor";
   expertise: string[];
   bio: string;
   portfolio: PortfolioItem[];
@@ -21,7 +21,7 @@ export interface Mentor extends User {
 }
 
 export interface Mentee extends User {
-  role: 'mentee';
+  role: "mentee";
   interests: string[];
   sessions: Session[];
 }
@@ -69,6 +69,7 @@ export interface AvailabilitySlot {
   startTime: string;
   endTime: string;
   isBooked: boolean;
+  mentorId: string;
 }
 
 export interface Session {
@@ -78,10 +79,14 @@ export interface Session {
   date: string;
   startTime: string;
   endTime: string;
-  status: 'scheduled' | 'completed' | 'cancelled';
-  paymentStatus: 'pending' | 'completed' | 'refunded';
+  status: "scheduled" | "completed" | "cancelled";
+  paymentStatus: "pending" | "completed" | "refunded";
   paymentAmount: number;
   notes?: string;
+  mentorName?: string;
+  menteeName?: string;
+  title?: string;
+  availabilitySlotId?: string;
 }
 
 // Rating and Review Types
@@ -123,7 +128,7 @@ export interface LoginCredentials {
 
 export interface RegisterData extends LoginCredentials {
   name: string;
-  role: 'mentor' | 'mentee';
+  role: "mentor" | "mentee" | "admin";
 }
 
 // Payment Types
@@ -131,7 +136,7 @@ export interface Payment {
   id: string;
   sessionId: string;
   amount: number;
-  status: 'pending' | 'completed' | 'refunded';
+  status: "pending" | "completed" | "refunded";
   date: string;
   transactionId: string;
 }
@@ -139,4 +144,17 @@ export interface Payment {
 // User with password for internal use only (not for storage/display)
 export interface UserWithPassword extends User {
   password: string;
+}
+
+export interface MentorProfile extends User {
+  role: "mentor";
+  expertise: string[];
+  bio: string;
+  portfolio?: PortfolioItem[];
+  certifications?: Certification[];
+  education?: Education[];
+  workExperience?: WorkExperience[];
+  sessionPrice: number;
+  availability?: AvailabilitySlot[];
+  ratings?: Rating[];
 }

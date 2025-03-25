@@ -1,16 +1,52 @@
-import React from 'react';
-import { Mentor } from '../../types';
-import { FaStar, FaGraduationCap, FaBriefcase, FaCertificate } from 'react-icons/fa';
+import React, { useState } from 'react';
+import { Mentor, Rating } from '../../types';
+import { FaStar, FaGraduationCap, FaBriefcase, FaCertificate, FaComment } from 'react-icons/fa';
 
 interface MentorProfileProps {
   mentor: Partial<Mentor>;
 }
 
 const MentorProfile: React.FC<MentorProfileProps> = ({ mentor }) => {
+  const [showAllReviews, setShowAllReviews] = useState(false);
+  
   // Calculate average rating
   const averageRating = mentor.ratings && mentor.ratings.length > 0
     ? mentor.ratings.reduce((sum, rating) => sum + rating.score, 0) / mentor.ratings.length
     : 0;
+
+  // Sort ratings by date (newest first)
+  const sortedRatings = mentor.ratings 
+    ? [...mentor.ratings].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    : [];
+  
+  // Show only first 3 reviews unless "show all" is clicked
+  const displayedRatings = showAllReviews ? sortedRatings : sortedRatings.slice(0, 3);
+
+  // Format date to a readable format
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', { 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric' 
+    });
+  };
+
+  // Render stars for a given rating
+  const renderStars = (score: number) => {
+    return (
+      <div className="flex">
+        {[1, 2, 3, 4, 5].map((star) => (
+          <FaStar
+            key={star}
+            className={`${
+              star <= score ? 'text-yellow-400' : 'text-gray-300'
+            } w-4 h-4`}
+          />
+        ))}
+      </div>
+    );
+  };
 
   return (
     <div className="bg-white rounded-lg shadow-md overflow-hidden">
@@ -53,7 +89,9 @@ const MentorProfile: React.FC<MentorProfileProps> = ({ mentor }) => {
               </div>
             )}
             {mentor.sessionPrice !== undefined && (
-              <p className="mt-2 text-xl font-semibold">${mentor.sessionPrice}/hour</p>
+              <div className="mt-2 bg-blue-700 rounded-lg px-4 py-2 inline-block">
+                <p className="text-xl font-semibold">${mentor.sessionPrice}/hour</p>
+              </div>
             )}
           </div>
         </div>
@@ -120,7 +158,7 @@ const MentorProfile: React.FC<MentorProfileProps> = ({ mentor }) => {
 
       {/* Certifications */}
       {mentor.certifications && mentor.certifications.length > 0 && (
-        <div className="p-6">
+        <div className="p-6 border-b">
           <h2 className="text-xl font-semibold mb-4 flex items-center">
             <FaCertificate className="mr-2" /> Certifications
           </h2>
@@ -148,6 +186,61 @@ const MentorProfile: React.FC<MentorProfileProps> = ({ mentor }) => {
           </div>
         </div>
       )}
+
+      {/* Reviews Section */}
+      <div className="p-6">
+        <h2 className="text-xl font-semibold mb-4 flex items-center">
+          <FaComment className="mr-2" /> Reviews
+        </h2>
+        
+        {sortedRatings.length > 0 ? (
+          <div>
+            <div className="mb-6 p-4 bg-blue-50 rounded-lg">
+              <div className="flex items-center">
+                <div className="text-4xl font-bold text-blue-600 mr-4">
+                  {averageRating.toFixed(1)}
+                </div>
+                <div>
+                  <div className="flex mb-1">
+                    {renderStars(Math.round(averageRating))}
+                  </div>
+                  <div className="text-gray-600">
+                    Based on {mentor.ratings?.length} reviews
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div className="space-y-6">
+              {displayedRatings.map((rating: Rating) => (
+                <div key={rating.id} className="border-b border-gray-200 pb-6 last:border-0 last:pb-0">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      {renderStars(rating.score)}
+                      <p className="font-medium mt-2">Anonymous Mentee</p>
+                    </div>
+                    <div className="text-gray-500 text-sm">
+                      {formatDate(rating.date)}
+                    </div>
+                  </div>
+                  <p className="mt-2 text-gray-700">{rating.review}</p>
+                </div>
+              ))}
+            </div>
+            
+            {sortedRatings.length > 3 && (
+              <button 
+                onClick={() => setShowAllReviews(!showAllReviews)}
+                className="mt-6 text-blue-600 hover:text-blue-800 font-medium"
+              >
+                {showAllReviews ? 'Show fewer reviews' : `Show all ${sortedRatings.length} reviews`}
+              </button>
+            )}
+          </div>
+        ) : (
+          <div className="text-gray-500 italic">No reviews yet.</div>
+        )}
+      </div>
     </div>
   );
 };

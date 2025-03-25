@@ -1,8 +1,7 @@
-import React from 'react';
-import { useAuth } from '../context/AuthContext';
-import MentorDashboard from '../components/dashboard/MentorDashboard';
-import MenteeDashboard from '../components/dashboard/MenteeDashboard';
-import ProfileSettings from '../components/dashboard/ProfileSettings';
+import React from "react";
+import { useAuth } from "../context/AuthContext";
+import MentorDashboard from "../components/dashboard/MentorDashboard";
+import MenteeDashboard from "../components/dashboard/MenteeDashboard";
 
 const DashboardPage: React.FC = () => {
   const { authState } = useAuth();
@@ -13,12 +12,12 @@ const DashboardPage: React.FC = () => {
 
   return (
     <div className="container mx-auto p-4">
-      {authState.user.role === 'mentor' ? (
+      <h1 className="text-2xl font-bold mb-6">Dashboard</h1>
+      {authState.user.role === "mentor" ? (
         <MentorDashboard />
       ) : (
         <MenteeDashboard />
       )}
-      <ProfileSettings />
     </div>
   );
 };
