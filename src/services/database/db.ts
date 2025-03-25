@@ -21,9 +21,9 @@ addRxPlugin(RxDBLeaderElectionPlugin);
 addRxPlugin(RxDBQueryBuilderPlugin);
 addRxPlugin(RxDBMigrationSchemaPlugin);
 addRxPlugin(RxDBUpdatePlugin);
-if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {
-  addRxPlugin(RxDBDevModePlugin);
-}
+// if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {
+addRxPlugin(RxDBDevModePlugin);
+// }
 
 // Define types for documents and collections
 export type UserDocument = {
@@ -145,8 +145,8 @@ let dbPromise: Promise<ThoughtclloudDatabase> | null = null;
 
 // Simple database deletion
 const deleteDatabase = async (dbName: string): Promise<void> => {
-  if (typeof indexedDB === 'undefined') return;
-  
+  if (typeof indexedDB === "undefined") return;
+
   try {
     const deleteRequest = indexedDB.deleteDatabase(dbName);
     await new Promise<void>((resolve, reject) => {
@@ -162,29 +162,29 @@ const deleteDatabase = async (dbName: string): Promise<void> => {
 
 // Clear databases that might be leftover from previous sessions
 export const clearDatabases = async (): Promise<void> => {
-  if (typeof indexedDB === 'undefined') return;
-  
+  if (typeof indexedDB === "undefined") return;
+
   // Get list of existing databases if available
   const databaseNames: string[] = [];
-  
+
   try {
     if (indexedDB.databases) {
       const databases = await indexedDB.databases();
-      databases.forEach(db => {
-        if (db.name && db.name.startsWith('thoughtcllouddb')) {
+      databases.forEach((db) => {
+        if (db.name && db.name.startsWith("thoughtcllouddb")) {
           databaseNames.push(db.name);
         }
       });
     }
   } catch (error) {
-    console.warn('Error listing databases:', error);
+    console.warn("Error listing databases:", error);
   }
-  
+
   // Always try to delete the main database
-  if (!databaseNames.includes('thoughtcllouddb')) {
-    databaseNames.push('thoughtcllouddb');
+  if (!databaseNames.includes("thoughtcllouddb")) {
+    databaseNames.push("thoughtcllouddb");
   }
-  
+
   // Delete all matching databases
   for (const dbName of databaseNames) {
     await deleteDatabase(dbName);
@@ -198,26 +198,26 @@ export const clearDatabase = clearDatabases;
 export const getDatabase = async (): Promise<ThoughtclloudDatabase> => {
   // Return existing instance if available
   if (dbPromise) return dbPromise;
-  
+
   dbPromise = (async () => {
     try {
       // Clear old databases
       await clearDatabases();
-      
+
       // Create a new database
       const db = await createRxDatabase<any>({
-        name: 'thoughtcllouddb',
+        name: "thoughtcllouddb",
         storage: wrappedValidateAjvStorage({
-          storage: getRxStorageDexie()
+          storage: getRxStorageDexie(),
         }),
         ignoreDuplicate: true,
         options: {
           allowUserDatabaseAccess: true,
         },
       });
-      
-      console.log('Database created successfully');
-      
+
+      console.log("Database created successfully");
+
       // Add collections
       await db.addCollections({
         users: {
@@ -242,15 +242,15 @@ export const getDatabase = async (): Promise<ThoughtclloudDatabase> => {
           schema: paymentSchema,
         },
       });
-      
+
       return db;
     } catch (error) {
-      console.error('Error initializing database:', error);
+      console.error("Error initializing database:", error);
       dbPromise = null;
       throw error;
     }
   })();
-  
+
   return dbPromise;
 };
 
@@ -258,24 +258,27 @@ export const getDatabase = async (): Promise<ThoughtclloudDatabase> => {
 export const initializeDatabaseWithSampleData = async (): Promise<void> => {
   try {
     const db = await getDatabase();
-    
+
     // Check if database is empty
-    const userCount = await db.users.find().exec().then(docs => docs.length);
-    
+    const userCount = await db.users
+      .find()
+      .exec()
+      .then((docs) => docs.length);
+
     if (userCount === 0) {
-      console.log('Database is empty, initializing with sample data');
-      
+      console.log("Database is empty, initializing with sample data");
+
       // Import the seed data function
-      const { seedDatabase } = await import('./seedData');
-      
+      const { seedDatabase } = await import("./seedData");
+
       // Seed the database
       await seedDatabase(db);
-      console.log('Sample data initialized successfully');
+      console.log("Sample data initialized successfully");
     } else {
-      console.log('Database already contains data, skipping initialization');
+      console.log("Database already contains data, skipping initialization");
     }
   } catch (error) {
-    console.error('Error initializing database with sample data:', error);
+    console.error("Error initializing database with sample data:", error);
     throw error;
   }
 };
@@ -285,17 +288,17 @@ export const resetAndInitializeDatabase = async (): Promise<boolean> => {
   try {
     // Reset DB promise
     dbPromise = null;
-    
+
     // Clear databases
     await clearDatabases();
-    
+
     // Initialize with fresh data
     await initializeDatabaseWithSampleData();
-    
-    console.log('Database has been completely reset and re-initialized');
+
+    console.log("Database has been completely reset and re-initialized");
     return true;
   } catch (error) {
-    console.error('Failed to reset and initialize database:', error);
+    console.error("Failed to reset and initialize database:", error);
     return false;
   }
 };
