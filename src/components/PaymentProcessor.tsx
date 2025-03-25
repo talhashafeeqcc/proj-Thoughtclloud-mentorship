@@ -6,7 +6,7 @@ import {
   FaTimesCircle,
   FaCreditCard,
 } from "react-icons/fa";
-import { updateSession } from "../services/sessionService";
+import { updateSession, getSessionById } from "../services/sessionService";
 import { Link, useNavigate } from "react-router-dom";
 
 interface PaymentProcessorProps {
@@ -26,19 +26,68 @@ const PaymentProcessor: React.FC<PaymentProcessorProps> = ({
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [transactionId, setTransactionId] = useState<string | null>(null);
+  const [isPaid, setIsPaid] = useState(false);
   const navigate = useNavigate();
 
+  // Check if session is already paid when component mounts
+  useEffect(() => {
+    const checkSessionStatus = async () => {
+      try {
+        if (!sessionId || sessionId === "temp-session-id") return;
+        
+        setLoading(true);
+        const session = await getSessionById(sessionId);
+        
+        if (session.paymentStatus === "completed") {
+          console.log("Session already paid:", sessionId);
+          setIsPaid(true);
+          setSuccess(true);
+        }
+      } catch (err) {
+        console.error("Error checking session status:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    checkSessionStatus();
+  }, [sessionId]);
+
   const handleProcessPayment = async () => {
+    if (isPaid) {
+      setSuccess(true);
+      if (onSuccess) onSuccess();
+      return;
+    }
+    
+    if (!sessionId || sessionId === "temp-session-id") {
+      setError("Invalid session ID. Please try again.");
+      return;
+    }
+    
     setLoading(true);
     setError(null);
 
     try {
+      // Process the payment
       const payment = await processPayment(sessionId, amount);
       setTransactionId(payment.transactionId);
+      
+      // Update the session payment status
+      await updateSession(sessionId, {
+        paymentStatus: "completed",
+        notes: `Payment completed. Transaction ID: ${payment.transactionId}`
+      });
+      
       setSuccess(true);
-      if (onSuccess) {
-        onSuccess();
-      }
+      setIsPaid(true);
+      
+      // Wait a moment before redirecting to ensure DB updates complete
+      setTimeout(() => {
+        if (onSuccess) {
+          onSuccess();
+        }
+      }, 1000);
     } catch (err: any) {
       console.error("Payment error:", err);
       setError(err.message || "Failed to process payment");
@@ -92,9 +141,11 @@ const PaymentProcessor: React.FC<PaymentProcessorProps> = ({
             <FaCheckCircle className="text-green-500 mr-2" />
             <p className="text-green-700">Payment successful!</p>
           </div>
-          <p className="mt-2 text-sm text-gray-600">
-            Transaction ID: {transactionId}
-          </p>
+          {transactionId && (
+            <p className="mt-2 text-sm text-gray-600">
+              Transaction ID: {transactionId}
+            </p>
+          )}
           <div className="mt-4">
             <Link
               to="/dashboard"

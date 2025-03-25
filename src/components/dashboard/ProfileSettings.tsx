@@ -5,10 +5,10 @@ import {
   updateMentorProfile,
   getUserById,
   getMentorByUserId,
+  getMenteeByUserId
 } from "../../services/userService";
 import {
   updateMenteeProfile,
-  getMenteeByUserId,
 } from "../../services/menteeService";
 import { User, MentorProfile, Mentee } from "../../types";
 

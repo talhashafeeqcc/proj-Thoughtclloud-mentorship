@@ -1,7 +1,6 @@
 import { v4 as uuidv4 } from "uuid";
-import type { Mentee, User } from "../types";
+import type { Mentee } from "../types";
 import { getDatabase } from "./database/db";
-import type { RxDocument } from "rxdb";
 
 // Define interfaces for RxDB document types
 interface MenteeDocument {
@@ -42,13 +41,13 @@ export const getMentees = async (): Promise<ExtendedMentee[]> => {
     const menteeDocs = await db.mentees.find().exec();
 
     // Get the mentee profiles
-    const menteeProfiles = menteeDocs.map((doc: RxDocument<MenteeDocument>) =>
+    const menteeProfiles = menteeDocs.map((doc) =>
       doc.toJSON()
     );
 
     // Get user data for all mentees
     const userIds = menteeProfiles.map(
-      (mentee: MenteeDocument) => mentee.userId
+      (mentee) => mentee.userId
     );
     const userDocs = await db.users
       .find({
@@ -60,10 +59,10 @@ export const getMentees = async (): Promise<ExtendedMentee[]> => {
       })
       .exec();
 
-    // Map users to their respective mentee profiles
-    return menteeProfiles.map((mentee: MenteeDocument) => {
+    // Map users to their respective mentee profiles with type assertion
+    return menteeProfiles.map((mentee) => {
       const userDoc = userDocs.find(
-        (u: RxDocument<UserDocument>) => u.id === mentee.userId
+        (u) => u.id === mentee.userId
       );
 
       if (!userDoc) {
@@ -73,19 +72,19 @@ export const getMentees = async (): Promise<ExtendedMentee[]> => {
           email: "unknown@example.com",
           name: "Unknown Mentee",
           role: "mentee" as const,
-          interests: mentee.interests,
-          bio: mentee.bio,
-          goals: mentee.goals,
-          currentPosition: mentee.currentPosition,
+          interests: Array.isArray(mentee.interests) ? [...mentee.interests] : [],
+          bio: mentee.bio || "",
+          goals: Array.isArray(mentee.goals) ? [...mentee.goals] : [],
+          currentPosition: mentee.currentPosition || "",
           sessions: [],
-        };
+        } as ExtendedMentee;
       }
 
       const user = userDoc.toJSON();
       // Don't include password in the returned object
       const { password, ...safeUser } = user;
 
-      // Combine mentee and user data
+      // Combine mentee and user data with type assertion
       return {
         ...mentee,
         id: mentee.id,
@@ -93,8 +92,10 @@ export const getMentees = async (): Promise<ExtendedMentee[]> => {
         name: safeUser.name,
         role: "mentee" as const,
         profilePicture: safeUser.profilePicture || "",
+        interests: Array.isArray(mentee.interests) ? [...mentee.interests] : [],
+        goals: Array.isArray(mentee.goals) ? [...mentee.goals] : [],
         sessions: [], // We'll need to fetch sessions separately if needed
-      };
+      } as ExtendedMentee;
     });
   } catch (error) {
     console.error("Failed to get mentees:", error);
@@ -327,20 +328,72 @@ export const createMenteeProfile = async (
  * Update a mentee profile
  */
 export const updateMenteeProfile = async (
-  id: string,
+  userId: string,
   updates: Partial<ExtendedMentee>
 ): Promise<ExtendedMentee | null> => {
   try {
     const db = await getDatabase();
-    console.log("Updating mentee profile:", id);
+    console.log("Updating mentee profile for user:", userId);
 
-    const menteeDoc = await db.mentees.findOne(id).exec();
+    // First find the mentee profile by userId instead of menteeId
+    const menteeDocs = await db.mentees
+      .find({
+        selector: {
+          userId: userId,
+        },
+      })
+      .exec();
 
-    if (!menteeDoc) {
-      console.error("Mentee profile not found:", id);
-      return null;
+    if (menteeDocs.length === 0) {
+      console.error("Mentee profile not found for user:", userId);
+      
+      // If no mentee profile exists, create one
+      console.log("Creating new mentee profile for user:", userId);
+      const now = Date.now();
+      const menteeId = uuidv4();
+      const newMentee = {
+        id: menteeId,
+        userId: userId,
+        interests: updates.interests || [],
+        bio: updates.bio || "",
+        goals: updates.goals || [],
+        currentPosition: updates.currentPosition || "",
+        createdAt: now,
+        updatedAt: now,
+      };
+
+      await db.mentees.insert(newMentee);
+      console.log("Created new mentee profile with ID:", menteeId);
+      
+      // Continue with user update
+      if (updates.name || updates.email || updates.profilePicture) {
+        const userDoc = await db.users.findOne(userId).exec();
+
+        if (userDoc) {
+          const user = userDoc.toJSON();
+          const userUpdates: Partial<UserDocument> = {
+            name: updates.name !== undefined ? updates.name : user.name,
+            email: updates.email !== undefined ? updates.email : user.email,
+            profilePicture:
+              updates.profilePicture !== undefined
+                ? updates.profilePicture
+                : user.profilePicture,
+            updatedAt: now,
+          };
+
+          console.log("Updating user data:", userUpdates);
+
+          await userDoc.update({
+            $set: userUpdates,
+          });
+        }
+      }
+      
+      // Return the newly created mentee profile
+      return getMenteeByUserId(userId);
     }
 
+    const menteeDoc = menteeDocs[0];
     const mentee = menteeDoc.toJSON() as MenteeDocument;
     const now = Date.now();
 
@@ -366,7 +419,7 @@ export const updateMenteeProfile = async (
 
     // Update user data if provided
     if (updates.name || updates.email || updates.profilePicture) {
-      const userDoc = await db.users.findOne(mentee.userId).exec();
+      const userDoc = await db.users.findOne(userId).exec();
 
       if (userDoc) {
         const user = userDoc.toJSON();
@@ -389,14 +442,9 @@ export const updateMenteeProfile = async (
     }
 
     // Return updated mentee profile
-    const updatedMentee = await getMenteeById(id);
-    if (!updatedMentee) {
-      console.error("Failed to fetch updated mentee profile");
-      throw new Error("Failed to fetch updated mentee profile");
-    }
-    return updatedMentee;
+    return getMenteeByUserId(userId);
   } catch (error) {
-    console.error(`Failed to update mentee with ID ${id}:`, error);
-    throw new Error(`Failed to update mentee with ID ${id}`);
+    console.error(`Failed to update mentee with user ID ${userId}:`, error);
+    throw new Error(`Failed to update mentee with user ID ${userId}`);
   }
 };

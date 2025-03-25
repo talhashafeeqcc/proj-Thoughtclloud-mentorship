@@ -21,7 +21,11 @@ const initializeDatabase = async () => {
     console.log("Starting direct database initialization");
     
     // In development, always fully clear the database first
-    if (process.env.NODE_ENV === 'development') {
+    const isDevelopment = typeof window !== 'undefined' && 
+                        (window.location.hostname === 'localhost' || 
+                         window.location.hostname === '127.0.0.1');
+    
+    if (isDevelopment) {
       console.log("Development mode: Performing complete database reset");
       await clearDatabase();
     }
@@ -46,21 +50,29 @@ const initializeDatabase = async () => {
   }
 };
 
-// Start the initialization process
-initializeDatabase();
+// Start the initialization process and store the promise
+const bootstrapPromise = initializeDatabase();
 
 // Export a function to check if bootstrap completed successfully
 export const isBootstrapComplete = () => databaseBootstrapStatus.completed;
+
+// Export the bootstrap promise for components that need to await it
+export const getBootstrapPromise = () => bootstrapPromise;
 
 // Export a function to trigger a manual retry if needed
 export const retryBootstrap = async () => {
   if (!databaseBootstrapStatus.completed) {
     console.log("Manually retrying database bootstrap with forced reset");
     
+    // Reset status flags
+    databaseBootstrapStatus.started = true;
+    databaseBootstrapStatus.completed = false;
+    databaseBootstrapStatus.error = null;
+    
     // Always clear first on manual retry
     try {
       await clearDatabase();
-      initializeDatabase();
+      await initializeDatabase();
     } catch (error) {
       console.error("Manual retry failed:", error);
     }

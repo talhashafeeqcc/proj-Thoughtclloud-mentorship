@@ -76,6 +76,7 @@ export const sessionSchema = {
     "date",
     "startTime",
     "endTime",
+    "status",
     "createdAt",
     "updatedAt",
   ],

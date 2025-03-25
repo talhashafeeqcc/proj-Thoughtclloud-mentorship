@@ -99,18 +99,15 @@ const MentorProfilePage: React.FC = () => {
   };
 
   const handleConfirmBooking = async () => {
-    if (!selectedSlot || !mentor || !authState.user || !isMentee) {
-      setBookingError(
-        "Missing required information for booking or not a mentee"
-      );
-      return;
+    if (!selectedSlot || !authState.user || !mentor) {
+      setBookingError("Missing required information for booking");
+      return Promise.reject("Missing required information for booking");
     }
 
-    setBookingError(null);
-
     try {
-      // Create a new session and store the result
-      await bookSession({
+      // Creating a loading state variable to indicate booking is in progress
+      setLoading(true);
+      const sessionData = {
         mentorId: mentor.id,
         menteeId: authState.user.id,
         date: selectedSlot.date,
@@ -119,18 +116,25 @@ const MentorProfilePage: React.FC = () => {
         paymentAmount: mentor.sessionPrice || 0,
         availabilitySlotId: selectedSlot.id,
         notes: `Session with ${mentor.name}`,
-      });
+        // Status and payment status are set by the bookSession function
+      };
 
-      // Show success message
+      const session = await bookSession(sessionData);
+      console.log("Session booked successfully with ID:", session.id);
       setBookingSuccess(true);
-      // Don't close modal immediately - payment needs to be processed
+      
+      // Return the session ID for the BookingModal
+      return session.id;
     } catch (error) {
-      console.error("Error booking session:", error);
-      setBookingError(
-        error instanceof Error
-          ? error.message
-          : "Failed to book session. Please try again."
-      );
+      console.error("Error during booking:", error);
+      if (error instanceof Error) {
+        setBookingError(error.message);
+      } else {
+        setBookingError("An unknown error occurred during booking");
+      }
+      return Promise.reject(error);
+    } finally {
+      setLoading(false);
     }
   };
 

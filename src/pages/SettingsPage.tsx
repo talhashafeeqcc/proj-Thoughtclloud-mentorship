@@ -19,13 +19,17 @@ const SettingsPage: React.FC = () => {
     }
   };
 
+  // Check if we're in development environment
+  const isDevelopment = window.location.hostname === 'localhost' || 
+                      window.location.hostname === '127.0.0.1';
+
   return (
     <div className="container mx-auto p-4">
       <h1 className="text-2xl font-bold mb-6">Account Settings</h1>
       <ProfileSettings />
 
       {/* Development only - reset database button */}
-      {process.env.NODE_ENV !== "production" && (
+      {isDevelopment && (
         <div className="mt-8 p-4 bg-red-50 border border-red-300 rounded-md">
           <h2 className="text-lg font-semibold text-red-700 mb-2">
             Developer Tools

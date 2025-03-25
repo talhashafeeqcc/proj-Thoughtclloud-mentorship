@@ -14,7 +14,8 @@ export {
   databaseBootstrapStatus,
   isBootstrapComplete,
   retryBootstrap, 
-  nuclearReset 
+  nuclearReset,
+  getBootstrapPromise
 } from './bootstrap';
 
 // Import bootstrap to ensure it's initialized

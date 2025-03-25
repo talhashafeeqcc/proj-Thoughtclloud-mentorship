@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useCallback } from "react";
 import { Session } from "../../types";
 import {
   FaCalendar,
@@ -11,6 +11,8 @@ import {
 } from "react-icons/fa";
 import { Link } from "react-router-dom";
 import SessionDetails from "../SessionDetails";
+import SessionPayment from "./SessionPayment";
+import { useSession } from "../../context/SessionContext";
 
 interface SessionListProps {
   sessions: Session[];
@@ -23,9 +25,9 @@ const SessionList: React.FC<SessionListProps> = ({
   onCancelSession,
   currentUserId,
 }) => {
-  const [selectedSessionId, setSelectedSessionId] = useState<string | null>(
-    null
-  );
+  const { fetchUserSessions } = useSession();
+  const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
+  const [showPaymentFor, setShowPaymentFor] = useState<string | null>(null);
   const [isCancelling, setIsCancelling] = useState<string | null>(null);
 
   if (!sessions || sessions.length === 0) {
@@ -57,7 +59,23 @@ const SessionList: React.FC<SessionListProps> = ({
 
   const handleViewDetails = (sessionId: string) => {
     setSelectedSessionId(selectedSessionId === sessionId ? null : sessionId);
+    // Close payment form if user clicks to view details
+    if (showPaymentFor === sessionId) {
+      setShowPaymentFor(null);
+    }
   };
+
+  const handleShowPayment = useCallback((e: React.MouseEvent, sessionId: string) => {
+    e.stopPropagation();
+    setShowPaymentFor(sessionId);
+  }, []);
+
+  const handlePaymentSuccess = useCallback(() => {
+    // Refresh session list after successful payment
+    fetchUserSessions();
+    // Close payment form
+    setShowPaymentFor(null);
+  }, [fetchUserSessions]);
 
   // Group sessions by status
   const upcomingSessions = sessions.filter(
@@ -77,6 +95,7 @@ const SessionList: React.FC<SessionListProps> = ({
     const isPending = session.paymentStatus === "pending";
     const isRefunded = session.paymentStatus === "refunded";
     const isSelected = selectedSessionId === session.id;
+    const isShowingPayment = showPaymentFor === session.id;
     const isMentor = currentUserId === session.mentorId;
     const isMentee = currentUserId === session.menteeId;
 
@@ -167,25 +186,32 @@ const SessionList: React.FC<SessionListProps> = ({
               )}
 
               {isPending && isMentee && (
-                <Link
-                  to={`/payment/${session.id}`}
-                  onClick={(e) => e.stopPropagation()}
+                <button
+                  onClick={(e) => handleShowPayment(e, session.id)}
                   className="text-sm text-blue-500 hover:text-blue-700 flex items-center"
                 >
                   <FaMoneyCheckAlt className="mr-1" /> Complete Payment
-                </Link>
+                </button>
               )}
             </div>
           </div>
         </div>
 
-        {isSelected && (
+        {isSelected && !isShowingPayment && (
           <div className="mt-2 bg-gray-50 rounded-lg border p-4">
             <SessionDetails
               sessionId={session.id}
               currentUserId={currentUserId}
             />
           </div>
+        )}
+
+        {isShowingPayment && (
+          <SessionPayment 
+            sessionId={session.id}
+            amount={session.paymentAmount}
+            onSuccess={handlePaymentSuccess}
+          />
         )}
       </div>
     );
@@ -198,7 +224,7 @@ const SessionList: React.FC<SessionListProps> = ({
           <h3 className="text-lg font-semibold mb-3 flex items-center">
             <FaCalendar className="mr-2 text-blue-500" /> Upcoming Sessions
           </h3>
-          {upcomingSessions.map(renderSession)}
+          <div>{upcomingSessions.map(renderSession)}</div>
         </div>
       )}
 
@@ -207,7 +233,7 @@ const SessionList: React.FC<SessionListProps> = ({
           <h3 className="text-lg font-semibold mb-3 flex items-center">
             <FaCheckCircle className="mr-2 text-green-500" /> Completed Sessions
           </h3>
-          {completedSessions.map(renderSession)}
+          <div>{completedSessions.map(renderSession)}</div>
         </div>
       )}
 
@@ -216,7 +242,7 @@ const SessionList: React.FC<SessionListProps> = ({
           <h3 className="text-lg font-semibold mb-3 flex items-center">
             <FaTimesCircle className="mr-2 text-red-500" /> Cancelled Sessions
           </h3>
-          {cancelledSessions.map(renderSession)}
+          <div>{cancelledSessions.map(renderSession)}</div>
         </div>
       )}
     </div>

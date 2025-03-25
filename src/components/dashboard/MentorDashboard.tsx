@@ -12,7 +12,6 @@ const MentorDashboard: React.FC = () => {
   const { sessionState, cancelUserSession } = useSession();
   
   const [mentorId, setMentorId] = useState<string>("");
-  const [mentorName, setMentorName] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("sessions"); // 'sessions', 'calendar', or 'manage'
@@ -32,6 +31,12 @@ const MentorDashboard: React.FC = () => {
   const handleSessionsTab = useCallback(() => handleTabChange("sessions"), [handleTabChange]);
   const handleCalendarTab = useCallback(() => handleTabChange("calendar"), [handleTabChange]);
   const handleManageTab = useCallback(() => handleTabChange("manage"), [handleTabChange]);
+  
+  // Define this callback at the component level to ensure consistent hooks order
+  const onSlotSelect = useCallback(() => {
+    // Empty callback - just here to maintain hooks order
+    console.log("Slot selected (placeholder)");
+  }, []);
 
   // Fetch mentor profile data
   useEffect(() => {
@@ -52,7 +57,6 @@ const MentorDashboard: React.FC = () => {
         // Only update state if component is still mounted
         if (mountedRef.current && mentorData) {
           setMentorId(mentorData.id || "");
-          setMentorName(mentorData.name || "");
         }
       } catch (err: any) {
         if (mountedRef.current) {
@@ -191,7 +195,7 @@ const MentorDashboard: React.FC = () => {
           </p>
           <AvailabilityCalendar 
             mentorId={mentorId} 
-            onSlotSelect={useCallback(() => {}, [])} 
+            onSlotSelect={onSlotSelect} 
           />
         </div>
       )}

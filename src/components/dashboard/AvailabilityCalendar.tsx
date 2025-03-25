@@ -4,9 +4,12 @@ import {
   FaClock,
   FaExclamationTriangle,
   FaSpinner,
+  FaLock,
+  FaCheck,
 } from "react-icons/fa";
-import { getMentorById } from "../../services/userService";
 import { AvailabilitySlot } from "../../types";
+import { getDatabase } from "../../services/database/db";
+import { useSession } from "../../context/SessionContext";
 
 interface AvailabilityCalendarProps {
   mentorId: string;
@@ -28,6 +31,9 @@ const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
   );
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
   const [selectedSlotId, setSelectedSlotId] = useState<string | null>(null);
+  const [bookedSlots, setBookedSlots] = useState<AvailabilitySlot[]>([]);
+  const { sessionState } = useSession();
+  const { sessions } = sessionState;
 
   useEffect(() => {
     const fetchAvailability = async () => {
@@ -36,41 +42,68 @@ const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
       try {
         console.log("Fetching availability for calendar, mentorId:", mentorId);
 
-        // Get the mentor profile directly which includes availability
-        const mentorProfile = await getMentorById(mentorId);
+        // Get availability from the dedicated availability collection
+        const db = await getDatabase();
+        const availabilityDocs = await db.availability
+          .find({
+            selector: {
+              mentorId: mentorId,
+            },
+          })
+          .exec();
 
-        if (!mentorProfile) {
-          console.error("Mentor profile not found");
-          setError("Mentor profile not found");
+        if (availabilityDocs.length === 0) {
+          console.log("No availability slots found for mentor:", mentorId);
           setAvailabilitySlots([]);
           return;
         }
 
-        console.log(
-          "Mentor profile found, availability count:",
-          mentorProfile.availability ? mentorProfile.availability.length : 0
-        );
+        // Map to AvailabilitySlot type with proper type handling
+        const slots = availabilityDocs.map(doc => {
+          const data = doc.toJSON();
+          return {
+            id: data.id,
+            date: data.date || "",
+            startTime: data.startTime || "",
+            endTime: data.endTime || "",
+            isBooked: !!data.isBooked,
+            mentorId: data.mentorId
+          } as AvailabilitySlot;
+        });
 
-        // Use the availability slots from the mentor profile
-        const slots = mentorProfile.availability || [];
+        console.log("All availability slots:", slots.length);
 
-        console.log("All availability slots:", slots);
+        // Separate available and booked slots
+        const booked = slots.filter(slot => slot.isBooked);
+        const available = slots.filter(slot => !slot.isBooked);
 
-        // Filter slots for the currently selected month and year
-        const filteredSlots = slots.filter((slot) => {
+        // Filter available slots for the currently selected month and year
+        const filteredAvailableSlots = available.filter((slot) => {
           const slotDate = new Date(slot.date);
           return (
             slotDate.getMonth() === selectedDate.getMonth() &&
-            slotDate.getFullYear() === selectedDate.getFullYear() &&
-            !slot.isBooked // Only show slots that aren't already booked
+            slotDate.getFullYear() === selectedDate.getFullYear()
+          );
+        });
+
+        // Filter booked slots for the currently selected month and year
+        const filteredBookedSlots = booked.filter((slot) => {
+          const slotDate = new Date(slot.date);
+          return (
+            slotDate.getMonth() === selectedDate.getMonth() &&
+            slotDate.getFullYear() === selectedDate.getFullYear()
           );
         });
 
         console.log(
-          "Filtered availability slots for current month:",
-          filteredSlots.length
+          "Filtered available slots for current month:",
+          filteredAvailableSlots.length,
+          "Booked slots:",
+          filteredBookedSlots.length
         );
-        setAvailabilitySlots(filteredSlots);
+        
+        setAvailabilitySlots(filteredAvailableSlots);
+        setBookedSlots(filteredBookedSlots);
       } catch (err: any) {
         console.error("Error fetching availability:", err);
         setError(err.message || "Failed to load availability");
@@ -80,7 +113,7 @@ const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
     };
 
     fetchAvailability();
-  }, [mentorId, selectedDate]); // Refetch slots when mentorId or selectedDate changes
+  }, [mentorId, selectedDate, sessions]); // Refetch when sessions change too
 
   const daysInMonth = (date: Date) => {
     return new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
@@ -130,7 +163,6 @@ const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
 
   const handleDayClick = (
     day: number,
-    hasSlots: boolean,
     formattedDate: string
   ) => {
     setSelectedDay(day);
@@ -138,12 +170,21 @@ const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
     setSelectedSlotId(null);
     onSlotSelect(null);
 
-    if (hasSlots) {
-      const slotsForDay = availabilitySlots.filter(
-        (slot) => slot.date === formattedDate
-      );
-      console.log("Slots for selected day:", formattedDate, slotsForDay);
-      setSelectedDaySlots(slotsForDay);
+    const slotsForDay = availabilitySlots.filter(
+      (slot) => slot.date === formattedDate
+    );
+    
+    // Include booked slots in the display but make them unselectable
+    const bookedSlotsForDay = bookedSlots.filter(
+      (slot) => slot.date === formattedDate
+    );
+    
+    // Combine available and booked slots for display
+    const allSlotsForDay = [...slotsForDay, ...bookedSlotsForDay];
+    
+    if (allSlotsForDay.length > 0) {
+      console.log("All slots for selected day:", formattedDate, allSlotsForDay);
+      setSelectedDaySlots(allSlotsForDay);
     }
   };
 
@@ -177,10 +218,15 @@ const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
     // Format as YYYY-MM-DD
     const formattedDate = currentDate.toISOString().split("T")[0];
 
-    // Check if there are slots for this day
-    const hasSlots = availabilitySlots.some(
+    // Check if there are available or booked slots for this day
+    const hasAvailableSlots = availabilitySlots.some(
       (slot) => slot.date === formattedDate
     );
+    
+    const hasBookedSlots = bookedSlots.some(
+      (slot) => slot.date === formattedDate
+    );
+    
     const isSelectedDay = day === selectedDay;
     const today = new Date();
     const isToday =
@@ -192,18 +238,25 @@ const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
     calendarDays.push(
       <div
         key={`day-${day}`}
-        className={`p-2 border hover:bg-gray-100 cursor-pointer 
-          ${hasSlots ? "bg-green-100 hover:bg-green-200" : ""}
+        className={`p-2 border hover:bg-gray-100 cursor-pointer relative
+          ${hasAvailableSlots ? "bg-green-100 hover:bg-green-200" : ""}
+          ${hasBookedSlots ? "bg-purple-100 hover:bg-purple-200" : ""}
+          ${hasAvailableSlots && hasBookedSlots ? "bg-gradient-to-r from-green-100 to-purple-100" : ""}
           ${isSelectedDay ? "bg-blue-200 hover:bg-blue-300 font-semibold" : ""}
           ${isToday ? "border-2 border-blue-500" : ""}
           ${isPastDay ? "opacity-50" : ""}
         `}
-        onClick={() => handleDayClick(day, hasSlots, formattedDate)}
+        onClick={() => handleDayClick(day, formattedDate)}
       >
         {day}
-        {hasSlots && (
-          <div className="h-1 w-1 bg-green-500 rounded-full mx-auto mt-1"></div>
-        )}
+        <div className="flex justify-center mt-1 space-x-1">
+          {hasAvailableSlots && (
+            <div className="h-1 w-1 bg-green-500 rounded-full"></div>
+          )}
+          {hasBookedSlots && (
+            <div className="h-1 w-1 bg-purple-500 rounded-full"></div>
+          )}
+        </div>
       </div>
     );
   }
@@ -261,21 +314,25 @@ const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
         <div className="mt-4">
           <h3 className="text-lg font-semibold mb-2 flex items-center">
             <FaClock className="mr-2 text-blue-500" />
-            Available Slots for{" "}
+            Slots for{" "}
             {new Date(selectedDaySlots[0].date).toLocaleDateString()}
           </h3>
           <ul className="grid grid-cols-2 sm:grid-cols-3 gap-2">
             {selectedDaySlots.map((slot) => (
               <li
                 key={slot.id}
-                className={`p-3 rounded cursor-pointer transition-all flex items-center justify-center
+                className={`p-3 rounded transition-all flex items-center justify-center
                   ${
-                    selectedSlotId === slot.id
-                      ? "bg-blue-500 text-white font-medium shadow-md"
-                      : "bg-gray-100 hover:bg-gray-200 text-gray-800"
+                    slot.isBooked
+                      ? "bg-purple-100 text-purple-800 cursor-not-allowed"
+                      : selectedSlotId === slot.id
+                      ? "bg-blue-500 text-white font-medium shadow-md cursor-pointer"
+                      : "bg-gray-100 hover:bg-gray-200 text-gray-800 cursor-pointer"
                   }`}
-                onClick={() => handleSlotClick(slot)}
+                onClick={() => !slot.isBooked && handleSlotClick(slot)}
               >
+                {slot.isBooked && <FaLock className="mr-2 text-xs" />}
+                {!slot.isBooked && selectedSlotId === slot.id && <FaCheck className="mr-2 text-xs" />}
                 {formatTime(slot.startTime)} - {formatTime(slot.endTime)}
               </li>
             ))}

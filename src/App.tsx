@@ -16,13 +16,12 @@ import DatabaseErrorFallback from "./components/utility/DatabaseErrorFallback";
 import { useEffect, useState, useRef } from "react";
 
 // Import database module - this will trigger bootstrap
-import { databaseBootstrapStatus, nuclearReset } from "./services/database";
+import { nuclearReset, getBootstrapPromise } from "./services/database";
 
 function App() {
   const [dbError, setDbError] = useState(false);
   const [initializing, setInitializing] = useState(true);
   const initialCheckDone = useRef(false);
-  const intervalIdRef = useRef<NodeJS.Timeout | null>(null);
   // Add a ref to track component mounted state
   const isMounted = useRef(true);
 
@@ -51,11 +50,28 @@ function App() {
       });
     }
 
-    // Check database initialization status once immediately
-    checkStatus();
+    // Wait for bootstrap promise to complete
+    const waitForBootstrap = async () => {
+      try {
+        // Get the bootstrap promise and await it
+        await getBootstrapPromise();
+        
+        if (isMounted.current) {
+          console.log("Bootstrap completed successfully");
+          setDbError(false);
+          setInitializing(false);
+        }
+      } catch (error) {
+        if (isMounted.current) {
+          console.error("Bootstrap failed:", error);
+          setDbError(true);
+          setInitializing(false);
+        }
+      }
+    };
 
-    // Check periodically
-    intervalIdRef.current = setInterval(checkStatus, 1000);
+    // Start waiting for bootstrap
+    waitForBootstrap();
 
     // If initialization takes too long, show error
     const timeoutId = setTimeout(() => {
@@ -63,53 +79,18 @@ function App() {
         console.warn("Database initialization timed out");
         setDbError(true);
         setInitializing(false);
-        if (intervalIdRef.current) {
-          clearInterval(intervalIdRef.current); // Stop checking on timeout
-        }
       }
-    }, 8000); // 8 second timeout
+    }, 10000); // 10 second timeout (increased from 8 seconds)
 
     return () => {
       // Handle cleanup
       isMounted.current = false;
-      if (intervalIdRef.current) {
-        clearInterval(intervalIdRef.current);
-      }
       clearTimeout(timeoutId);
     };
 
     // Skip dependency array warnings - this effect should only run once
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  // Separate function to check database status
-  const checkStatus = () => {
-    if (!isMounted.current) return;
-
-    // Wait for bootstrap to complete or fail
-    if (databaseBootstrapStatus.completed) {
-      console.log("Bootstrap completed successfully");
-      setDbError(false);
-      setInitializing(false);
-      if (intervalIdRef.current) {
-        clearInterval(intervalIdRef.current); // Stop checking once bootstrap completes
-      }
-    } else if (databaseBootstrapStatus.error) {
-      console.error("Bootstrap failed:", databaseBootstrapStatus.error);
-      setDbError(true);
-      setInitializing(false);
-      if (intervalIdRef.current) {
-        clearInterval(intervalIdRef.current); // Stop checking on error
-      }
-    } else if (localStorage.getItem("db_hard_reset_needed") === "true") {
-      console.log("Hard reset needed flag detected");
-      setDbError(true);
-      setInitializing(false);
-      if (intervalIdRef.current) {
-        clearInterval(intervalIdRef.current); // Stop checking if reset needed
-      }
-    }
-  };
 
   // Show loading state while initializing
   if (initializing) {

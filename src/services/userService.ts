@@ -6,6 +6,7 @@ import type {
   LoginCredentials,
   RegisterData,
   AvailabilitySlot,
+  Mentee,
 } from "../types";
 
 // Type for updatedMentor with index signature to fix the indexing issue
@@ -544,6 +545,58 @@ export const getMentorByUserId = async (
     };
   } catch (error) {
     console.error("Error fetching mentor by user ID:", error);
+    throw error;
+  }
+};
+
+// Get mentee by user ID
+export const getMenteeByUserId = async (
+  userId: string
+): Promise<Partial<Mentee> | null> => {
+  try {
+    const db = await getDatabase();
+    console.log("Fetching mentee profile for user:", userId);
+
+    // First get the mentee profile
+    const menteeDocs = await db.mentees
+      .find({
+        selector: {
+          userId: userId,
+        },
+      })
+      .exec();
+
+    if (menteeDocs.length === 0) {
+      console.error("No mentee profile found for user:", userId);
+      return null;
+    }
+
+    const menteeDoc = menteeDocs[0];
+    const mentee = menteeDoc.toJSON();
+
+    // Then get the user data
+    const userDoc = await db.users.findOne(userId).exec();
+    if (!userDoc) {
+      console.error("User not found for ID:", userId);
+      return null;
+    }
+
+    const user = userDoc.toJSON();
+    const { password, ...safeUser } = user;
+
+    // Convert to plain JS object to avoid readonly arrays
+    const processedMentee = JSON.parse(JSON.stringify(mentee));
+
+    // Combine user and mentee data with proper type cast for role
+    return {
+      ...processedMentee,
+      email: safeUser.email,
+      name: safeUser.name,
+      role: "mentee" as const, // Force the role to be "mentee"
+      profilePicture: safeUser.profilePicture,
+    };
+  } catch (error) {
+    console.error("Error fetching mentee by user ID:", error);
     throw error;
   }
 };
