@@ -215,7 +215,13 @@ export const seedDatabase = async (db: ThoughtclloudDatabase) => {
 
   // Create availability slots for John - current date and upcoming days
   const today = new Date();
-  const formatDate = (date: Date): string => date.toISOString().split("T")[0];
+  const formatDate = (date: Date): string => {
+    // Format date as YYYY-MM-DD for consistency with schema
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
 
   const currentDate = formatDate(today);
 
@@ -234,12 +240,17 @@ export const seedDatabase = async (db: ThoughtclloudDatabase) => {
   pastDate.setDate(today.getDate() - 7);
   const sevenDaysAgo = formatDate(pastDate);
 
+  // Helper function to format time
+  const formatTime = (hours: number, minutes: number): string => {
+    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+  };
+
   const johnAvailabilitySlot1 = {
     id: uuidv4(),
     mentorId: johnMentor.id,
     date: currentDate,
-    startTime: "10:00",
-    endTime: "10:45",
+    startTime: formatTime(10, 0),
+    endTime: formatTime(10, 45),
     isBooked: false,
     createdAt: now,
     updatedAt: now,
@@ -249,8 +260,8 @@ export const seedDatabase = async (db: ThoughtclloudDatabase) => {
     id: uuidv4(),
     mentorId: johnMentor.id,
     date: currentDate,
-    startTime: "11:00",
-    endTime: "11:45",
+    startTime: formatTime(11, 0),
+    endTime: formatTime(11, 45),
     isBooked: false,
     createdAt: now,
     updatedAt: now,
@@ -260,8 +271,8 @@ export const seedDatabase = async (db: ThoughtclloudDatabase) => {
     id: uuidv4(),
     mentorId: johnMentor.id,
     date: tomorrowDate,
-    startTime: "14:00",
-    endTime: "14:45",
+    startTime: formatTime(14, 0),
+    endTime: formatTime(14, 45),
     isBooked: false,
     createdAt: now,
     updatedAt: now,
@@ -271,8 +282,8 @@ export const seedDatabase = async (db: ThoughtclloudDatabase) => {
     id: uuidv4(),
     mentorId: johnMentor.id,
     date: tomorrowDate,
-    startTime: "15:00",
-    endTime: "15:45",
+    startTime: formatTime(15, 0),
+    endTime: formatTime(15, 45),
     isBooked: false,
     createdAt: now,
     updatedAt: now,
@@ -282,32 +293,31 @@ export const seedDatabase = async (db: ThoughtclloudDatabase) => {
     id: uuidv4(),
     mentorId: johnMentor.id,
     date: sevenDaysAgo,
-    startTime: "09:00",
-    endTime: "09:45",
-    isBooked: true, // This slot will be used for a completed session
+    startTime: formatTime(9, 0),
+    endTime: formatTime(9, 45),
+    isBooked: true,
     createdAt: now,
     updatedAt: now,
   };
 
-  // Add availability for day after tomorrow for John
   const johnAvailabilitySlot6 = {
     id: uuidv4(),
     mentorId: johnMentor.id,
     date: dayAfterTomorrowDate,
-    startTime: "11:00",
-    endTime: "11:45",
+    startTime: formatTime(11, 0),
+    endTime: formatTime(11, 45),
     isBooked: false,
     createdAt: now,
     updatedAt: now,
   };
 
-  // Create availability slots for Alice
+  // Create availability slots for Alice with proper formatting
   const aliceAvailabilitySlot1 = {
     id: uuidv4(),
     mentorId: aliceMentor.id,
     date: currentDate,
-    startTime: "13:00",
-    endTime: "13:45",
+    startTime: formatTime(13, 0),
+    endTime: formatTime(13, 45),
     isBooked: false,
     createdAt: now,
     updatedAt: now,
@@ -317,8 +327,8 @@ export const seedDatabase = async (db: ThoughtclloudDatabase) => {
     id: uuidv4(),
     mentorId: aliceMentor.id,
     date: currentDate,
-    startTime: "14:00",
-    endTime: "14:45",
+    startTime: formatTime(14, 0),
+    endTime: formatTime(14, 45),
     isBooked: false,
     createdAt: now,
     updatedAt: now,
@@ -328,8 +338,8 @@ export const seedDatabase = async (db: ThoughtclloudDatabase) => {
     id: uuidv4(),
     mentorId: aliceMentor.id,
     date: tomorrowDate,
-    startTime: "10:00",
-    endTime: "10:45",
+    startTime: formatTime(10, 0),
+    endTime: formatTime(10, 45),
     isBooked: false,
     createdAt: now,
     updatedAt: now,
@@ -339,8 +349,8 @@ export const seedDatabase = async (db: ThoughtclloudDatabase) => {
     id: uuidv4(),
     mentorId: aliceMentor.id,
     date: tomorrowDate,
-    startTime: "11:00",
-    endTime: "11:45",
+    startTime: formatTime(11, 0),
+    endTime: formatTime(11, 45),
     isBooked: false,
     createdAt: now,
     updatedAt: now,
@@ -350,20 +360,19 @@ export const seedDatabase = async (db: ThoughtclloudDatabase) => {
     id: uuidv4(),
     mentorId: aliceMentor.id,
     date: sevenDaysAgo,
-    startTime: "13:00",
-    endTime: "13:45",
-    isBooked: true, // This slot will be used for a completed session
+    startTime: formatTime(13, 0),
+    endTime: formatTime(13, 45),
+    isBooked: true,
     createdAt: now,
     updatedAt: now,
   };
 
-  // Add availability for day after tomorrow for Alice
   const aliceAvailabilitySlot6 = {
     id: uuidv4(),
     mentorId: aliceMentor.id,
     date: dayAfterTomorrowDate,
-    startTime: "14:00",
-    endTime: "14:45",
+    startTime: formatTime(14, 0),
+    endTime: formatTime(14, 45),
     isBooked: false,
     createdAt: now,
     updatedAt: now,
@@ -376,32 +385,32 @@ export const seedDatabase = async (db: ThoughtclloudDatabase) => {
     johnAvailabilitySlot3,
     johnAvailabilitySlot4,
     johnAvailabilitySlot5,
-    johnAvailabilitySlot6, // Add the new slot
+    johnAvailabilitySlot6,
     aliceAvailabilitySlot1,
     aliceAvailabilitySlot2,
     aliceAvailabilitySlot3,
     aliceAvailabilitySlot4,
     aliceAvailabilitySlot5,
-    aliceAvailabilitySlot6, // Add the new slot
+    aliceAvailabilitySlot6,
   ];
 
   await db.availability.bulkInsert(availabilitySlots);
 
-  // Create sample completed sessions for reviews and payments
+  // Create sample completed sessions with proper date formatting
   const completedSession1 = {
     id: uuidv4(),
     mentorId: johnMentor.id,
     menteeId: janeMentee.id,
     date: sevenDaysAgo,
-    startTime: "09:00",
-    endTime: "09:45",
+    startTime: formatTime(9, 0),
+    endTime: formatTime(9, 45),
     status: "completed",
     paymentStatus: "completed",
     paymentAmount: johnMentor.sessionPrice,
     notes: "React fundamentals session",
     meetingLink: "https://meet.example.com/abc123",
     availabilityId: johnAvailabilitySlot5.id,
-    createdAt: now - 1000000, // Some time in the past
+    createdAt: now - 1000000,
     updatedAt: now - 500000,
   };
 
@@ -410,26 +419,26 @@ export const seedDatabase = async (db: ThoughtclloudDatabase) => {
     mentorId: aliceMentor.id,
     menteeId: tomMentee.id,
     date: sevenDaysAgo,
-    startTime: "13:00",
-    endTime: "13:45",
+    startTime: formatTime(13, 0),
+    endTime: formatTime(13, 45),
     status: "completed",
     paymentStatus: "completed",
     paymentAmount: aliceMentor.sessionPrice,
     notes: "Introduction to machine learning",
     meetingLink: "https://meet.example.com/def456",
     availabilityId: aliceAvailabilitySlot5.id,
-    createdAt: now - 1000000, // Some time in the past
+    createdAt: now - 1000000,
     updatedAt: now - 500000,
   };
 
-  // Add a pending session with payment needed
+  // Add a pending session with proper date formatting
   const pendingSession = {
     id: uuidv4(),
     mentorId: johnMentor.id,
     menteeId: tomMentee.id,
-    date: formatDate(tomorrow),
-    startTime: "16:00",
-    endTime: "16:45",
+    date: tomorrowDate,
+    startTime: formatTime(16, 0),
+    endTime: formatTime(16, 45),
     status: "scheduled",
     paymentStatus: "pending",
     paymentAmount: johnMentor.sessionPrice,

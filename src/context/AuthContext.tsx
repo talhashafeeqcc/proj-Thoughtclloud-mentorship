@@ -11,7 +11,7 @@ import { getDatabase } from "../services/database/db";
 // Define the context type
 export interface AuthContextType {
   authState: AuthState;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string, rememberMe?: boolean) => Promise<void>;
   register: (data: {
     name: string;
     email: string;
@@ -22,6 +22,10 @@ export interface AuthContextType {
   logout: () => Promise<void>;
   updateUser: (user: User) => void;
   clearError: () => void;
+  isAuthenticated: boolean;
+  user: User | null;
+  loading: boolean;
+  error: string | null;
 }
 
 // Create the context with a default value
@@ -92,7 +96,7 @@ const authReducer = (state: AuthState, action: AuthAction): AuthState => {
 };
 
 // Provider component
-export function AuthProvider({ children }: { children: React.ReactNode }) {
+export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [authState, dispatch] = useReducer(authReducer, initialState);
 
   // Ensure database is initialized
@@ -134,13 +138,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   // Login function
-  const login = async (email: string, password: string) => {
+  const login = async (email: string, password: string, rememberMe: boolean = false) => {
     dispatch({ type: "LOGIN_START" });
     try {
-      const user = await loginUser({ email, password });
+      const userData = await loginUser({ email, password, rememberMe });
       // Save user to localStorage for session persistence
-      localStorage.setItem("currentUser", JSON.stringify(user));
-      dispatch({ type: "LOGIN_SUCCESS", payload: user });
+      localStorage.setItem("currentUser", JSON.stringify(userData));
+      dispatch({ type: "LOGIN_SUCCESS", payload: userData });
     } catch (error) {
       dispatch({
         type: "AUTH_ERROR",
@@ -204,12 +208,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     logout,
     updateUser,
     clearError,
+    isAuthenticated: authState.isAuthenticated,
+    user: authState.user,
+    loading: authState.loading,
+    error: authState.error,
   };
 
   return (
     <AuthContext.Provider value={contextValue}>{children}</AuthContext.Provider>
   );
-}
+};
 
 // Custom hook to use the auth context
 export function useAuth(): AuthContextType {

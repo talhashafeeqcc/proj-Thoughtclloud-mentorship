@@ -10,7 +10,7 @@ import {
 import {
   updateMenteeProfile,
 } from "../../services/menteeService";
-import { User, MentorProfile, Mentee } from "../../types";
+import { User, MentorProfile } from "../../types";
 
 // Create a more specific combined type with all possible fields
 interface FormDataFields {
@@ -75,46 +75,42 @@ const ProfileSettings: React.FC = () => {
         setLoading(true);
         setMessage(null);
 
+        console.log("Attempting to fetch profile data for user ID:", authState.user.id);
+
         // First get the user data
-        const userData = await getUserById(authState.user.id);
+        let userData = await getUserById(authState.user.id);
+        
+        // If user data isn't found in the database but exists in auth state
         if (!userData) {
+          console.error("getUserById returned null for user ID:", authState.user.id);
+          
+          // Get the current user from localStorage
+          const storedUser = localStorage.getItem("currentUser");
+          if (storedUser) {
+            try {
+              const parsedUser = JSON.parse(storedUser);
+              console.log("Found user in localStorage:", parsedUser.id);
+              
+              // Use the auth state user data directly if the ID matches
+              if (parsedUser.id === authState.user.id) {
+                console.log("Using auth state data to proceed with profile setup");
+                userData = { 
+                  ...authState.user 
+                };
+                
+                // Proceed with this user data
+                await processUserData(userData);
+                return;
+              }
+            } catch (parseError) {
+              console.error("Error parsing user from localStorage:", parseError);
+            }
+          }
+          
           throw new Error("User data not found");
         }
 
-        console.log("Fetched user data:", userData);
-
-        // Then get role-specific data
-        let roleData;
-        if (userData.role === "mentor") {
-          roleData = await getMentorByUserId(userData.id);
-          if (!roleData) {
-            throw new Error(
-              "Mentor profile not found. Please complete your mentor profile setup."
-            );
-          }
-        } else if (userData.role === "admin") {
-          // Admins might not have mentor/mentee-specific profiles
-          roleData = { role: "admin" as const };
-        } else {
-          roleData = await getMenteeByUserId(userData.id);
-          if (!roleData) {
-            throw new Error(
-              "Mentee profile not found. Please complete your mentee profile setup."
-            );
-          }
-        }
-
-        console.log("Fetched role data:", roleData);
-
-        // Combine user and role data
-        const combinedData = {
-          ...userData,
-          ...roleData,
-        };
-
-        console.log("Combined profile data:", combinedData);
-        setFormData(combinedData);
-        setInitialData(combinedData);
+        await processUserData(userData);
       } catch (error) {
         console.error("Error fetching profile data:", error);
         setMessage({
@@ -127,6 +123,79 @@ const ProfileSettings: React.FC = () => {
       } finally {
         setLoading(false);
       }
+    };
+    
+    // Helper function to process user data and fetch role-specific data
+    const processUserData = async (userData: User) => {
+      console.log("Processing user data:", userData);
+
+      // Then get role-specific data
+      let roleData;
+      if (userData.role === "mentor") {
+        try {
+          roleData = await getMentorByUserId(userData.id);
+          if (!roleData) {
+            console.log("Mentor profile not found, will create a default one");
+            
+            // Use updateMentorProfile to create a default profile
+            const defaultMentorData: Partial<MentorProfile> = {
+              bio: "",
+              expertise: [],
+              sessionPrice: 0,
+              portfolio: [],
+              certifications: [],
+              education: [],
+              workExperience: []
+            };
+            
+            roleData = await updateMentorProfile(userData.id, defaultMentorData);
+            console.log("Created default mentor profile:", roleData);
+          }
+        } catch (error) {
+          console.error("Error getting/creating mentor profile:", error);
+          throw new Error(
+            "Failed to create mentor profile. Please try again or contact support."
+          );
+        }
+      } else if (userData.role === "admin") {
+        // Admins might not have mentor/mentee-specific profiles
+        roleData = { role: "admin" as const };
+      } else {
+        try {
+          roleData = await getMenteeByUserId(userData.id);
+          if (!roleData) {
+            console.log("Mentee profile not found, will create a default one");
+            
+            // Use updateMenteeProfile to create a default profile
+            const defaultMenteeData = {
+              bio: "",
+              interests: [],
+              goals: [],
+              currentPosition: ""
+            };
+            
+            roleData = await updateMenteeProfile(userData.id, defaultMenteeData);
+            console.log("Created default mentee profile:", roleData);
+          }
+        } catch (error) {
+          console.error("Error getting/creating mentee profile:", error);
+          throw new Error(
+            "Failed to create mentee profile. Please try again or contact support."
+          );
+        }
+      }
+
+      console.log("Fetched/created role data:", roleData);
+
+      // Combine user and role data
+      const combinedData = {
+        ...userData,
+        ...roleData,
+      };
+
+      console.log("Combined profile data:", combinedData);
+      setFormData(combinedData);
+      setInitialData(combinedData);
     };
 
     fetchProfileData();
@@ -264,65 +333,144 @@ const ProfileSettings: React.FC = () => {
       setLoading(true);
       setMessage(null);
 
-      if (!authState.user?.id) {
+      console.log("Starting profile update with form data:", formData);
+
+      if (!formData.id) {
         throw new Error("User ID is required");
       }
 
-      // Process the session price for mentors (convert to number)
-      const processedData = { ...formData };
-      if (
-        authState.user.role === "mentor" &&
-        processedData.sessionPrice !== undefined
-      ) {
-        processedData.sessionPrice = Number(processedData.sessionPrice);
-      }
+      const userData = { ...formData };
+      const userId: string = userData.id as string;
+      let success = false;
 
-      // First update user data
-      const userUpdateData = {
-        name: processedData.name,
-        email: processedData.email,
-        profilePicture: processedData.profilePicture,
-      };
-
-      await updateUser(authState.user.id, userUpdateData);
-
-      // Then update role-specific data
-      let updatedProfile;
-      if (authState.user.role === "mentor") {
-        updatedProfile = await updateMentorProfile(
-          authState.user.id,
-          processedData as Partial<MentorProfile>
-        );
-      } else if (authState.user.role === "admin") {
-        // Admin users don't have separate profile data to update
-        updatedProfile = {
-          ...authState.user,
-          ...userUpdateData,
-          role: "admin" as const,
+      // Create role-specific update data with user fields included
+      if (userData.role === "mentor") {
+        // Ensure all arrays are properly initialized
+        const expertise = Array.isArray(userData.expertise) ? userData.expertise : [];
+        const portfolio = Array.isArray(userData.portfolio) ? userData.portfolio : [];
+        const certifications = Array.isArray(userData.certifications) ? userData.certifications : [];
+        const education = Array.isArray(userData.education) ? userData.education : [];
+        const workExperience = Array.isArray(userData.workExperience) ? userData.workExperience : [];
+        
+        // Ensure numeric values are properly converted
+        const sessionPrice = typeof userData.sessionPrice === 'number' 
+          ? userData.sessionPrice 
+          : Number(userData.sessionPrice) || 0;
+        
+        const yearsOfExperience = typeof userData.yearsOfExperience === 'number'
+          ? userData.yearsOfExperience
+          : Number(userData.yearsOfExperience) || 0;
+        
+        const mentorUpdateData = {
+          bio: userData.bio || "",
+          expertise: expertise,
+          sessionPrice: sessionPrice,
+          yearsOfExperience: yearsOfExperience,
+          portfolio: portfolio,
+          certifications: certifications,
+          education: education,
+          workExperience: workExperience,
+          name: userData.name || "",
+          email: userData.email || "",
+          profilePicture: userData.profilePicture
         };
-      } else {
-        updatedProfile = await updateMenteeProfile(
-          authState.user.id,
-          processedData as Partial<Mentee>
-        );
+
+        console.log("Updating mentor profile:", mentorUpdateData);
+        
+        const updatedProfile = await updateMentorProfile(userId, mentorUpdateData);
+        
+        if (updatedProfile) {
+          console.log("Mentor profile updated successfully");
+          success = true;
+          
+          // Update auth context with the new user data
+          updateAuthUser({
+            id: userId,
+            name: userData.name || "",
+            email: userData.email || "",
+            role: "mentor",
+            profilePicture: userData.profilePicture
+          });
+        }
+      } 
+      else if (userData.role === "mentee") {
+        const menteeUpdateData = {
+          bio: userData.bio || "",
+          interests: userData.interests || [],
+          goals: userData.goals || [],
+          currentPosition: userData.currentPosition || "",
+          name: userData.name || "",
+          email: userData.email || "",
+          profilePicture: userData.profilePicture
+        };
+
+        console.log("Updating mentee profile:", menteeUpdateData);
+        
+        const updatedProfile = await updateMenteeProfile(userId, menteeUpdateData);
+        
+        if (updatedProfile) {
+          console.log("Mentee profile updated successfully");
+          success = true;
+          
+          // Update auth context with the new user data
+          updateAuthUser({
+            id: userId,
+            name: userData.name || "",
+            email: userData.email || "",
+            role: "mentee",
+            profilePicture: userData.profilePicture
+          });
+        }
+      }
+      else if (userData.role === "admin") {
+        const adminUpdateData = {
+          id: userId,
+          name: userData.name || "",
+          email: userData.email || "",
+          profilePicture: userData.profilePicture,
+          role: "admin" as const
+        };
+
+        const updatedUser = await updateUser(userId, adminUpdateData);
+        
+        if (updatedUser) {
+          console.log("Admin profile updated successfully");
+          success = true;
+          
+          // Update auth context with the new user data
+          updateAuthUser({
+            ...updatedUser,
+            role: "admin"
+          });
+        }
       }
 
-      if (updatedProfile) {
-        // Update the auth context with the refreshed user data
-        updateAuthUser(updatedProfile as User);
-        // Update the form data with the refreshed data
-        setFormData(updatedProfile);
-        setInitialData(updatedProfile);
-        setMessage({
-          type: "success",
-          text: "Profile updated successfully!",
-        });
+      if (!success) {
+        throw new Error("Failed to update profile");
       }
+
+      // Update the form data and initial data
+      setFormData(userData);
+      setInitialData(userData);
+
+      setMessage({
+        type: "success",
+        text: "Profile updated successfully!",
+      });
+
+      // Refresh the page to see the changes
+      setTimeout(() => {
+        window.location.reload();
+      }, 1500);
+      
     } catch (error) {
       console.error("Error updating profile:", error);
       setMessage({
         type: "error",
-        text: "Failed to update profile. Please try again.",
+        text:
+          error instanceof Error
+            ? error.message
+            : "Failed to update profile. Please try again.",
       });
     } finally {
       setLoading(false);

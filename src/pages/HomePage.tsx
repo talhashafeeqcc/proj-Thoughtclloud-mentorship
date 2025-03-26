@@ -1,7 +1,32 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
+import { getMentors } from "../services/userService";
+import { Mentor } from "../types";
 
 const HomePage: React.FC = () => {
+  const [featuredMentors, setFeaturedMentors] = useState<Partial<Mentor>[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchMentors = async () => {
+      try {
+        setLoading(true);
+        const mentors = await getMentors();
+        // Get random 3 mentors for featured section
+        const randomMentors = mentors
+          .sort(() => 0.5 - Math.random())
+          .slice(0, 3);
+        setFeaturedMentors(randomMentors);
+      } catch (error) {
+        console.error("Error fetching mentors:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchMentors();
+  }, []);
+
   return (
     <div className="space-y-16">
       {/* Hero Section */}
@@ -74,39 +99,43 @@ const HomePage: React.FC = () => {
           Featured Mentors
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto">
-          {/* This would typically be mapped from actual data */}
-          <div className="bg-white rounded-lg shadow-md overflow-hidden">
-            <img
-              src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80"
-              alt="John Mentor"
-              className="w-full h-48 object-cover"
-            />
-            <div className="p-6">
-              <h3 className="text-xl font-semibold mb-2">John Mentor</h3>
-              <p className="text-gray-600 mb-3">
-                Senior Software Engineer at Google
-              </p>
-              <div className="flex mb-3">
-                <span className="bg-indigo-100 text-indigo-800 text-xs px-2 py-1 rounded mr-2">
-                  JavaScript
-                </span>
-                <span className="bg-indigo-100 text-indigo-800 text-xs px-2 py-1 rounded mr-2">
-                  React
-                </span>
-                <span className="bg-indigo-100 text-indigo-800 text-xs px-2 py-1 rounded">
-                  Node.js
-                </span>
-              </div>
-              <Link
-                to="/mentors/1"
-                className="block text-center bg-indigo-600 hover:bg-indigo-700 text-white py-2 rounded-md"
-              >
-                View Profile
-              </Link>
+          {loading ? (
+            <div className="col-span-3 text-center py-8">
+              <div className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+              <p>Loading mentors...</p>
             </div>
-          </div>
-
-          {/* Add more featured mentors here */}
+          ) : featuredMentors.length === 0 ? (
+            <div className="col-span-3 text-center py-8">
+              <p className="text-gray-600">No mentors available at the moment.</p>
+            </div>
+          ) : (
+            featuredMentors.map((mentor) => (
+              <div key={mentor.id} className="bg-white rounded-lg shadow-md overflow-hidden">
+                <img
+                  src={mentor.profilePicture || "https://via.placeholder.com/300x200?text=Mentor"}
+                  alt={mentor.name}
+                  className="w-full h-48 object-cover"
+                />
+                <div className="p-6">
+                  <h3 className="text-xl font-semibold mb-2">{mentor.name}</h3>
+                  <p className="text-gray-600 mb-3">{mentor.bio?.substring(0, 80)}...</p>
+                  <div className="flex flex-wrap mb-3">
+                    {mentor.expertise?.slice(0, 3).map((skill, index) => (
+                      <span key={index} className="bg-indigo-100 text-indigo-800 text-xs px-2 py-1 rounded mr-2 mb-1">
+                        {skill}
+                      </span>
+                    ))}
+                  </div>
+                  <Link
+                    to={`/mentors/${mentor.id}`}
+                    className="block text-center bg-indigo-600 hover:bg-indigo-700 text-white py-2 rounded-md"
+                  >
+                    View Profile
+                  </Link>
+                </div>
+              </div>
+            ))
+          )}
         </div>
         <div className="text-center mt-8">
           <Link
