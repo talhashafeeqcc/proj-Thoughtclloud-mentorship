@@ -375,7 +375,7 @@ const ProfileSettings: React.FC = () => {
           profilePicture: userData.profilePicture
         };
 
-        console.log("Updating mentor profile:", mentorUpdateData);
+        console.log("Updating mentor profile with data:", mentorUpdateData);
         
         const updatedProfile = await updateMentorProfile(userId, mentorUpdateData);
         

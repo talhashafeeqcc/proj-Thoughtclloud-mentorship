@@ -1,19 +1,30 @@
-import { getDatabase } from "./database/db";
 import { v4 as uuidv4 } from "uuid";
-import type {
+import { getDatabase } from "./database/db";
+import {
   User,
-  Mentor,
-  LoginCredentials,
   RegisterData,
-  AvailabilitySlot,
-  Mentee,
+  LoginCredentials,
+  Mentor,
   PortfolioItem,
   Education,
   Certification,
   WorkExperience,
 } from "../types";
+import { getMentorByUserId } from './mentorService';
+import { getMenteeByUserId } from './menteeService';
 
-// Add these type definitions at the top of the file
+// Define document types for internal use
+interface UserDocument {
+  id: string;
+  email: string;
+  name: string;
+  role: string;
+  password: string;
+  profilePicture?: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
 interface MentorDocument {
   id: string;
   userId: string;
@@ -21,8 +32,6 @@ interface MentorDocument {
   bio: string;
   sessionPrice: number;
   yearsOfExperience: number;
-  hourlyRate: number;
-  availability: AvailabilitySlot[];
   portfolio: PortfolioItem[];
   education: Education[];
   certifications: Certification[];
@@ -31,22 +40,12 @@ interface MentorDocument {
   updatedAt: number;
 }
 
-interface UserDocument {
-  id: string;
-  email: string;
-  name: string;
-  role: string;
-  password: string;
-  profilePicture: string;
-  createdAt: number;
-  updatedAt: number;
-}
-
 // Simple password comparison function
 // In a real app, you would use bcrypt.compare or similar
 const comparePasswords = (plain: string, hashed: string): boolean => {
-  // Check if the hashed password starts with our mock prefix
-  return hashed.startsWith(`hashed_${plain}_`);
+  // For demo purposes, just check if the passwords match
+  // In production, you'd use proper password hashing
+  return plain === hashed || hashed.startsWith(`hashed_${plain}_`);
 };
 
 // Get all users (without passwords)
@@ -130,6 +129,12 @@ export const getMentorById = async (
 
     // First try to find by direct ID
     let mentorDoc = await db.mentors.findOne(id).exec();
+    
+    if (mentorDoc) {
+      console.log(`Found mentor directly with ID: ${id}`);
+    } else {
+      console.log(`No mentor found with direct ID: ${id}, trying userId lookup`);
+    }
 
     // If not found, try to find by userId
     if (!mentorDoc) {
@@ -148,9 +153,11 @@ export const getMentorById = async (
       }
 
       mentorDoc = mentorDocs[0];
+      console.log(`Found mentor by userId: ${id}, mentor ID is: ${mentorDoc.id}`);
     }
 
     const mentor = mentorDoc.toJSON();
+    console.log(`Working with mentor ID: ${mentor.id}, userId: ${mentor.userId}`);
 
     // Convert readonly arrays to regular arrays
     const processedMentor = JSON.parse(JSON.stringify(mentor));
@@ -301,7 +308,6 @@ export const registerUser = async (userData: RegisterData): Promise<User> => {
         certifications: [],
         education: [],
         workExperience: [],
-        availability: [],
         createdAt: now,
         updatedAt: now,
       });
@@ -381,7 +387,6 @@ export const updateUserProfile = async (
 // Update the ExtendedMentor interface
 interface ExtendedMentor extends Partial<Mentor> {
   yearsOfExperience?: number;
-  hourlyRate?: number;
   sessionPrice?: number;
 }
 
@@ -426,7 +431,6 @@ export const updateMentorProfile = async (
       const certificationsArray = Array.isArray(updates.certifications) ? updates.certifications : [];
       const educationArray = Array.isArray(updates.education) ? updates.education : [];
       const workExperienceArray = Array.isArray(updates.workExperience) ? updates.workExperience : [];
-      const availabilityArray = Array.isArray(updates.availability) ? updates.availability : [];
       
       // Debug log for all fields
       console.log("Debug - mentor fields:", {
@@ -474,10 +478,8 @@ export const updateMentorProfile = async (
           userId: userId,
           expertise: expertiseArray,
           bio: updates.bio || "",
-          hourlyRate: typeof updates.hourlyRate === 'number' ? updates.hourlyRate : 0,
           sessionPrice: typeof updates.sessionPrice === 'number' ? updates.sessionPrice : 0,
           yearsOfExperience: typeof updates.yearsOfExperience === 'number' ? updates.yearsOfExperience : 0,
-          availability: availabilityArray,
           portfolio: portfolioArray,
           education: educationArray,
           certifications: certificationsArray,
@@ -511,10 +513,8 @@ export const updateMentorProfile = async (
     const mentorUpdates: Partial<MentorDocument> = {
       expertise: Array.isArray(updates.expertise) ? updates.expertise : mentor.expertise,
       bio: updates.bio !== undefined ? updates.bio : mentor.bio,
-      hourlyRate: typeof updates.hourlyRate === 'number' ? updates.hourlyRate : mentor.hourlyRate,
       sessionPrice: typeof updates.sessionPrice === 'number' ? updates.sessionPrice : mentor.sessionPrice,
       yearsOfExperience: typeof updates.yearsOfExperience === 'number' ? updates.yearsOfExperience : mentor.yearsOfExperience,
-      availability: Array.isArray(updates.availability) ? updates.availability : mentor.availability,
       portfolio: Array.isArray(updates.portfolio) ? updates.portfolio : mentor.portfolio,
       education: Array.isArray(updates.education) ? updates.education : mentor.education,
       certifications: Array.isArray(updates.certifications) ? updates.certifications : mentor.certifications,
@@ -557,8 +557,9 @@ export const updateMentorProfile = async (
       }
     }
 
-    // Return updated mentor profile
-    return getMentorById(userId);
+    // Return updated mentor profile with mentor ID, not userId
+    console.log(`Retrieving updated mentor profile with ID: ${mentorDoc.id}`);
+    return getMentorById(mentorDoc.id);
   } catch (error) {
     console.error(`Failed to update mentor with user ID ${userId}:`, error);
     throw error;
@@ -605,83 +606,5 @@ export const logoutUser = async (): Promise<void> => {
   });
 };
 
-// Get mentee by user ID
-export const getMenteeByUserId = async (
-  userId: string
-): Promise<Partial<Mentee> | null> => {
-  try {
-    const db = await getDatabase();
-    console.log("Fetching mentee profile for user:", userId);
-
-    // First get the mentee profile
-    const menteeDocs = await db.mentees
-      .find({
-        selector: {
-          userId: userId,
-        },
-      })
-      .exec();
-
-    let menteeDoc;
-    let menteeData;
-
-    // If no mentee profile exists, create a new one
-    if (menteeDocs.length === 0) {
-      console.log("Mentee profile not found, creating new one");
-      // Check if the user exists first
-      const userDoc = await db.users.findOne(userId).exec();
-      if (!userDoc) {
-        console.error("User not found for ID:", userId);
-        return null;
-      }
-
-      // Create a new mentee profile
-      const newMenteeProfile = {
-        id: uuidv4(),
-        userId: userId,
-        interests: [],
-        bio: "", // Required field
-        goals: [],
-        currentPosition: "",
-        createdAt: Date.now(),
-        updatedAt: Date.now(),
-      };
-
-      menteeDoc = await db.mentees.insert(newMenteeProfile);
-      menteeData = menteeDoc.toJSON();
-      console.log("Created new mentee profile:", menteeData.id);
-    } else {
-      menteeDoc = menteeDocs[0];
-      menteeData = menteeDoc.toJSON();
-      console.log("Found mentee profile:", menteeData.id);
-    }
-
-    // Then get the user data
-    const userDoc = await db.users.findOne(userId).exec();
-    if (!userDoc) {
-      console.error("User not found for ID:", userId);
-      return null;
-    }
-
-    const user = userDoc.toJSON();
-    const { password, ...safeUser } = user;
-
-    // Convert to plain JS object to avoid readonly arrays
-    const processedMentee = JSON.parse(JSON.stringify(menteeData));
-
-    // Combine user and mentee data with proper type cast for role
-    return {
-      ...processedMentee,
-      email: safeUser.email,
-      name: safeUser.name,
-      role: "mentee" as const, // Force the role to be "mentee"
-      profilePicture: safeUser.profilePicture,
-    };
-  } catch (error) {
-    console.error("Error fetching mentee by user ID:", error);
-    throw error;
-  }
-};
-
-// Export the reference to getMentorByUserId from mentorService for backward compatibility
-export { getMentorByUserId } from './mentorService';
+// Re-export functions from other services
+export { getMentorByUserId, getMenteeByUserId };
