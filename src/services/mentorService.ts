@@ -1,7 +1,6 @@
 import { v4 as uuidv4 } from "uuid";
-import type { MentorProfile } from "../types";
+import type { MentorProfile, AvailabilitySlot } from "../types";
 import { getDatabase } from "./database/db";
-import type { RxDocument } from "rxdb";
 
 // Extended MentorProfile with additional fields from our database schema
 interface ExtendedMentorProfile extends MentorProfile {
@@ -9,55 +8,10 @@ interface ExtendedMentorProfile extends MentorProfile {
   userId?: string;
 }
 
-// Helper types for RxDB documents
-interface MentorDocument {
-  id: string;
-  userId: string;
-  expertise: string[];
-  bio: string;
-  sessionPrice: number;
-  yearsOfExperience: number;
-  portfolio: any[];
-  certifications: any[];
-  education: any[];
-  workExperience: any[];
-  createdAt: number;
-  updatedAt: number;
-}
 
-interface UserDocument {
-  id: string;
-  email: string;
-  name: string;
-  role: string;
-  password: string;
-  profilePicture?: string;
-  createdAt: number;
-  updatedAt: number;
-}
 
-interface AvailabilityDocument {
-  id: string;
-  mentorId: string;
-  date: string;
-  startTime: string;
-  endTime: string;
-  isBooked: boolean;
-  createdAt: number;
-  updatedAt: number;
-}
 
-// Mock data for mentors
 
-// Helper to initialize local storage
-// This function is no longer needed with RxDB, so removing it
-// const initLocalStorage = () => {
-//   if (typeof window !== "undefined") {
-//     if (!localStorage.getItem("mentors")) {
-//       localStorage.setItem("mentors", JSON.stringify(MOCK_MENTORS));
-//     }
-//   }
-// };
 
 /**
  * Get all mentors with combined user and mentor data
@@ -67,15 +21,15 @@ export const getMentors = async (): Promise<MentorProfile[]> => {
     const db = await getDatabase();
     const mentorDocs = await db.mentors.find().exec();
 
-    // Get the mentor profiles
-    const mentorProfiles = mentorDocs.map((doc: RxDocument<MentorDocument>) =>
-      doc.toJSON()
-    );
+    // Get the mentor profiles and convert to plain objects to avoid readonly issues
+    const mentorProfiles = mentorDocs.map((doc) => {
+      // Use JSON parse/stringify to convert readonly arrays to mutable ones
+      return JSON.parse(JSON.stringify(doc.toJSON()));
+    });
 
     // Get user data for all mentors
-    const userIds = mentorProfiles.map(
-      (mentor: MentorDocument) => mentor.userId
-    );
+    const userIds = mentorProfiles.map((mentor) => mentor.userId);
+    
     const userDocs = await db.users
       .find({
         selector: {
@@ -88,10 +42,8 @@ export const getMentors = async (): Promise<MentorProfile[]> => {
 
     // Map users to their respective mentor profiles
     return Promise.all(
-      mentorProfiles.map(async (mentor: MentorDocument) => {
-        const userDoc = userDocs.find(
-          (u: RxDocument<UserDocument>) => u.id === mentor.userId
-        );
+      mentorProfiles.map(async (mentor) => {
+        const userDoc = userDocs.find((u) => u.id === mentor.userId);
 
         if (!userDoc) {
           // If we don't have user data, create a placeholder with required fields
@@ -107,7 +59,7 @@ export const getMentors = async (): Promise<MentorProfile[]> => {
           } as ExtendedMentorProfile;
         }
 
-        const user = userDoc.toJSON();
+        const user = JSON.parse(JSON.stringify(userDoc.toJSON()));
         // Don't include password in the returned object
         const { password, ...safeUser } = user;
 
@@ -120,8 +72,8 @@ export const getMentors = async (): Promise<MentorProfile[]> => {
           })
           .exec();
 
-        const availability = availabilityDocs.map(
-          (doc: RxDocument<AvailabilityDocument>) => doc.toJSON()
+        const availability = availabilityDocs.map((doc) => 
+          JSON.parse(JSON.stringify(doc.toJSON()))
         );
 
         // Combine mentor and user data
@@ -156,7 +108,8 @@ export const getMentorById = async (
       return null;
     }
 
-    const mentor = mentorDoc.toJSON() as MentorDocument;
+    // Convert to plain JS object to avoid readonly issues
+    const mentor = JSON.parse(JSON.stringify(mentorDoc.toJSON()));
 
     // Get user data
     const userDoc = await db.users.findOne(mentor.userId).exec();
@@ -170,8 +123,8 @@ export const getMentorById = async (
       })
       .exec();
 
-    const availability = availabilityDocs.map(
-      (doc: RxDocument<AvailabilityDocument>) => doc.toJSON()
+    const availability = availabilityDocs.map(doc => 
+      JSON.parse(JSON.stringify(doc.toJSON()))
     );
 
     if (!userDoc) {
@@ -189,7 +142,8 @@ export const getMentorById = async (
       } as ExtendedMentorProfile;
     }
 
-    const user = userDoc.toJSON() as UserDocument;
+    // Convert to plain JS object to avoid readonly issues
+    const user = JSON.parse(JSON.stringify(userDoc.toJSON()));
     // Don't include password in the returned object
     const { password, ...safeUser } = user;
 
@@ -325,40 +279,41 @@ export const updateMentorProfile = async (
       return null;
     }
 
-    const mentor = mentorDoc.toJSON() as MentorDocument;
+    const mentor = JSON.parse(JSON.stringify(mentorDoc.toJSON()));
     const now = Date.now();
 
-    // Update mentor data
+    // Update mentor data - remove availability from the update
+    const { availability, ...mentorDataWithoutAvailability } = mentorData;
     const updatedMentor = {
       ...mentor,
       expertise:
-        mentorData.expertise !== undefined
-          ? mentorData.expertise
+        mentorDataWithoutAvailability.expertise !== undefined
+          ? mentorDataWithoutAvailability.expertise
           : mentor.expertise,
-      bio: mentorData.bio !== undefined ? mentorData.bio : mentor.bio,
+      bio: mentorDataWithoutAvailability.bio !== undefined ? mentorDataWithoutAvailability.bio : mentor.bio,
       sessionPrice:
-        mentorData.sessionPrice !== undefined
-          ? mentorData.sessionPrice
+        mentorDataWithoutAvailability.sessionPrice !== undefined
+          ? mentorDataWithoutAvailability.sessionPrice
           : mentor.sessionPrice,
       yearsOfExperience:
-        mentorData.yearsOfExperience !== undefined
-          ? mentorData.yearsOfExperience
+        mentorDataWithoutAvailability.yearsOfExperience !== undefined
+          ? mentorDataWithoutAvailability.yearsOfExperience
           : mentor.yearsOfExperience,
       portfolio:
-        mentorData.portfolio !== undefined
-          ? mentorData.portfolio
+        mentorDataWithoutAvailability.portfolio !== undefined
+          ? mentorDataWithoutAvailability.portfolio
           : mentor.portfolio,
       certifications:
-        mentorData.certifications !== undefined
-          ? mentorData.certifications
+        mentorDataWithoutAvailability.certifications !== undefined
+          ? mentorDataWithoutAvailability.certifications
           : mentor.certifications,
       education:
-        mentorData.education !== undefined
-          ? mentorData.education
+        mentorDataWithoutAvailability.education !== undefined
+          ? mentorDataWithoutAvailability.education
           : mentor.education,
       workExperience:
-        mentorData.workExperience !== undefined
-          ? mentorData.workExperience
+        mentorDataWithoutAvailability.workExperience !== undefined
+          ? mentorDataWithoutAvailability.workExperience
           : mentor.workExperience,
       updatedAt: now,
     };
@@ -368,18 +323,18 @@ export const updateMentorProfile = async (
     });
 
     // Update user data if provided
-    if (mentorData.name || mentorData.email || mentorData.profilePicture) {
+    if (mentorDataWithoutAvailability.name || mentorDataWithoutAvailability.email || mentorDataWithoutAvailability.profilePicture) {
       const userDoc = await db.users.findOne(mentor.userId).exec();
 
       if (userDoc) {
-        const user = userDoc.toJSON() as UserDocument;
+        const user = JSON.parse(JSON.stringify(userDoc.toJSON()));
         const updatedUser = {
           ...user,
-          name: mentorData.name !== undefined ? mentorData.name : user.name,
-          email: mentorData.email !== undefined ? mentorData.email : user.email,
+          name: mentorDataWithoutAvailability.name !== undefined ? mentorDataWithoutAvailability.name : user.name,
+          email: mentorDataWithoutAvailability.email !== undefined ? mentorDataWithoutAvailability.email : user.email,
           profilePicture:
-            mentorData.profilePicture !== undefined
-              ? mentorData.profilePicture
+            mentorDataWithoutAvailability.profilePicture !== undefined
+              ? mentorDataWithoutAvailability.profilePicture
               : user.profilePicture,
           updatedAt: now,
         };
@@ -390,8 +345,8 @@ export const updateMentorProfile = async (
       }
     }
 
-    // Update availability if provided
-    if (mentorData.availability) {
+    // Handle availability updates separately
+    if (availability) {
       // Delete existing availability
       const existingAvailabilityDocs = await db.availability
         .find({
@@ -406,9 +361,9 @@ export const updateMentorProfile = async (
       }
 
       // Add new availability
-      if (mentorData.availability.length > 0) {
-        const availabilitySlots = mentorData.availability.map((slot) => ({
-          id: uuidv4(),
+      if (availability.length > 0) {
+        const availabilitySlots = availability.map((slot) => ({
+          id: slot.id || uuidv4(),
           mentorId: id,
           date: slot.date,
           startTime: slot.startTime,
@@ -437,7 +392,31 @@ export const getMentorByUserId = async (
   userId: string
 ): Promise<ExtendedMentorProfile | null> => {
   try {
+    if (!userId) {
+      console.error("getMentorByUserId called with empty userId");
+      return null;
+    }
+    
+    console.log("getMentorByUserId called with userId:", userId);
     const db = await getDatabase();
+
+    // First check if user exists and is a mentor
+    const userDoc = await db.users.findOne(userId).exec();
+    
+    if (!userDoc) {
+      console.error("User not found for ID:", userId);
+      return null;
+    }
+    
+    // Convert to plain JS object to avoid readonly issues
+    const user = JSON.parse(JSON.stringify(userDoc.toJSON()));
+    console.log("Found user:", user.name, user.role);
+    
+    // Allow any user to have a mentor profile for testing purposes
+    // if (user.role !== "mentor") {
+    //   console.error("User is not a mentor:", userId);
+    //   return null;
+    // }
 
     // Find the mentor document with the given userId
     const mentorDocs = await db.mentors
@@ -448,17 +427,41 @@ export const getMentorByUserId = async (
       })
       .exec();
 
-    // If no mentor found with this userId
+    let mentor;
+    
+    // If no mentor found with this userId, create a new mentor profile
     if (mentorDocs.length === 0) {
-      return null;
+      console.log("No mentor profile found, creating new profile for:", userId);
+      
+      // Create a new mentor profile with default values
+      const newMentorProfile = {
+        id: uuidv4(),
+        userId: userId,
+        expertise: ["JavaScript", "React", "Node.js"],  // Add default expertise
+        bio: "Mentor bio will appear here.",
+        sessionPrice: 50,
+        yearsOfExperience: 3,
+        portfolio: [],
+        certifications: [],
+        education: [],
+        workExperience: [],
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      };
+      
+      // Insert the new mentor profile
+      const insertedDoc = await db.mentors.insert(newMentorProfile);
+      mentor = JSON.parse(JSON.stringify(insertedDoc.toJSON()));
+      console.log("Created new mentor profile:", mentor.id);
+    } else {
+      // Get the first mentor document
+      const mentorDoc = mentorDocs[0];
+      mentor = JSON.parse(JSON.stringify(mentorDoc.toJSON()));
+      console.log("Found existing mentor profile:", mentor.id);
     }
 
-    // Get the first mentor document
-    const mentorDoc = mentorDocs[0];
-    const mentor = mentorDoc.toJSON() as MentorDocument;
-
-    // Get user data
-    const userDoc = await db.users.findOne(userId).exec();
+    // Don't include password in the returned object
+    const { password, ...safeUser } = user;
 
     // Get availability slots for this mentor
     const availabilityDocs = await db.availability
@@ -466,34 +469,28 @@ export const getMentorByUserId = async (
         selector: {
           mentorId: mentor.id,
         },
+        sort: [{ date: "asc" }] // Sort by date ascending
       })
       .exec();
 
-    const availability = availabilityDocs.map(
-      (doc: RxDocument<AvailabilityDocument>) => doc.toJSON()
-    );
-
-    if (!userDoc) {
-      // If we don't have user data, create a placeholder with required fields
+    const availability = availabilityDocs.map(doc => {
+      const slotData = JSON.parse(JSON.stringify(doc.toJSON()));
       return {
-        id: mentor.id,
-        email: "unknown@example.com",
-        name: "Unknown Mentor",
-        role: "mentor" as const,
-        expertise: mentor.expertise,
-        bio: mentor.bio,
-        sessionPrice: mentor.sessionPrice,
-        yearsOfExperience: mentor.yearsOfExperience,
-        availability: availability,
-      } as ExtendedMentorProfile;
-    }
+        id: slotData.id,
+        mentorId: slotData.mentorId,
+        date: slotData.date,
+        startTime: slotData.startTime,
+        endTime: slotData.endTime,
+        isBooked: slotData.isBooked || false,
+        createdAt: slotData.createdAt,
+        updatedAt: slotData.updatedAt
+      };
+    });
 
-    const user = userDoc.toJSON() as UserDocument;
-    // Don't include password in the returned object
-    const { password, ...safeUser } = user;
+    console.log(`Found ${availability.length} availability slots for mentor ${mentor.id}`);
 
     // Combine mentor and user data
-    return {
+    const combinedProfile = {
       ...mentor,
       id: mentor.id,
       email: safeUser.email,
@@ -502,8 +499,172 @@ export const getMentorByUserId = async (
       profilePicture: safeUser.profilePicture || "",
       availability: availability,
     } as ExtendedMentorProfile;
+
+    console.log("Returning combined profile:", {
+      id: combinedProfile.id,
+      name: combinedProfile.name,
+      availabilityCount: combinedProfile.availability?.length,
+      expertise: combinedProfile.expertise,
+      bio: combinedProfile.bio,
+      sessionPrice: combinedProfile.sessionPrice,
+      yearsOfExperience: combinedProfile.yearsOfExperience
+    });
+
+    return combinedProfile;
   } catch (error) {
     console.error(`Failed to get mentor with user ID ${userId}:`, error);
     throw new Error(`Failed to get mentor with user ID ${userId}`);
+  }
+};
+
+// Get mentor availability slots
+export const getMentorAvailabilitySlots = async (mentorId: string): Promise<AvailabilitySlot[]> => {
+  try {
+    const db = await getDatabase();
+    console.log("Fetching availability slots for mentor:", mentorId);
+    
+    // Query availability collection
+    const availabilityDocs = await db.availability
+      .find({
+        selector: {
+          mentorId: mentorId
+        }
+      })
+      .exec();
+    
+    // Convert to plain objects using JSON parse/stringify to handle readonly issues
+    const slots = availabilityDocs.map(doc => {
+      const slotData = JSON.parse(JSON.stringify(doc.toJSON()));
+      
+      // Normalize date format to YYYY-MM-DD for consistency
+      let normalizedDate = slotData.date || "";
+      if (normalizedDate.includes('T')) {
+        normalizedDate = normalizedDate.split('T')[0];
+      }
+      
+      return {
+        id: slotData.id,
+        mentorId: slotData.mentorId,
+        date: normalizedDate, // Use normalized date
+        startTime: slotData.startTime,
+        endTime: slotData.endTime,
+        isBooked: slotData.isBooked || false
+      } as AvailabilitySlot;
+    });
+    
+    console.log(`Found ${slots.length} availability slots for mentor ${mentorId}`);
+    return slots;
+  } catch (error) {
+    console.error("Error fetching mentor availability slots:", error);
+    throw error;
+  }
+};
+
+// Add availability slot
+export const addAvailabilitySlot = async (slot: AvailabilitySlot): Promise<AvailabilitySlot> => {
+  try {
+    const db = await getDatabase();
+    
+    // First verify the mentor exists
+    const mentorDoc = await db.mentors.findOne(slot.mentorId).exec();
+    if (!mentorDoc) {
+      throw new Error("Mentor not found");
+    }
+
+    // Format date consistently as YYYY-MM-DD (without time component)
+    let formattedDate = slot.date;
+    if (formattedDate.includes('T')) {
+      // If it already has a T, strip the time part
+      formattedDate = formattedDate.split('T')[0];
+    } else {
+      // Ensure it's a valid date format but avoid timezone shifts
+      try {
+        // Parse the date directly into year, month, day components
+        const dateObj = new Date(formattedDate);
+        const year = dateObj.getFullYear();
+        const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+        const day = String(dateObj.getDate()).padStart(2, '0');
+        formattedDate = `${year}-${month}-${day}`;
+      } catch (e) {
+        console.error("Error formatting date:", e);
+        // Keep original if parsing fails
+      }
+    }
+
+    console.log("Original date input:", slot.date);
+    console.log("Formatted date to store:", formattedDate);
+
+    // Create the slot with proper date handling
+    const newSlot = {
+      id: slot.id || uuidv4(),
+      mentorId: slot.mentorId,
+      date: formattedDate, // Store as YYYY-MM-DD format consistently
+      startTime: slot.startTime,
+      endTime: slot.endTime,
+      isBooked: slot.isBooked || false,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    };
+    
+    console.log("Adding new availability slot with date:", newSlot.date);
+    
+    // Insert the slot into the availability collection
+    const insertedDoc = await db.availability.insert(newSlot);
+
+    return JSON.parse(JSON.stringify(insertedDoc.toJSON()));
+  } catch (error) {
+    console.error("Error adding availability slot:", error);
+    throw error;
+  }
+};
+
+// Add a function to delete an availability slot
+export const deleteAvailabilitySlot = async (slotId: string): Promise<void> => {
+  try {
+    const db = await getDatabase();
+    console.log("Deleting availability slot:", slotId);
+    
+    // Find and remove the slot
+    const slotDoc = await db.availability.findOne(slotId).exec();
+    
+    if (!slotDoc) {
+      throw new Error(`Availability slot with ID ${slotId} not found`);
+    }
+    
+    await slotDoc.remove();
+    console.log("Successfully deleted availability slot:", slotId);
+  } catch (error) {
+    console.error("Error deleting availability slot:", error);
+    throw error;
+  }
+};
+
+// Get mentor availability slots with dates
+export const getMentorAvailability = async (mentorId: string): Promise<AvailabilitySlot[]> => {
+  try {
+    const db = await getDatabase();
+    
+    // First try to get from mentor profile
+    const mentorDoc = await db.mentors.findOne(mentorId).exec();
+    if (mentorDoc) {
+      const mentor = JSON.parse(JSON.stringify(mentorDoc.toJSON()));
+      return [...(mentor.availability || [])];
+    }
+    
+    // Fallback to availability collection
+    const slots = await db.availability
+      .find({
+        selector: {
+          mentorId: mentorId,
+          date: { $exists: true }
+        },
+        sort: [{ date: "asc" }]
+      })
+      .exec();
+    
+    return slots.map(doc => JSON.parse(JSON.stringify(doc.toJSON())));
+  } catch (error) {
+    console.error("Error getting mentor availability:", error);
+    throw error;
   }
 };

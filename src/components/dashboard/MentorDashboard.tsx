@@ -3,9 +3,12 @@ import AvailabilityCalendar from "./AvailabilityCalendar";
 import AvailabilityManager from "./AvailabilityManager";
 import { useAuth } from "../../context/AuthContext";
 import { useSession } from "../../context/SessionContext";
-import { getMentorByUserId } from "../../services/userService";
-import { FaCalendarAlt, FaCalendarCheck, FaList } from "react-icons/fa";
+import { getMentorByUserId } from "../../services/mentorService";
+import { FaCalendarAlt, FaCalendarCheck, FaList, FaTools } from "react-icons/fa";
 import SessionList from "./SessionList";
+import { clearDatabase } from "../../services/database/db";
+// import { seedDatabase } from "../../services/database/seedData";
+import { retryBootstrap } from "../../services/database/bootstrap";
 
 const MentorDashboard: React.FC = () => {
   const { authState } = useAuth();
@@ -15,6 +18,8 @@ const MentorDashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("sessions"); // 'sessions', 'calendar', or 'manage'
+  // Track availability changes to refresh calendar when needed
+  const [availabilityVersion, setAvailabilityVersion] = useState(0);
   
   // Ref to track component mounted state and fetching state
   const mountedRef = useRef(true);
@@ -37,6 +42,40 @@ const MentorDashboard: React.FC = () => {
     // Empty callback - just here to maintain hooks order
     console.log("Slot selected (placeholder)");
   }, []);
+
+  // Handler for when availability changes (add/edit/delete)
+  const handleAvailabilityChange = useCallback(() => {
+    console.log("Availability changed, refreshing data");
+    setAvailabilityVersion(prev => prev + 1); // Increment to force calendar refresh
+  }, []);
+
+  // Debug tools state
+  const [showDebugTools, setShowDebugTools] = useState(false);
+  const [debugMessage, setDebugMessage] = useState<string | null>(null);
+  
+  // Handler for resetting database
+  const handleDatabaseReset = async () => {
+    if (window.confirm("This will reset the database and reseed it. Continue?")) {
+      try {
+        setDebugMessage("Resetting database...");
+        
+        // Clear the database first
+        await clearDatabase();
+        
+        // Try to re-run the bootstrap process
+        await retryBootstrap();
+        
+        // Reload the page to see changes
+        setDebugMessage("Database reset successful. Reloading page...");
+        setTimeout(() => {
+          window.location.reload();
+        }, 2000);
+      } catch (error) {
+        console.error("Error resetting database:", error);
+        setDebugMessage(`Error: ${error instanceof Error ? error.message : "Unknown error"}`);
+      }
+    }
+  };
 
   // Fetch mentor profile data
   useEffect(() => {
@@ -154,6 +193,19 @@ const MentorDashboard: React.FC = () => {
             <FaCalendarCheck className="inline-block mr-2" /> Manage
             Availability
           </button>
+          {/* Add debug tools toggle button only in development mode */}
+          {window.location.hostname === 'localhost' && (
+            <button
+              onClick={() => setShowDebugTools(!showDebugTools)}
+              className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                showDebugTools
+                  ? "border-red-500 text-red-600"
+                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+              }`}
+            >
+              <FaTools className="inline-block mr-2" /> Debug Tools
+            </button>
+          )}
         </nav>
       </div>
 
@@ -195,13 +247,40 @@ const MentorDashboard: React.FC = () => {
           </p>
           <AvailabilityCalendar 
             mentorId={mentorId} 
-            onSlotSelect={onSlotSelect} 
+            onSlotSelect={onSlotSelect}
+            versionKey={availabilityVersion} // Pass version to trigger refresh 
           />
         </div>
       )}
       
       {activeTab === "manage" && (
-        <AvailabilityManager mentorId={mentorId} />
+        <AvailabilityManager 
+          mentorId={mentorId} 
+          onAvailabilityChange={handleAvailabilityChange} // Add change handler
+        />
+      )}
+      
+      {/* Debug Tools Section */}
+      {showDebugTools && window.location.hostname === 'localhost' && (
+        <div className="mt-4 p-4 border border-red-300 rounded-md bg-red-50">
+          <h3 className="text-xl font-semibold mb-2 text-red-700">Debug Tools</h3>
+          <p className="text-sm text-gray-600 mb-4">Use these tools to reset the database and fix data issues.</p>
+          
+          <div className="flex space-x-4">
+            <button 
+              onClick={handleDatabaseReset}
+              className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded text-sm"
+            >
+              Reset Database & Reseed Data
+            </button>
+          </div>
+          
+          {debugMessage && (
+            <div className="mt-4 p-2 bg-white border border-gray-300 rounded">
+              <p className="text-sm">{debugMessage}</p>
+            </div>
+          )}
+        </div>
       )}
     </div>
   );

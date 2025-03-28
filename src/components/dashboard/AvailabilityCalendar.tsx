@@ -6,19 +6,33 @@ import {
   FaSpinner,
   FaLock,
   FaCheck,
+  FaSyncAlt
 } from "react-icons/fa";
 import { AvailabilitySlot } from "../../types";
-import { getDatabase } from "../../services/database/db";
+// import { getDatabase } from "../../services/database/db";
 import { useSession } from "../../context/SessionContext";
+import { getMentorAvailabilitySlots } from "../../services/mentorService";
+
+// Add a helper function to normalize date formats
+const normalizeDateFormat = (dateStr: string): string => {
+  if (!dateStr) return "";
+  // If the date includes a T (ISO format with time), strip it
+  if (dateStr.includes('T')) {
+    return dateStr.split('T')[0];
+  }
+  return dateStr;
+};
 
 interface AvailabilityCalendarProps {
   mentorId: string;
   onSlotSelect: (slot: AvailabilitySlot | null) => void;
+  versionKey?: number; // Optional prop to force re-fetch when it changes
 }
 
 const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
   mentorId,
   onSlotSelect,
+  versionKey = 0, // Default to 0 if not provided
 }) => {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [availabilitySlots, setAvailabilitySlots] = useState<
@@ -35,64 +49,89 @@ const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
   const { sessionState } = useSession();
   const { sessions } = sessionState;
 
+  // Add debug state
+  const [showDebug, setShowDebug] = useState(false);
+
   useEffect(() => {
     const fetchAvailability = async () => {
       setLoading(true);
       setError(null);
       try {
-        console.log("Fetching availability for calendar, mentorId:", mentorId);
-
-        // Get availability from the dedicated availability collection
-        const db = await getDatabase();
-        const availabilityDocs = await db.availability
-          .find({
-            selector: {
-              mentorId: mentorId,
-            },
-          })
-          .exec();
-
-        if (availabilityDocs.length === 0) {
-          console.log("No availability slots found for mentor:", mentorId);
-          setAvailabilitySlots([]);
+        console.log("Fetching availability for calendar, mentorId:", mentorId, "versionKey:", versionKey);
+        
+        if (!mentorId) {
+          console.error("Cannot fetch availability: mentorId is empty");
+          setError("Mentor ID is missing");
+          setLoading(false);
           return;
         }
 
-        // Map to AvailabilitySlot type with proper type handling
-        const slots = availabilityDocs.map(doc => {
-          const data = doc.toJSON();
-          return {
-            id: data.id,
-            date: data.date || "",
-            startTime: data.startTime || "",
-            endTime: data.endTime || "",
-            isBooked: !!data.isBooked,
-            mentorId: data.mentorId
-          } as AvailabilitySlot;
-        });
+        // Use the dedicated function for fetching availability slots
+        const slots = await getMentorAvailabilitySlots(mentorId);
+        
+        console.log("Retrieved slots:", slots);
+        
+        if (!Array.isArray(slots)) {
+          console.error("Received invalid slots data:", slots);
+          setError("Failed to retrieve availability data");
+          setLoading(false);
+          return;
+        }
+        
+        if (slots.length === 0) {
+          console.log("No availability slots found for mentor:", mentorId);
+          setAvailabilitySlots([]);
+          setBookedSlots([]);
+          return;
+        }
 
-        console.log("All availability slots:", slots.length);
+        // Normalize date formats for all slots
+        const normalizedSlots = slots.map(slot => ({
+          ...slot,
+          date: normalizeDateFormat(slot.date)
+        }));
+
+        console.log("All availability slots (normalized):", normalizedSlots.length);
 
         // Separate available and booked slots
-        const booked = slots.filter(slot => slot.isBooked);
-        const available = slots.filter(slot => !slot.isBooked);
+        const booked = normalizedSlots.filter(slot => slot.isBooked);
+        const available = normalizedSlots.filter(slot => !slot.isBooked);
 
         // Filter available slots for the currently selected month and year
         const filteredAvailableSlots = available.filter((slot) => {
-          const slotDate = new Date(slot.date);
-          return (
-            slotDate.getMonth() === selectedDate.getMonth() &&
-            slotDate.getFullYear() === selectedDate.getFullYear()
-          );
+          if (!slot.date) return false;
+          try {
+            // Date should already be normalized at this point
+            const slotDate = new Date(slot.date);
+            
+            // Check if the month and year match the selected date
+            return (
+              slotDate.getMonth() === selectedDate.getMonth() &&
+              slotDate.getFullYear() === selectedDate.getFullYear()
+            );
+          } catch (e) {
+            console.error("Error parsing date for slot:", slot.id, slot.date, e);
+            return false;
+          }
         });
 
         // Filter booked slots for the currently selected month and year
         const filteredBookedSlots = booked.filter((slot) => {
-          const slotDate = new Date(slot.date);
-          return (
-            slotDate.getMonth() === selectedDate.getMonth() &&
-            slotDate.getFullYear() === selectedDate.getFullYear()
-          );
+          if (!slot.date) return false;
+          try {
+            // Extract just the YYYY-MM-DD part if the date includes time components
+            const dateStr = slot.date.includes('T') ? slot.date.split('T')[0] : slot.date;
+            const slotDate = new Date(dateStr);
+            
+            // Check if the month and year match the selected date
+            return (
+              slotDate.getMonth() === selectedDate.getMonth() &&
+              slotDate.getFullYear() === selectedDate.getFullYear()
+            );
+          } catch (e) {
+            console.error("Error parsing date for booked slot:", slot.id, slot.date, e);
+            return false;
+          }
         });
 
         console.log(
@@ -113,7 +152,7 @@ const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
     };
 
     fetchAvailability();
-  }, [mentorId, selectedDate, sessions]); // Refetch when sessions change too
+  }, [mentorId, selectedDate, sessions, versionKey]); // Add versionKey as a dependency to trigger re-fetch
 
   const daysInMonth = (date: Date) => {
     return new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
@@ -170,14 +209,23 @@ const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
     setSelectedSlotId(null);
     onSlotSelect(null);
 
-    const slotsForDay = availabilitySlots.filter(
-      (slot) => slot.date === formattedDate
-    );
+    console.log("Handling day click for date:", formattedDate);
+    
+    // Find slots with matching date, accounting for different date formats
+    const slotsForDay = availabilitySlots.filter((slot) => {
+      // Normalize slot date by removing any time component
+      const slotDateStr = slot.date.includes('T') ? slot.date.split('T')[0] : slot.date;
+      const match = slotDateStr === formattedDate;
+      console.log(`Comparing slot date: ${slotDateStr} with formatted date: ${formattedDate}, match: ${match}`);
+      return match;
+    });
     
     // Include booked slots in the display but make them unselectable
-    const bookedSlotsForDay = bookedSlots.filter(
-      (slot) => slot.date === formattedDate
-    );
+    const bookedSlotsForDay = bookedSlots.filter((slot) => {
+      // Normalize slot date by removing any time component
+      const slotDateStr = slot.date.includes('T') ? slot.date.split('T')[0] : slot.date;
+      return slotDateStr === formattedDate;
+    });
     
     // Combine available and booked slots for display
     const allSlotsForDay = [...slotsForDay, ...bookedSlotsForDay];
@@ -185,6 +233,8 @@ const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
     if (allSlotsForDay.length > 0) {
       console.log("All slots for selected day:", formattedDate, allSlotsForDay);
       setSelectedDaySlots(allSlotsForDay);
+    } else {
+      console.log("No slots found for day:", formattedDate);
     }
   };
 
@@ -215,16 +265,34 @@ const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
       day
     );
 
-    // Format as YYYY-MM-DD
-    const formattedDate = currentDate.toISOString().split("T")[0];
+    // Format as YYYY-MM-DD but handle timezone issues
+    // Use direct string manipulation to avoid timezone shifts from toISOString
+    const year = currentDate.getFullYear();
+    const month = String(currentDate.getMonth() + 1).padStart(2, '0');
+    const dayStr = String(day).padStart(2, '0');
+    const formattedDate = `${year}-${month}-${dayStr}`;
+    
+    console.log(`Calendar day ${day}: formatted as ${formattedDate}`);
 
     // Check if there are available or booked slots for this day
     const hasAvailableSlots = availabilitySlots.some(
-      (slot) => slot.date === formattedDate
+      (slot) => {
+        // Normalize slot date format for comparison
+        const slotDateStr = slot.date.includes('T') ? slot.date.split('T')[0] : slot.date;
+        const match = slotDateStr === formattedDate;
+        if (match) {
+          console.log(`Match found for day ${day}: slot date ${slotDateStr} = formatted date ${formattedDate}`);
+        }
+        return match;
+      }
     );
     
     const hasBookedSlots = bookedSlots.some(
-      (slot) => slot.date === formattedDate
+      (slot) => {
+        // Normalize slot date format for comparison
+        const slotDateStr = slot.date.includes('T') ? slot.date.split('T')[0] : slot.date;
+        return slotDateStr === formattedDate;
+      }
     );
     
     const isSelectedDay = day === selectedDay;
@@ -261,6 +329,16 @@ const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
     );
   }
 
+  // Add a manual refresh function
+  const handleRefresh = () => {
+    console.log("Manual refresh triggered");
+    // Just changing versionKey in parent component would trigger refresh
+    // but we can also force a refetch here directly
+    setLoading(true);
+    // This will trigger the useEffect to re-run due to dependency on loading state
+    setTimeout(() => setLoading(false), 100);
+  };
+
   if (loading && availabilitySlots.length === 0) {
     return (
       <div className="bg-white rounded-lg shadow-md p-6 flex flex-col items-center justify-center h-64">
@@ -277,7 +355,7 @@ const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
           <FaCalendarAlt className="mr-2 text-blue-500" /> {currentMonthName}{" "}
           {currentYear}
         </h2>
-        <div className="space-x-2">
+        <div className="flex space-x-2">
           <button
             onClick={prevMonth}
             className="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded transition-colors"
@@ -289,6 +367,13 @@ const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
             className="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded transition-colors"
           >
             {">"}
+          </button>
+          <button
+            onClick={handleRefresh}
+            className="px-3 py-1 bg-blue-100 hover:bg-blue-200 rounded transition-colors flex items-center"
+            title="Refresh availability"
+          >
+            <FaSyncAlt className={loading ? "animate-spin" : ""} />
           </button>
         </div>
       </div>
@@ -348,6 +433,48 @@ const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
             selectedDate.getMonth(),
             selectedDay
           ).toLocaleDateString()}
+        </div>
+      )}
+
+      {/* Debug Section - Only visible in development mode */}
+      {window.location.hostname === 'localhost' && (
+        <div className="mt-4 border-t pt-4">
+          <button 
+            className="text-sm text-gray-500 hover:text-gray-700 underline"
+            onClick={() => setShowDebug(!showDebug)}
+          >
+            {showDebug ? "Hide Debug Info" : "Show Debug Info"}
+          </button>
+          
+          {showDebug && (
+            <div className="mt-2 p-3 bg-gray-100 rounded text-xs font-mono overflow-auto max-h-60">
+              <div>
+                <strong>MentorId:</strong> {mentorId}
+              </div>
+              <div>
+                <strong>Version Key:</strong> {versionKey}
+              </div>
+              <div>
+                <strong>Current Month/Year:</strong> {currentMonthName} {currentYear}
+              </div>
+              <div>
+                <strong>Available Slots:</strong> {availabilitySlots.length}
+              </div>
+              <div>
+                <strong>Booked Slots:</strong> {bookedSlots.length}
+              </div>
+              <div className="mt-2">
+                <strong>All Available Slots (Raw Data):</strong>
+                <ul className="mt-1 space-y-1">
+                  {availabilitySlots.map(slot => (
+                    <li key={slot.id} className="p-1 hover:bg-blue-50">
+                      {slot.date} | {slot.startTime}-{slot.endTime} | ID: {slot.id.substring(0, 8)}...
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

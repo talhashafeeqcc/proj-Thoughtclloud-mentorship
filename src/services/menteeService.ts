@@ -296,28 +296,49 @@ export const createMenteeProfile = async (
 
     // Create the mentee profile
     const menteeId = uuidv4();
-    const newMentee = {
-      id: menteeId,
-      userId: userId,
-      interests: menteeData.interests || [],
-      bio: menteeData.bio || "",
-      goals: menteeData.goals || [],
-      currentPosition: menteeData.currentPosition || "",
-      createdAt: now,
-      updatedAt: now,
-    };
-
-    await db.mentees.insert(newMentee);
-
-    // Return the complete mentee profile
-    return {
-      ...newMentee,
-      email: userData.email,
-      name: userData.name,
-      role: "mentee" as const,
-      profilePicture: userData.profilePicture || "",
-      sessions: [],
-    };
+    
+    // Ensure arrays are properly initialized
+    const interestsArray = Array.isArray(menteeData.interests) ? menteeData.interests : [];
+    const goalsArray = Array.isArray(menteeData.goals) ? menteeData.goals : [];
+    
+    try {
+      // Use JSON serialization to ensure clean objects for RxDB
+      const safeNewMentee = JSON.parse(JSON.stringify({
+        id: menteeId,
+        userId: userId,
+        interests: interestsArray,
+        bio: menteeData.bio || "",
+        goals: goalsArray,
+        currentPosition: menteeData.currentPosition || "",
+        createdAt: now,
+        updatedAt: now,
+      }));
+      
+      console.log("Safe mentee object to insert:", safeNewMentee);
+      
+      await db.mentees.insert(safeNewMentee);
+      console.log("Created new mentee profile with ID:", menteeId);
+      
+      // Return the complete mentee profile
+      return {
+        ...safeNewMentee,
+        email: userData.email,
+        name: userData.name,
+        role: "mentee" as const,
+        profilePicture: userData.profilePicture || "",
+        sessions: [],
+      };
+    } catch (err: any) {
+      console.error("Failed to create mentee profile:", err);
+      // Show more details about the error
+      if (err.parameters) {
+        console.error("Error parameters:", err.parameters);
+      }
+      if (err.rxdb) {
+        console.error("RxDB error details:", err.rxdb);
+      }
+      throw new Error(`Failed to create mentee profile: ${err.message}`);
+    }
   } catch (error) {
     console.error("Failed to create mentee profile:", error);
     throw new Error("Failed to create mentee profile");
@@ -335,7 +356,50 @@ export const updateMenteeProfile = async (
     const db = await getDatabase();
     console.log("Updating mentee profile for user:", userId);
 
-    // First find the mentee profile by userId instead of menteeId
+    // First check if user exists
+    let userDoc = await db.users.findOne(userId).exec();
+    
+    if (!userDoc) {
+      console.error("User not found in database with ID:", userId);
+      
+      // Check if user exists in localStorage as a fallback
+      const storedUser = localStorage.getItem("currentUser");
+      if (storedUser) {
+        try {
+          const parsedUser = JSON.parse(storedUser);
+          if (parsedUser.id === userId) {
+            console.log("User found in localStorage but not in database. Creating user in database first.");
+            // Create user in database from localStorage data
+            const now = Date.now();
+            await db.users.insert({
+              id: userId,
+              email: parsedUser.email || "",
+              name: parsedUser.name || "",
+              role: parsedUser.role || "mentee",
+              password: "temporary_password", // This should be changed by the user later
+              profilePicture: parsedUser.profilePicture || "",
+              createdAt: now,
+              updatedAt: now,
+            });
+            
+            // Re-fetch the user
+            userDoc = await db.users.findOne(userId).exec();
+            if (!userDoc) {
+              throw new Error(`Failed to create user from localStorage data`);
+            }
+          } else {
+            throw new Error(`Cannot update mentee profile: User with ID ${userId} not found`);
+          }
+        } catch (parseError) {
+          console.error("Error parsing user from localStorage:", parseError);
+          throw new Error(`Cannot update mentee profile: User with ID ${userId} not found`);
+        }
+      } else {
+        throw new Error(`Cannot update mentee profile: User with ID ${userId} not found`);
+      }
+    }
+
+    // Find the mentee profile by userId
     const menteeDocs = await db.mentees
       .find({
         selector: {
@@ -345,32 +409,61 @@ export const updateMenteeProfile = async (
       .exec();
 
     if (menteeDocs.length === 0) {
-      console.error("Mentee profile not found for user:", userId);
+      console.log("Mentee profile not found for user:", userId);
       
       // If no mentee profile exists, create one
       console.log("Creating new mentee profile for user:", userId);
       const now = Date.now();
       const menteeId = uuidv4();
-      const newMentee = {
-        id: menteeId,
-        userId: userId,
-        interests: updates.interests || [],
-        bio: updates.bio || "",
-        goals: updates.goals || [],
-        currentPosition: updates.currentPosition || "",
-        createdAt: now,
-        updatedAt: now,
-      };
-
-      await db.mentees.insert(newMentee);
-      console.log("Created new mentee profile with ID:", menteeId);
+      
+      // Ensure arrays are properly initialized
+      const interestsArray = Array.isArray(updates.interests) ? updates.interests : [];
+      
+      // Handle goals which can be either string[] or string
+      let goalsValue: string[] | string;
+      if (Array.isArray(updates.goals)) {
+        goalsValue = updates.goals;
+      } else if (typeof updates.goals === 'string') {
+        goalsValue = updates.goals;
+      } else {
+        goalsValue = [];
+      }
+      
+      try {
+        // Use JSON serialization to ensure clean objects for RxDB
+        const safeNewMentee = JSON.parse(JSON.stringify({
+          id: menteeId,
+          userId: userId,
+          interests: interestsArray,
+          bio: updates.bio || "",
+          goals: goalsValue,
+          currentPosition: updates.currentPosition || "",
+          createdAt: now,
+          updatedAt: now,
+        }));
+        
+        console.log("Safe mentee object to insert:", safeNewMentee);
+        
+        await db.mentees.insert(safeNewMentee);
+        console.log("Created new mentee profile with ID:", menteeId);
+      } catch (err: any) {
+        console.error("Failed to create mentee profile:", err);
+        // Show more details about the error
+        if (err.parameters) {
+          console.error("Error parameters:", err.parameters);
+        }
+        if (err.rxdb) {
+          console.error("RxDB error details:", err.rxdb);
+        }
+        throw new Error(`Failed to create mentee profile: ${err.message}`);
+      }
       
       // Continue with user update
       if (updates.name || updates.email || updates.profilePicture) {
-        const userDoc = await db.users.findOne(userId).exec();
+        const updatedUserDoc = await db.users.findOne(userId).exec();
 
-        if (userDoc) {
-          const user = userDoc.toJSON();
+        if (updatedUserDoc) {
+          const user = updatedUserDoc.toJSON();
           const userUpdates: Partial<UserDocument> = {
             name: updates.name !== undefined ? updates.name : user.name,
             email: updates.email !== undefined ? updates.email : user.email,
@@ -383,7 +476,7 @@ export const updateMenteeProfile = async (
 
           console.log("Updating user data:", userUpdates);
 
-          await userDoc.update({
+          await updatedUserDoc.update({
             $set: userUpdates,
           });
         }
@@ -397,12 +490,23 @@ export const updateMenteeProfile = async (
     const mentee = menteeDoc.toJSON() as MenteeDocument;
     const now = Date.now();
 
-    // Prepare mentee updates
+    // Prepare mentee updates with proper handling of goals field
+    let goalsValue: string[] | string;
+    if (Array.isArray(updates.goals)) {
+      goalsValue = updates.goals;
+    } else if (typeof updates.goals === 'string') {
+      goalsValue = updates.goals;
+    } else if (updates.goals !== undefined) {
+      goalsValue = [];
+    } else {
+      goalsValue = mentee.goals;
+    }
+
     const menteeUpdates: Partial<MenteeDocument> = {
       interests:
         updates.interests !== undefined ? updates.interests : mentee.interests,
       bio: updates.bio !== undefined ? updates.bio : mentee.bio,
-      goals: updates.goals !== undefined ? updates.goals : mentee.goals,
+      goals: goalsValue,
       currentPosition:
         updates.currentPosition !== undefined
           ? updates.currentPosition
