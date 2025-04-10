@@ -1,12 +1,11 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
-import { useTheme } from "../../context/ThemeContext";
 import ThemeSwitcher from "../theme/ThemeSwitcher";
 
 const Navbar: React.FC = () => {
   const { authState, logout } = useAuth();
-  const { mode, color } = useTheme();
+
   const navigate = useNavigate();
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -42,58 +41,43 @@ const Navbar: React.FC = () => {
     };
   }, []);
 
-  // Define theme-based classes
-  const themeClasses = {
-    purple: {
-      nav: "bg-theme-purple-600 dark:bg-theme-purple-900",
-      buttonPrimary: "bg-white text-theme-purple-600 hover:bg-theme-purple-50 dark:bg-theme-purple-200 dark:text-theme-purple-900",
-      textHover: "hover:text-theme-purple-200 dark:hover:text-theme-purple-300",
-    },
-    blue: {
-      nav: "bg-theme-blue-600 dark:bg-theme-blue-900",
-      buttonPrimary: "bg-white text-theme-blue-600 hover:bg-theme-blue-50 dark:bg-theme-blue-200 dark:text-theme-blue-900",
-      textHover: "hover:text-theme-blue-200 dark:hover:text-theme-blue-300",
-    },
-    yellow: {
-      nav: "bg-theme-yellow-500 dark:bg-theme-yellow-700",
-      buttonPrimary: "bg-white text-theme-yellow-600 hover:bg-theme-yellow-50 dark:bg-theme-yellow-200 dark:text-theme-yellow-900",
-      textHover: "hover:text-theme-yellow-200 dark:hover:text-theme-yellow-300",
-    },
-  };
-
-  const currentTheme = themeClasses[color];
-
   return (
-    <nav className={`text-white shadow-md ${currentTheme.nav} transition-colors duration-300`}>
+    <nav className="bg-purple-600 dark:bg-purple-900 text-white shadow-md transition-colors duration-300">
       <div className="container mx-auto px-4 py-3">
         <div className="flex justify-between items-center">
-          <Link to="/" className="text-xl font-bold animate-fade-in">
-            MentorMatch
+          <Link to="/" className="text-xl font-bold animate-fade-in flex items-center group">
+            <span className="mr-2 group-hover:animate-wave inline-block">✨</span>
+            <span className="hover:text-purple-200 transition-colors">MentorMatch</span>
           </Link>
 
           {/* Mobile menu button */}
-          <button
-            onClick={toggleMobileMenu}
-            className="md:hidden flex items-center"
-            aria-label="Toggle mobile menu"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-            </svg>
-          </button>
+          <div className="flex items-center gap-2 md:hidden">
+            <ThemeSwitcher />
+            <button
+              onClick={toggleMobileMenu}
+              className="flex items-center"
+              aria-label="Toggle mobile menu"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            </button>
+          </div>
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center space-x-4">
-            <Link to="/mentors" className={`${currentTheme.textHover} transition-colors`}>
+            <Link to="/mentors" className="hover:text-purple-200 dark:hover:text-purple-300 transition-colors relative group">
               Find Mentors
+              <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-purple-300 transition-all duration-300 group-hover:w-full"></span>
             </Link>
 
             <ThemeSwitcher />
 
             {authState.isAuthenticated ? (
               <>
-                <Link to="/dashboard" className={`${currentTheme.textHover} transition-colors`}>
+                <Link to="/dashboard" className="hover:text-purple-200 dark:hover:text-purple-300 transition-colors relative group">
                   Dashboard
+                  <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-purple-300 transition-all duration-300 group-hover:w-full"></span>
                 </Link>
                 <div className="flex items-center relative" ref={dropdownRef}>
                   <div
@@ -107,10 +91,10 @@ const Navbar: React.FC = () => {
                       <img
                         src={authState.user.profilePicture}
                         alt={authState.user.name}
-                        className="w-8 h-8 rounded-full mr-2"
+                        className="w-8 h-8 rounded-full mr-2 ring-2 ring-white/30"
                       />
                     ) : (
-                      <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center mr-2">
+                      <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center mr-2 ring-2 ring-white/30">
                         {authState.user?.name.charAt(0)}
                       </div>
                     )}
@@ -133,7 +117,7 @@ const Navbar: React.FC = () => {
                   </div>
 
                   {dropdownOpen && (
-                    <div className="absolute right-0 mt-2 top-full w-48 bg-white dark:bg-gray-800 text-gray-800 dark:text-white rounded-md shadow-lg py-1 z-10">
+                    <div className="absolute right-0 mt-2 top-full w-48 bg-white dark:bg-gray-800 text-gray-800 dark:text-white rounded-md shadow-lg py-1 z-10 animate-fade-in">
                       <Link
                         to="/settings"
                         className="flex items-center px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700"
@@ -141,7 +125,7 @@ const Navbar: React.FC = () => {
                       >
                         <svg
                           xmlns="http://www.w3.org/2000/svg"
-                          className="h-5 w-5 mr-2 text-gray-500 dark:text-gray-400"
+                          className="h-5 w-5 mr-2 text-purple-500 dark:text-purple-400"
                           fill="none"
                           viewBox="0 0 24 24"
                           stroke="currentColor"
@@ -170,7 +154,7 @@ const Navbar: React.FC = () => {
                       >
                         <svg
                           xmlns="http://www.w3.org/2000/svg"
-                          className="h-5 w-5 mr-2 text-gray-500 dark:text-gray-400"
+                          className="h-5 w-5 mr-2 text-purple-500 dark:text-purple-400"
                           fill="none"
                           viewBox="0 0 24 24"
                           stroke="currentColor"
@@ -189,13 +173,14 @@ const Navbar: React.FC = () => {
                 </div>
               </>
             ) : (
-              <div className="space-x-4">
-                <Link to="/login" className={`${currentTheme.textHover} transition-colors`}>
+              <div className="space-x-4 flex items-center">
+                <Link to="/login" className="hover:text-purple-200 dark:hover:text-purple-300 transition-colors relative group">
                   Login
+                  <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-purple-300 transition-all duration-300 group-hover:w-full"></span>
                 </Link>
                 <Link
                   to="/register"
-                  className={`${currentTheme.buttonPrimary} px-4 py-2 rounded-md transition-colors`}
+                  className="bg-white text-purple-600 hover:bg-purple-50 dark:bg-purple-200 dark:text-purple-900 px-4 py-2 rounded-md transition-colors transform hover:scale-105 duration-300 shadow-md"
                 >
                   Sign Up
                 </Link>
@@ -209,7 +194,7 @@ const Navbar: React.FC = () => {
           <div className="md:hidden pt-4 pb-2 space-y-3 animate-slide-down">
             <Link
               to="/mentors"
-              className={`block py-2 ${currentTheme.textHover}`}
+              className="block py-2 hover:text-purple-200 dark:hover:text-purple-300"
               onClick={() => setMobileMenuOpen(false)}
             >
               Find Mentors
@@ -219,14 +204,14 @@ const Navbar: React.FC = () => {
               <>
                 <Link
                   to="/dashboard"
-                  className={`block py-2 ${currentTheme.textHover}`}
+                  className="block py-2 hover:text-purple-200 dark:hover:text-purple-300"
                   onClick={() => setMobileMenuOpen(false)}
                 >
                   Dashboard
                 </Link>
                 <Link
                   to="/settings"
-                  className={`block py-2 ${currentTheme.textHover}`}
+                  className="block py-2 hover:text-purple-200 dark:hover:text-purple-300"
                   onClick={() => setMobileMenuOpen(false)}
                 >
                   Settings
@@ -236,7 +221,7 @@ const Navbar: React.FC = () => {
                     handleLogout();
                     setMobileMenuOpen(false);
                   }}
-                  className={`block py-2 ${currentTheme.textHover} w-full text-left`}
+                  className="block py-2 hover:text-purple-200 dark:hover:text-purple-300 w-full text-left"
                 >
                   Logout
                 </button>
@@ -245,24 +230,20 @@ const Navbar: React.FC = () => {
               <div className="flex flex-col space-y-2">
                 <Link
                   to="/login"
-                  className={`block py-2 ${currentTheme.textHover}`}
+                  className="block py-2 hover:text-purple-200 dark:hover:text-purple-300"
                   onClick={() => setMobileMenuOpen(false)}
                 >
                   Login
                 </Link>
                 <Link
                   to="/register"
-                  className={`${currentTheme.buttonPrimary} px-4 py-2 rounded-md text-center`}
+                  className="bg-white text-purple-600 hover:bg-purple-50 dark:bg-purple-200 dark:text-purple-900 px-4 py-2 rounded-md text-center"
                   onClick={() => setMobileMenuOpen(false)}
                 >
                   Sign Up
                 </Link>
               </div>
             )}
-
-            <div className="py-2">
-              <ThemeSwitcher />
-            </div>
           </div>
         )}
       </div>

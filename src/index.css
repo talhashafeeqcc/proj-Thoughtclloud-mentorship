@@ -11,19 +11,40 @@
     body {
         @apply antialiased;
     }
+
+    h1 {
+        @apply text-purple-900 dark:text-purple-200 font-bold;
+    }
+
+    h2 {
+        @apply text-purple-800 dark:text-purple-300 font-semibold;
+    }
+
+    h3 {
+        @apply text-purple-700 dark:text-purple-300 font-medium;
+    }
 }
 
-/* Theme utility classes */
-.theme-purple :is(h1, h2, h3) {
-    @apply text-theme-purple-900 dark:text-theme-purple-200;
-}
+@layer components {
+    .btn-primary {
+        @apply bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-md shadow-md hover:shadow-lg transition-all duration-300 hover:-translate-y-0.5;
+    }
 
-.theme-blue :is(h1, h2, h3) {
-    @apply text-theme-blue-900 dark:text-theme-blue-200;
-}
+    .btn-secondary {
+        @apply bg-white hover:bg-gray-100 text-purple-600 border border-purple-500 px-4 py-2 rounded-md shadow-sm hover:shadow-md transition-all duration-300 hover:-translate-y-0.5;
+    }
 
-.theme-yellow :is(h1, h2, h3) {
-    @apply text-theme-yellow-900 dark:text-theme-yellow-200;
+    .btn-tertiary {
+        @apply text-purple-600 hover:text-purple-800 underline hover:no-underline transition-all;
+    }
+
+    .card {
+        @apply bg-white dark:bg-gray-800 rounded-lg shadow-soft hover:shadow-md transition-all duration-300;
+    }
+
+    .input-field {
+        @apply w-full px-4 py-2 rounded-md border border-gray-300 dark:border-gray-600 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 dark:focus:ring-purple-900 dark:bg-gray-700 dark:text-white outline-none transition-all;
+    }
 }
 
 /* Animation delay utilities */
@@ -47,6 +68,23 @@
     animation-delay: 500ms;
 }
 
+.delay-600 {
+    animation-delay: 600ms;
+}
+
+.delay-700 {
+    animation-delay: 700ms;
+}
+
+.delay-800 {
+    animation-delay: 800ms;
+}
+
+/* Fill mode for animations */
+.fill-mode-forwards {
+    animation-fill-mode: forwards;
+}
+
 /* Custom scrollbar for webkit browsers */
 ::-webkit-scrollbar {
     width: 10px;
@@ -57,14 +95,52 @@
 }
 
 ::-webkit-scrollbar-thumb {
-    @apply bg-gray-300 dark:bg-gray-600 rounded-full;
+    @apply bg-purple-300 dark:bg-purple-700 rounded-full;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-    @apply bg-gray-400 dark:bg-gray-500;
+    @apply bg-purple-400 dark:bg-purple-600;
 }
 
 /* Focus styles for better accessibility */
 :focus-visible {
-    @apply outline-none ring-2 ring-offset-2 ring-theme-purple-500 dark:ring-theme-purple-400;
+    @apply outline-none ring-2 ring-offset-2 ring-purple-500 dark:ring-purple-400;
+}
+
+/* Additional animation and transition effects */
+.hover-lift {
+    @apply transition-transform duration-300;
+}
+
+.hover-lift:hover {
+    @apply -translate-y-1;
+}
+
+.hover-glow {
+    @apply transition-shadow duration-300;
+}
+
+.hover-glow:hover {
+    @apply shadow-glow;
+}
+
+/* Animated gradient for backgrounds */
+@keyframes gradientShift {
+    0% {
+        background-position: 0% 50%;
+    }
+
+    50% {
+        background-position: 100% 50%;
+    }
+
+    100% {
+        background-position: 0% 50%;
+    }
+}
+
+.animate-gradient {
+    background: linear-gradient(-45deg, #7c3aed, #8b5cf6, #4f46e5, #a78bfa);
+    background-size: 400% 400%;
+    animation: gradientShift 15s ease infinite;
 }

@@ -27,7 +27,7 @@ function App() {
   const initialCheckDone = useRef(false);
   // Add a ref to track component mounted state
   const isMounted = useRef(true);
-  const { mode, color } = useTheme();
+  const { mode } = useTheme();
   const location = useLocation();
 
   // Set dark mode class on document element
@@ -98,10 +98,10 @@ function App() {
     return (
       <div className="fixed inset-0 flex items-center justify-center bg-gray-100 dark:bg-gray-900">
         <div className="text-center">
-          <h2 className="text-xl font-semibold mb-4 dark:text-white">
+          <h2 className="text-xl font-semibold mb-4 dark:text-white animate-fade-in">
             Connecting to Firebase...
           </h2>
-          <div className={`w-16 h-16 border-4 border-theme-${color}-500 border-t-transparent rounded-full animate-spin mx-auto`}></div>
+          <div className="w-16 h-16 border-4 border-purple-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
         </div>
       </div>
     );
@@ -120,9 +120,13 @@ function App() {
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <meta name="theme-color" content={mode === 'dark' ? '#1e1e1e' : '#ffffff'} />
       </Helmet>
-      <div className={`flex flex-col min-h-screen transition-colors duration-300 bg-white dark:bg-gray-900 text-gray-900 dark:text-white`}>
+      <div className="flex flex-col min-h-screen transition-colors duration-300 bg-white dark:bg-gray-900 text-gray-900 dark:text-white">
         <Navbar />
-        <main className="flex-grow">
+        <main className="flex-grow relative">
+          {/* Background decorative elements */}
+          <div className="hidden md:block absolute top-40 right-10 w-64 h-64 bg-purple-100 dark:bg-purple-900/20 rounded-full mix-blend-multiply dark:mix-blend-soft-light filter blur-3xl opacity-70 animate-float"></div>
+          <div className="hidden md:block absolute bottom-40 left-10 w-72 h-72 bg-indigo-100 dark:bg-indigo-900/20 rounded-full mix-blend-multiply dark:mix-blend-soft-light filter blur-3xl opacity-70 animate-float" style={{ animationDelay: "2s" }}></div>
+
           <Routes>
             <Route path="/" element={<HomePage />} />
             <Route path="/login" element={<LoginPage />} />
