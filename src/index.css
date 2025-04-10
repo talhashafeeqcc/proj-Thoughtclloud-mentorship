@@ -1,3 +1,70 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+    html {
+        font-family: 'Inter', system-ui, sans-serif;
+        scroll-behavior: smooth;
+    }
+
+    body {
+        @apply antialiased;
+    }
+}
+
+/* Theme utility classes */
+.theme-purple :is(h1, h2, h3) {
+    @apply text-theme-purple-900 dark:text-theme-purple-200;
+}
+
+.theme-blue :is(h1, h2, h3) {
+    @apply text-theme-blue-900 dark:text-theme-blue-200;
+}
+
+.theme-yellow :is(h1, h2, h3) {
+    @apply text-theme-yellow-900 dark:text-theme-yellow-200;
+}
+
+/* Animation delay utilities */
+.delay-100 {
+    animation-delay: 100ms;
+}
+
+.delay-200 {
+    animation-delay: 200ms;
+}
+
+.delay-300 {
+    animation-delay: 300ms;
+}
+
+.delay-400 {
+    animation-delay: 400ms;
+}
+
+.delay-500 {
+    animation-delay: 500ms;
+}
+
+/* Custom scrollbar for webkit browsers */
+::-webkit-scrollbar {
+    width: 10px;
+}
+
+::-webkit-scrollbar-track {
+    @apply bg-gray-100 dark:bg-gray-800;
+}
+
+::-webkit-scrollbar-thumb {
+    @apply bg-gray-300 dark:bg-gray-600 rounded-full;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    @apply bg-gray-400 dark:bg-gray-500;
+}
+
+/* Focus styles for better accessibility */
+:focus-visible {
+    @apply outline-none ring-2 ring-offset-2 ring-theme-purple-500 dark:ring-theme-purple-400;
+}

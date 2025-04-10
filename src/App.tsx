@@ -1,4 +1,4 @@
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, useLocation } from "react-router-dom";
 import Navbar from "./components/layout/Navbar";
 import Footer from "./components/layout/Footer";
 import HomePage from "./pages/HomePage";
@@ -14,7 +14,9 @@ import NotFoundPage from "./pages/NotFoundPage";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
 import DatabaseErrorFallback from "./components/utility/DatabaseErrorFallback";
 import { useEffect, useState, useRef } from "react";
+import { useTheme } from "./context/ThemeContext";
 import TestPage from "./pages/TestPage";
+import { Helmet } from "react-helmet";
 
 // Import Firebase configuration
 import { firebaseApp } from "./services/firebase";
@@ -25,6 +27,22 @@ function App() {
   const initialCheckDone = useRef(false);
   // Add a ref to track component mounted state
   const isMounted = useRef(true);
+  const { mode, color } = useTheme();
+  const location = useLocation();
+
+  // Set dark mode class on document element
+  useEffect(() => {
+    if (mode === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [mode]);
+
+  // Add scroll to top on page change
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [location.pathname]);
 
   useEffect(() => {
     // Set up mount tracking
@@ -78,12 +96,12 @@ function App() {
   // Show loading state while initializing
   if (initializing) {
     return (
-      <div className="fixed inset-0 flex items-center justify-center bg-gray-100">
+      <div className="fixed inset-0 flex items-center justify-center bg-gray-100 dark:bg-gray-900">
         <div className="text-center">
-          <h2 className="text-xl font-semibold mb-4">
+          <h2 className="text-xl font-semibold mb-4 dark:text-white">
             Connecting to Firebase...
           </h2>
-          <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
+          <div className={`w-16 h-16 border-4 border-theme-${color}-500 border-t-transparent rounded-full animate-spin mx-auto`}></div>
         </div>
       </div>
     );
@@ -95,58 +113,66 @@ function App() {
   }
 
   return (
-    <div className="flex flex-col min-h-screen">
-      <Navbar />
-      <main className="flex-grow container mx-auto px-4">
-        <Routes>
-          <Route path="/" element={<HomePage />} />
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/register" element={<RegisterPage />} />
-          <Route path="/mentors" element={<MentorListPage />} />
-          <Route path="/mentors/:mentorId" element={<MentorProfilePage />} />
-          <Route
-            path="/dashboard"
-            element={
-              <ProtectedRoute>
-                <DashboardPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/settings"
-            element={
-              <ProtectedRoute>
-                <SettingsPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/payment/:sessionId"
-            element={
-              <ProtectedRoute>
-                <PaymentPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/sessions/:sessionId"
-            element={
-              <ProtectedRoute>
-                <SessionDetailsPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/test"
-            element={
-              <TestPage />
-            }
-          />
-          <Route path="*" element={<NotFoundPage />} />
-        </Routes>
-      </main>
-      <Footer />
-    </div>
+    <>
+      <Helmet>
+        <title>MentorMatch - Find Your Perfect Mentor</title>
+        <meta name="description" content="Connect with experienced professionals who can guide you through your career journey" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <meta name="theme-color" content={mode === 'dark' ? '#1e1e1e' : '#ffffff'} />
+      </Helmet>
+      <div className={`flex flex-col min-h-screen transition-colors duration-300 bg-white dark:bg-gray-900 text-gray-900 dark:text-white`}>
+        <Navbar />
+        <main className="flex-grow">
+          <Routes>
+            <Route path="/" element={<HomePage />} />
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/register" element={<RegisterPage />} />
+            <Route path="/mentors" element={<MentorListPage />} />
+            <Route path="/mentors/:mentorId" element={<MentorProfilePage />} />
+            <Route
+              path="/dashboard"
+              element={
+                <ProtectedRoute>
+                  <DashboardPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/settings"
+              element={
+                <ProtectedRoute>
+                  <SettingsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/payment/:sessionId"
+              element={
+                <ProtectedRoute>
+                  <PaymentPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/sessions/:sessionId"
+              element={
+                <ProtectedRoute>
+                  <SessionDetailsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/test"
+              element={
+                <TestPage />
+              }
+            />
+            <Route path="*" element={<NotFoundPage />} />
+          </Routes>
+        </main>
+        <Footer />
+      </div>
+    </>
   );
 }
 
