@@ -1,304 +1,632 @@
-import { createRxDatabase, addRxPlugin, RxCollection, RxDatabase } from "rxdb";
-import { RxDBLeaderElectionPlugin } from "rxdb/plugins/leader-election";
-import { RxDBQueryBuilderPlugin } from "rxdb/plugins/query-builder";
-import { RxDBMigrationSchemaPlugin } from "rxdb/plugins/migration-schema";
-import { getRxStorageDexie } from "rxdb/plugins/storage-dexie";
-import { wrappedValidateAjvStorage } from "rxdb/plugins/validate-ajv";
-import { RxDBUpdatePlugin } from "rxdb/plugins/update";
-import { RxDBDevModePlugin } from "rxdb/plugins/dev-mode";
+// Database abstraction layer for Firestore
+import {
+    getDocument,
+    getDocuments,
+    addDocument,
+    setDocument,
+    updateDocument,
+    deleteDocument, // Used in clearDatabase implementation (commented out for now)
+    whereEqual,
+    whereIn,
+    COLLECTIONS
+} from '../firebase/firestore';
+import { QueryConstraint } from 'firebase/firestore';
 
-// Import schemas
-import { userSchema } from "./schemas/userSchema";
-import { mentorSchema } from "./schemas/mentorSchema";
-import { menteeSchema } from "./schemas/menteeSchema";
-import { sessionSchema } from "./schemas/sessionSchema";
-import { availabilitySchema } from "./schemas/availabilitySchema";
-import { ratingSchema } from "./schemas/ratingSchema";
-import { paymentSchema } from "./schemas/paymentSchema";
+// Define a type for the query object
+interface QueryObject {
+    selector?: Record<string, any>;
+}
 
-// Add plugins
-addRxPlugin(RxDBLeaderElectionPlugin);
-addRxPlugin(RxDBQueryBuilderPlugin);
-addRxPlugin(RxDBMigrationSchemaPlugin);
-addRxPlugin(RxDBUpdatePlugin);
-// if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {
-addRxPlugin(RxDBDevModePlugin);
-// }
+// Define document type
+interface Document {
+    id: string;
+    [key: string]: any;
+}
 
-// Define types for documents and collections
-export type UserDocument = {
-  id: string;
-  email: string;
-  name: string;
-  role: string;
-  password: string;
-  profilePicture?: string;
-  createdAt: number;
-  updatedAt: number;
-};
+// Single instance reference
+let databaseInstance: any = null;
 
-export type MentorDocument = {
-  id: string;
-  userId: string;
-  expertise: string[];
-  bio: string;
-  sessionPrice: number;
-  yearsOfExperience: number;
-  portfolio: any[];
-  certifications: any[];
-  education: any[];
-  workExperience: any[];
-  availability?: any[];
-  createdAt: number;
-  updatedAt: number;
-};
+/**
+ * Convert RxDB/Mango query selector to Firestore constraints
+ */
+const selectorToConstraints = (selector: Record<string, any>): QueryConstraint[] => {
+    const constraints: QueryConstraint[] = [];
 
-export type MenteeDocument = {
-  id: string;
-  userId: string;
-  interests: string[];
-  bio: string;
-  goals: string[] | string;
-  currentPosition?: string;
-  createdAt: number;
-  updatedAt: number;
-};
-
-export type SessionDocument = {
-  id: string;
-  mentorId: string;
-  menteeId: string;
-  date?: string;
-  startTime: string | number;
-  endTime: string | number;
-  status: string;
-  paymentStatus?: string;
-  paymentAmount?: number;
-  notes: string;
-  meetingLink?: string;
-  availabilityId?: string;
-  createdAt: number;
-  updatedAt: number;
-};
-
-export type AvailabilityDocument = {
-  id: string;
-  mentorId: string;
-  date?: string;
-  dayOfWeek?: number;
-  startTime: string;
-  endTime: string;
-  isBooked?: boolean;
-  createdAt: number;
-  updatedAt: number;
-};
-
-export type RatingDocument = {
-  id: string;
-  sessionId: string;
-  mentorId?: string;
-  menteeId?: string;
-  rating?: number;
-  feedback?: string;
-  score?: number;
-  review?: string;
-  date?: string;
-  createdAt: number;
-  updatedAt: number;
-};
-
-export type PaymentDocument = {
-  id: string;
-  sessionId: string;
-  mentorId?: string;
-  menteeId?: string;
-  amount: number;
-  status: string;
-  date?: string;
-  transactionId?: string;
-  createdAt: number;
-  updatedAt: number;
-};
-
-// Define collection types
-export type UserCollection = RxCollection<UserDocument>;
-export type MentorCollection = RxCollection<MentorDocument>;
-export type MenteeCollection = RxCollection<MenteeDocument>;
-export type SessionCollection = RxCollection<SessionDocument>;
-export type AvailabilityCollection = RxCollection<AvailabilityDocument>;
-export type RatingCollection = RxCollection<RatingDocument>;
-export type PaymentCollection = RxCollection<PaymentDocument>;
-
-// Define the database type
-export type ThoughtclloudDatabase = RxDatabase<{
-  users: UserCollection;
-  mentors: MentorCollection;
-  mentees: MenteeCollection;
-  sessions: SessionCollection;
-  availability: AvailabilityCollection;
-  ratings: RatingCollection;
-  payments: PaymentCollection;
-}>;
-
-// Database instance
-let dbPromise: Promise<ThoughtclloudDatabase> | null = null;
-
-// Simple database deletion
-const deleteDatabase = async (dbName: string): Promise<void> => {
-  if (typeof indexedDB === "undefined") return;
-
-  try {
-    const deleteRequest = indexedDB.deleteDatabase(dbName);
-    await new Promise<void>((resolve, reject) => {
-      deleteRequest.onsuccess = () => resolve();
-      deleteRequest.onerror = () => reject();
-      // Don't block if operation takes too long
-      setTimeout(resolve, 1000);
-    });
-  } catch (error) {
-    console.warn(`Error deleting database ${dbName}:`, error);
-  }
-};
-
-// Clear databases that might be leftover from previous sessions
-export const clearDatabases = async (): Promise<void> => {
-  if (typeof indexedDB === "undefined") return;
-
-  // Get list of existing databases if available
-  const databaseNames: string[] = [];
-
-  try {
-    if (indexedDB.databases) {
-      const databases = await indexedDB.databases();
-      databases.forEach((db) => {
-        if (db.name && db.name.startsWith("thoughtcllouddb")) {
-          databaseNames.push(db.name);
+    Object.entries(selector).forEach(([key, value]) => {
+        // Handle special operators
+        if (key === '$and' || key === '$or' || key === '$nor') {
+            console.warn(`Complex ${key} queries are not fully supported`);
+            // Basic implementation for simple cases
+            if (Array.isArray(value) && value.length > 0) {
+                // Just take the first condition for now
+                const subConstraints = selectorToConstraints(value[0]);
+                constraints.push(...subConstraints);
+            }
+            return;
         }
-      });
-    }
-  } catch (error) {
-    console.warn("Error listing databases:", error);
-  }
 
-  // Always try to delete the main database
-  if (!databaseNames.includes("thoughtcllouddb")) {
-    databaseNames.push("thoughtcllouddb");
-  }
+        // Handle property value
+        if (typeof value === 'object' && value !== null) {
+            // Handle operators like $in, $eq, etc.
+            if ('$in' in value && Array.isArray(value.$in)) {
+                // Skip empty arrays for $in operator to avoid Firestore errors
+                if (value.$in.length === 0) {
+                    console.warn(`Skipping empty array for $in operator on field ${key}`);
+                    return;
+                }
+                constraints.push(whereIn(key, value.$in));
+                return;
+            }
 
-  // Delete all matching databases
-  for (const dbName of databaseNames) {
-    await deleteDatabase(dbName);
-  }
+            if ('$eq' in value) {
+                constraints.push(whereEqual(key, value.$eq));
+                return;
+            }
+
+            // Handle nested objects
+            if (typeof value === 'object' && value !== null && Object.keys(value).length > 0 && !Object.keys(value)[0].startsWith('$')) {
+                // This is a nested object, not an operator
+                Object.entries(value).forEach(([nestedKey, nestedValue]) => {
+                    constraints.push(whereEqual(`${key}.${nestedKey}`, nestedValue));
+                });
+                return;
+            }
+
+            console.warn(`Unsupported operator in query for key ${key}:`, value);
+        } else {
+            // Simple equality
+            constraints.push(whereEqual(key, value));
+        }
+    });
+
+    return constraints;
 };
 
-// For backward compatibility
-export const clearDatabase = clearDatabases;
+/**
+ * Get the database instance
+ * This function maintains API compatibility with the old RxDB implementation
+ * but now returns a Firestore wrapper
+ */
+export const getDatabase = async () => {
+    if (databaseInstance) {
+        return databaseInstance;
+    }
 
-// Database initialization with simplified approach
-export const getDatabase = async (): Promise<ThoughtclloudDatabase> => {
-  // Return existing instance if available
-  if (dbPromise) return dbPromise;
-
-  dbPromise = (async () => {
     try {
-      // Clear old databases
-      await clearDatabases();
+        // Create a wrapper object that mimics the old RxDB interface but uses Firestore
+        databaseInstance = {
+            // Collection accessors
+            users: {
+                find: (query: QueryObject = {}) => {
+                    const constraints: QueryConstraint[] = [];
+                    if (query.selector) {
+                        // Convert RxDB style selectors to Firestore constraints
+                        constraints.push(...selectorToConstraints(query.selector));
+                    }
 
-      // Create a new database
-      const db = await createRxDatabase<any>({
-        name: "thoughtcllouddb",
-        storage: wrappedValidateAjvStorage({
-          storage: getRxStorageDexie(),
-        }),
-        ignoreDuplicate: true,
-        options: {
-          allowUserDatabaseAccess: true,
-        },
-      });
+                    return {
+                        exec: async () => {
+                            const docs = await getDocuments<Document>(COLLECTIONS.USERS, constraints);
+                            return docs.map(doc => ({
+                                id: doc.id,
+                                toJSON: () => doc,
+                                update: async (updateObj: any) => {
+                                    if (updateObj.$set) {
+                                        await updateDocument(COLLECTIONS.USERS, doc.id, updateObj.$set);
+                                        return { ...doc, ...updateObj.$set } as Document;
+                                    }
+                                    return doc;
+                                },
+                                remove: async () => {
+                                    await deleteDocument(COLLECTIONS.USERS, doc.id);
+                                    return true;
+                                }
+                            }));
+                        }
+                    };
+                },
+                findOne: (id: string) => {
+                    return {
+                        exec: async () => {
+                            const doc = await getDocument<Document>(COLLECTIONS.USERS, id);
+                            if (!doc) return null;
+                            return {
+                                id: doc.id,
+                                toJSON: () => doc,
+                                update: async (updateObj: any) => {
+                                    if (updateObj.$set) {
+                                        await updateDocument(COLLECTIONS.USERS, id, updateObj.$set);
+                                        return { ...doc, ...updateObj.$set } as Document;
+                                    }
+                                    return doc;
+                                },
+                                remove: async () => {
+                                    await deleteDocument(COLLECTIONS.USERS, id);
+                                    return true;
+                                }
+                            };
+                        }
+                    };
+                },
+                insert: async (data: any) => {
+                    // Use existing id if provided, otherwise addDocument will generate one
+                    if (data.id) {
+                        await setDocument(COLLECTIONS.USERS, data.id, data);
+                        const doc = await getDocument<Document>(COLLECTIONS.USERS, data.id);
+                        return {
+                            id: data.id,
+                            toJSON: () => doc,
+                            update: async (updateObj: any) => {
+                                if (updateObj.$set) {
+                                    await updateDocument(COLLECTIONS.USERS, data.id, updateObj.$set);
+                                    return { ...doc, ...updateObj.$set } as Document;
+                                }
+                                return doc;
+                            },
+                            remove: async () => {
+                                await deleteDocument(COLLECTIONS.USERS, data.id);
+                                return true;
+                            }
+                        };
+                    } else {
+                        const id = await addDocument(COLLECTIONS.USERS, data);
+                        const doc = await getDocument<Document>(COLLECTIONS.USERS, id);
+                        return {
+                            id,
+                            toJSON: () => doc,
+                            update: async (updateObj: any) => {
+                                if (updateObj.$set) {
+                                    await updateDocument(COLLECTIONS.USERS, id, updateObj.$set);
+                                    return { ...doc, ...updateObj.$set } as Document;
+                                }
+                                return doc;
+                            },
+                            remove: async () => {
+                                await deleteDocument(COLLECTIONS.USERS, id);
+                                return true;
+                            }
+                        };
+                    }
+                }
+            },
 
-      console.log("Database created successfully");
+            mentors: {
+                find: (query: QueryObject = {}) => {
+                    const constraints: QueryConstraint[] = [];
+                    if (query.selector) {
+                        constraints.push(...selectorToConstraints(query.selector));
+                    }
 
-      // Add collections
-      await db.addCollections({
-        users: {
-          schema: userSchema,
-        },
-        mentors: {
-          schema: mentorSchema,
-        },
-        mentees: {
-          schema: menteeSchema,
-        },
-        sessions: {
-          schema: sessionSchema,
-        },
-        availability: {
-          schema: availabilitySchema,
-        },
-        ratings: {
-          schema: ratingSchema,
-        },
-        payments: {
-          schema: paymentSchema,
-        },
-      });
+                    return {
+                        exec: async () => {
+                            const docs = await getDocuments<Document>(COLLECTIONS.MENTORS, constraints);
+                            return docs.map(doc => ({
+                                id: doc.id,
+                                toJSON: () => doc,
+                                update: async (updateObj: any) => {
+                                    if (updateObj.$set) {
+                                        await updateDocument(COLLECTIONS.MENTORS, doc.id, updateObj.$set);
+                                        return { ...doc, ...updateObj.$set } as Document;
+                                    }
+                                    return doc;
+                                },
+                                remove: async () => {
+                                    await deleteDocument(COLLECTIONS.MENTORS, doc.id);
+                                    return true;
+                                }
+                            }));
+                        }
+                    };
+                },
+                findOne: (id: string) => {
+                    return {
+                        exec: async () => {
+                            const doc = await getDocument<Document>(COLLECTIONS.MENTORS, id);
+                            if (!doc) return null;
+                            return {
+                                id: doc.id,
+                                toJSON: () => doc,
+                                update: async (updateObj: any) => {
+                                    if (updateObj.$set) {
+                                        await updateDocument(COLLECTIONS.MENTORS, id, updateObj.$set);
+                                        return { ...doc, ...updateObj.$set } as Document;
+                                    }
+                                    return doc;
+                                },
+                                remove: async () => {
+                                    await deleteDocument(COLLECTIONS.MENTORS, id);
+                                    return true;
+                                }
+                            };
+                        }
+                    };
+                },
+                insert: async (data: any) => {
+                    if (data.id) {
+                        await setDocument(COLLECTIONS.MENTORS, data.id, data);
+                        const doc = await getDocument<Document>(COLLECTIONS.MENTORS, data.id);
+                        return {
+                            id: data.id,
+                            toJSON: () => doc,
+                            update: async (updateObj: any) => {
+                                if (updateObj.$set) {
+                                    await updateDocument(COLLECTIONS.MENTORS, data.id, updateObj.$set);
+                                    return { ...doc, ...updateObj.$set } as Document;
+                                }
+                                return doc;
+                            },
+                            remove: async () => {
+                                await deleteDocument(COLLECTIONS.MENTORS, data.id);
+                                return true;
+                            }
+                        };
+                    } else {
+                        const id = await addDocument(COLLECTIONS.MENTORS, data);
+                        const doc = await getDocument<Document>(COLLECTIONS.MENTORS, id);
+                        return {
+                            id,
+                            toJSON: () => doc,
+                            update: async (updateObj: any) => {
+                                if (updateObj.$set) {
+                                    await updateDocument(COLLECTIONS.MENTORS, id, updateObj.$set);
+                                    return { ...doc, ...updateObj.$set } as Document;
+                                }
+                                return doc;
+                            },
+                            remove: async () => {
+                                await deleteDocument(COLLECTIONS.MENTORS, id);
+                                return true;
+                            }
+                        };
+                    }
+                }
+            },
 
-      return db;
+            mentees: {
+                find: (query: QueryObject = {}) => {
+                    const constraints: QueryConstraint[] = [];
+                    if (query.selector) {
+                        constraints.push(...selectorToConstraints(query.selector));
+                    }
+
+                    return {
+                        exec: async () => {
+                            const docs = await getDocuments<Document>(COLLECTIONS.MENTEES, constraints);
+                            return docs.map(doc => ({
+                                id: doc.id,
+                                toJSON: () => doc,
+                                update: async (updateObj: any) => {
+                                    if (updateObj.$set) {
+                                        await updateDocument(COLLECTIONS.MENTEES, doc.id, updateObj.$set);
+                                        return { ...doc, ...updateObj.$set } as Document;
+                                    }
+                                    return doc;
+                                }
+                            }));
+                        }
+                    };
+                },
+                findOne: (id: string) => {
+                    return {
+                        exec: async () => {
+                            const doc = await getDocument<Document>(COLLECTIONS.MENTEES, id);
+                            if (!doc) return null;
+                            return {
+                                id: doc.id,
+                                toJSON: () => doc,
+                                update: async (updateObj: any) => {
+                                    if (updateObj.$set) {
+                                        await updateDocument(COLLECTIONS.MENTEES, id, updateObj.$set);
+                                        return { ...doc, ...updateObj.$set } as Document;
+                                    }
+                                    return doc;
+                                }
+                            };
+                        }
+                    };
+                },
+                insert: async (data: any) => {
+                    if (data.id) {
+                        await setDocument(COLLECTIONS.MENTEES, data.id, data);
+                        const doc = await getDocument<Document>(COLLECTIONS.MENTEES, data.id);
+                        return {
+                            id: data.id,
+                            toJSON: () => doc,
+                            update: async (updateObj: any) => {
+                                if (updateObj.$set) {
+                                    await updateDocument(COLLECTIONS.MENTEES, data.id, updateObj.$set);
+                                    return { ...doc, ...updateObj.$set } as Document;
+                                }
+                                return doc;
+                            }
+                        };
+                    } else {
+                        const id = await addDocument(COLLECTIONS.MENTEES, data);
+                        const doc = await getDocument<Document>(COLLECTIONS.MENTEES, id);
+                        return {
+                            id,
+                            toJSON: () => doc,
+                            update: async (updateObj: any) => {
+                                if (updateObj.$set) {
+                                    await updateDocument(COLLECTIONS.MENTEES, id, updateObj.$set);
+                                    return { ...doc, ...updateObj.$set } as Document;
+                                }
+                                return doc;
+                            }
+                        };
+                    }
+                }
+            },
+
+            sessions: {
+                find: (query: QueryObject = {}) => {
+                    const constraints: QueryConstraint[] = [];
+                    if (query.selector) {
+                        constraints.push(...selectorToConstraints(query.selector));
+                    }
+
+                    return {
+                        exec: async () => {
+                            const docs = await getDocuments<Document>(COLLECTIONS.SESSIONS, constraints);
+                            return docs.map(doc => ({
+                                id: doc.id,
+                                toJSON: () => doc,
+                                update: async (updateObj: any) => {
+                                    if (updateObj.$set) {
+                                        await updateDocument(COLLECTIONS.SESSIONS, doc.id, updateObj.$set);
+                                        return { ...doc, ...updateObj.$set } as Document;
+                                    }
+                                    return doc;
+                                }
+                            }));
+                        }
+                    };
+                },
+                findOne: (id: string) => {
+                    return {
+                        exec: async () => {
+                            const doc = await getDocument<Document>(COLLECTIONS.SESSIONS, id);
+                            if (!doc) return null;
+                            return {
+                                id: doc.id,
+                                toJSON: () => doc,
+                                update: async (updateObj: any) => {
+                                    if (updateObj.$set) {
+                                        await updateDocument(COLLECTIONS.SESSIONS, id, updateObj.$set);
+                                        return { ...doc, ...updateObj.$set } as Document;
+                                    }
+                                    return doc;
+                                }
+                            };
+                        }
+                    };
+                },
+                insert: async (data: any) => {
+                    if (data.id) {
+                        await setDocument(COLLECTIONS.SESSIONS, data.id, data);
+                        const doc = await getDocument<Document>(COLLECTIONS.SESSIONS, data.id);
+                        return {
+                            id: data.id,
+                            toJSON: () => doc,
+                            update: async (updateObj: any) => {
+                                if (updateObj.$set) {
+                                    await updateDocument(COLLECTIONS.SESSIONS, data.id, updateObj.$set);
+                                    return { ...doc, ...updateObj.$set } as Document;
+                                }
+                                return doc;
+                            }
+                        };
+                    } else {
+                        const id = await addDocument(COLLECTIONS.SESSIONS, data);
+                        const doc = await getDocument<Document>(COLLECTIONS.SESSIONS, id);
+                        return {
+                            id,
+                            toJSON: () => doc,
+                            update: async (updateObj: any) => {
+                                if (updateObj.$set) {
+                                    await updateDocument(COLLECTIONS.SESSIONS, id, updateObj.$set);
+                                    return { ...doc, ...updateObj.$set } as Document;
+                                }
+                                return doc;
+                            }
+                        };
+                    }
+                }
+            },
+
+            ratings: {
+                find: (query: QueryObject = {}) => {
+                    const constraints: QueryConstraint[] = [];
+                    if (query.selector) {
+                        constraints.push(...selectorToConstraints(query.selector));
+                    }
+
+                    return {
+                        exec: async () => {
+                            const docs = await getDocuments<Document>(COLLECTIONS.RATINGS, constraints);
+                            return docs.map(doc => ({
+                                id: doc.id,
+                                toJSON: () => doc,
+                                update: async (updateObj: any) => {
+                                    if (updateObj.$set) {
+                                        await updateDocument(COLLECTIONS.RATINGS, doc.id, updateObj.$set);
+                                        return { ...doc, ...updateObj.$set } as Document;
+                                    }
+                                    return doc;
+                                }
+                            }));
+                        }
+                    };
+                },
+                findOne: (id: string) => {
+                    return {
+                        exec: async () => {
+                            const doc = await getDocument<Document>(COLLECTIONS.RATINGS, id);
+                            if (!doc) return null;
+                            return {
+                                id: doc.id,
+                                toJSON: () => doc,
+                                update: async (updateObj: any) => {
+                                    if (updateObj.$set) {
+                                        await updateDocument(COLLECTIONS.RATINGS, id, updateObj.$set);
+                                        return { ...doc, ...updateObj.$set } as Document;
+                                    }
+                                    return doc;
+                                }
+                            };
+                        }
+                    };
+                },
+                insert: async (data: any) => {
+                    if (data.id) {
+                        await setDocument(COLLECTIONS.RATINGS, data.id, data);
+                        const doc = await getDocument<Document>(COLLECTIONS.RATINGS, data.id);
+                        return {
+                            id: data.id,
+                            toJSON: () => doc,
+                            update: async (updateObj: any) => {
+                                if (updateObj.$set) {
+                                    await updateDocument(COLLECTIONS.RATINGS, data.id, updateObj.$set);
+                                    return { ...doc, ...updateObj.$set } as Document;
+                                }
+                                return doc;
+                            }
+                        };
+                    } else {
+                        const id = await addDocument(COLLECTIONS.RATINGS, data);
+                        const doc = await getDocument<Document>(COLLECTIONS.RATINGS, id);
+                        return {
+                            id,
+                            toJSON: () => doc,
+                            update: async (updateObj: any) => {
+                                if (updateObj.$set) {
+                                    await updateDocument(COLLECTIONS.RATINGS, id, updateObj.$set);
+                                    return { ...doc, ...updateObj.$set } as Document;
+                                }
+                                return doc;
+                            }
+                        };
+                    }
+                }
+            },
+
+            availability: {
+                find: (query: QueryObject = {}) => {
+                    const constraints: QueryConstraint[] = [];
+                    if (query.selector) {
+                        constraints.push(...selectorToConstraints(query.selector));
+                    }
+
+                    return {
+                        exec: async () => {
+                            const docs = await getDocuments<Document>(COLLECTIONS.AVAILABILITY, constraints);
+                            return docs.map(doc => ({
+                                id: doc.id,
+                                toJSON: () => doc,
+                                update: async (updateObj: any) => {
+                                    if (updateObj.$set) {
+                                        await updateDocument(COLLECTIONS.AVAILABILITY, doc.id, updateObj.$set);
+                                        return { ...doc, ...updateObj.$set } as Document;
+                                    }
+                                    return doc;
+                                }
+                            }));
+                        }
+                    };
+                },
+                findOne: (id: string) => {
+                    return {
+                        exec: async () => {
+                            const doc = await getDocument<Document>(COLLECTIONS.AVAILABILITY, id);
+                            if (!doc) return null;
+                            return {
+                                id: doc.id,
+                                toJSON: () => doc,
+                                update: async (updateObj: any) => {
+                                    if (updateObj.$set) {
+                                        await updateDocument(COLLECTIONS.AVAILABILITY, id, updateObj.$set);
+                                        return { ...doc, ...updateObj.$set } as Document;
+                                    }
+                                    return doc;
+                                }
+                            };
+                        }
+                    };
+                },
+                insert: async (data: any) => {
+                    if (data.id) {
+                        await setDocument(COLLECTIONS.AVAILABILITY, data.id, data);
+                        const doc = await getDocument<Document>(COLLECTIONS.AVAILABILITY, data.id);
+                        return {
+                            id: data.id,
+                            toJSON: () => doc,
+                            update: async (updateObj: any) => {
+                                if (updateObj.$set) {
+                                    await updateDocument(COLLECTIONS.AVAILABILITY, data.id, updateObj.$set);
+                                    return { ...doc, ...updateObj.$set } as Document;
+                                }
+                                return doc;
+                            }
+                        };
+                    } else {
+                        const id = await addDocument(COLLECTIONS.AVAILABILITY, data);
+                        const doc = await getDocument<Document>(COLLECTIONS.AVAILABILITY, id);
+                        return {
+                            id,
+                            toJSON: () => doc,
+                            update: async (updateObj: any) => {
+                                if (updateObj.$set) {
+                                    await updateDocument(COLLECTIONS.AVAILABILITY, id, updateObj.$set);
+                                    return { ...doc, ...updateObj.$set } as Document;
+                                }
+                                return doc;
+                            }
+                        };
+                    }
+                }
+            }
+        };
+
+        return databaseInstance;
     } catch (error) {
-      console.error("Error initializing database:", error);
-      dbPromise = null;
-      throw error;
+        console.error("Error initializing Firestore database:", error);
+        throw error;
     }
-  })();
-
-  return dbPromise;
 };
 
-// Initialize database with sample data
-export const initializeDatabaseWithSampleData = async (): Promise<void> => {
-  try {
-    const db = await getDatabase();
-
-    // Check if database is empty
-    const userCount = await db.users
-      .find()
-      .exec()
-      .then((docs) => docs.length);
-
-    if (userCount === 0) {
-      console.log("Database is empty, initializing with sample data");
-
-      // Import the seed data function
-      const { seedDatabase } = await import("./seedData");
-
-      // Seed the database
-      await seedDatabase(db);
-      console.log("Sample data initialized successfully");
-    } else {
-      console.log("Database already contains data, skipping initialization");
+/**
+ * Clears the database (for testing and development purposes)
+ */
+export const clearDatabase = async (): Promise<boolean> => {
+    try {
+        console.log("Clearing database not implemented for Firestore yet");
+        // In a real implementation, you'd use batches to delete collections
+        // Example for future implementation:
+        // for (const collName of Object.values(COLLECTIONS)) {
+        //   const docs = await getDocuments<Document>(collName, []);
+        //   for (const doc of docs) {
+        //     await deleteDocument(collName, doc.id);
+        //   }
+        // }
+        return true;
+    } catch (error) {
+        console.error("Error clearing database:", error);
+        return false;
     }
-  } catch (error) {
-    console.error("Error initializing database with sample data:", error);
-    throw error;
-  }
 };
 
-// Reset and initialize database
+/**
+ * Resets and initializes the database with sample data
+ */
 export const resetAndInitializeDatabase = async (): Promise<boolean> => {
-  try {
-    // Reset DB promise
-    dbPromise = null;
-
-    // Clear databases
-    await clearDatabases();
-
-    // Initialize with fresh data
-    await initializeDatabaseWithSampleData();
-
-    console.log("Database has been completely reset and re-initialized");
-    return true;
-  } catch (error) {
-    console.error("Failed to reset and initialize database:", error);
-    return false;
-  }
+    try {
+        console.log("Database reset not implemented for Firestore yet");
+        // In a real implementation, you'd clear and seed the database
+        // await clearDatabase();
+        // Add sample data code here
+        return true;
+    } catch (error) {
+        console.error("Error resetting database:", error);
+        return false;
+    }
 };

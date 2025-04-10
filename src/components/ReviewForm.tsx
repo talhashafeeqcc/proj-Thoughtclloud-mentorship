@@ -11,7 +11,6 @@ interface ReviewFormProps {
 
 const ReviewForm: React.FC<ReviewFormProps> = ({
   sessionId,
-  mentorId,
   menteeId,
   onReviewSubmitted,
 }) => {

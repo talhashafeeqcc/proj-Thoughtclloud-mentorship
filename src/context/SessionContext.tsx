@@ -13,6 +13,7 @@ import {
   createSession,
   updateSession,
   cancelSession,
+  checkAndUpdateSessionStatuses,
 } from "../services/sessionService";
 import { useAuth } from "./AuthContext";
 import { getDatabase } from "../services/database/db";
@@ -27,7 +28,7 @@ interface SessionState {
 // Define the context type
 interface SessionContextType {
   sessionState: SessionState;
-  fetchUserSessions: () => Promise<void>;
+  fetchUserSessions: (forceRefresh?: boolean) => Promise<void>;
   bookSession: (
     sessionData: Omit<Session, "id" | "status" | "paymentStatus">
   ) => Promise<Session>;
@@ -44,18 +45,18 @@ const SessionContext = createContext<SessionContextType | undefined>(undefined);
 // Define action types
 type SessionAction =
   | {
-      type:
-        | "FETCH_SESSIONS_START"
-        | "BOOK_SESSION_START"
-        | "UPDATE_SESSION_START"
-        | "CANCEL_SESSION_START"
-        | "INIT_DB_START";
-    }
+    type:
+    | "FETCH_SESSIONS_START"
+    | "BOOK_SESSION_START"
+    | "UPDATE_SESSION_START"
+    | "CANCEL_SESSION_START"
+    | "INIT_DB_START";
+  }
   | { type: "FETCH_SESSIONS_SUCCESS"; payload: Session[] }
   | {
-      type: "BOOK_SESSION_SUCCESS" | "UPDATE_SESSION_SUCCESS";
-      payload: Session;
-    }
+    type: "BOOK_SESSION_SUCCESS" | "UPDATE_SESSION_SUCCESS";
+    payload: Session;
+  }
   | { type: "CANCEL_SESSION_SUCCESS"; payload: string }
   | { type: "INIT_DB_SUCCESS" }
   | { type: "SESSION_ERROR"; payload: string };
@@ -147,6 +148,7 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({
   const isDbInitializedRef = useRef<boolean>(false);
   const mountedRef = useRef<boolean>(true);
   const fetchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const lastFetchTimeRef = useRef<number>(0);
 
   // Initialize database only once
   useEffect(() => {
@@ -187,11 +189,24 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({
         clearTimeout(fetchTimeoutRef.current);
       }
     };
-  }, []); // Empty deps - run once
+  }, []);
 
-  const doFetchSessions = async (userId: string) => {
-    if (!mountedRef.current || isFetchingRef.current) return;
+  const doFetchSessions = async (userId: string, forceRefresh = false) => {
+    if (!mountedRef.current) return;
 
+    // If already fetching, don't start another fetch unless forced
+    if (isFetchingRef.current && !forceRefresh) return;
+
+    // Implement a cool-down period (3 seconds) to prevent excessive refreshes
+    // Skip this check if forceRefresh is true
+    const now = Date.now();
+    if (!forceRefresh && now - lastFetchTimeRef.current < 3000) {
+      console.log("Skipping fetch sessions due to cool-down period");
+      return;
+    }
+
+    // Set the last fetch time
+    lastFetchTimeRef.current = now;
     isFetchingRef.current = true;
 
     if (mountedRef.current) {
@@ -199,7 +214,10 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({
     }
 
     try {
+      console.log("Fetching sessions for user:", userId);
       const sessions = await getSessions(userId);
+      console.log(`Fetched ${sessions.length} sessions for user ${userId}`);
+
       if (mountedRef.current) {
         dispatch({ type: "FETCH_SESSIONS_SUCCESS", payload: sessions });
       }
@@ -219,28 +237,32 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
-  const fetchUserSessions = useCallback(async () => {
+  const fetchUserSessions = useCallback(async (forceRefresh = false) => {
     if (!user || !mountedRef.current) return;
 
     const currentUserId = user.id;
 
-    if (userIdRef.current === currentUserId && isFetchingRef.current) {
+    // If we're already fetching for this user and not forcing a refresh, return
+    if (userIdRef.current === currentUserId && isFetchingRef.current && !forceRefresh) {
       return;
     }
 
     userIdRef.current = currentUserId;
 
+    // Clear any existing timeout
     if (fetchTimeoutRef.current) {
       clearTimeout(fetchTimeoutRef.current);
     }
 
+    // Schedule the fetch with a small delay to allow for batched updates
     fetchTimeoutRef.current = setTimeout(() => {
       if (mountedRef.current) {
-        doFetchSessions(currentUserId);
+        doFetchSessions(currentUserId, forceRefresh);
       }
     }, 50);
   }, [user]);
 
+  // Fetch sessions when the user changes
   useEffect(() => {
     if (!user || !mountedRef.current) {
       userIdRef.current = null;
@@ -249,6 +271,7 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({
 
     const currentUserId = user.id;
 
+    // If user ID changed or we're forcing a refresh on mount
     if (userIdRef.current !== currentUserId) {
       userIdRef.current = currentUserId;
 
@@ -258,10 +281,55 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({
 
       fetchTimeoutRef.current = setTimeout(() => {
         if (mountedRef.current) {
-          doFetchSessions(currentUserId);
+          doFetchSessions(currentUserId, true); // Force refresh on user change
         }
       }, 50);
     }
+  }, [user]);
+
+  // Add an interval to periodically refresh sessions
+  useEffect(() => {
+    if (!user) return;
+
+    // Refresh sessions every 30 seconds to ensure data is fresh
+    const intervalId = setInterval(() => {
+      if (user && mountedRef.current && !isFetchingRef.current) {
+        console.log("Periodic refresh of sessions");
+        doFetchSessions(user.id, true);
+      }
+    }, 30000); // 30 seconds
+
+    return () => {
+      clearInterval(intervalId);
+    };
+  }, [user]);
+
+  // Add a useEffect to periodically check and update session statuses
+  useEffect(() => {
+    // Run once when component mounts
+    const checkStatusesOnce = async () => {
+      try {
+        await checkAndUpdateSessionStatuses();
+      } catch (error) {
+        console.error("Error checking session statuses:", error);
+      }
+    };
+
+    checkStatusesOnce();
+
+    // Set up interval to check statuses every 5 minutes
+    const intervalId = setInterval(async () => {
+      try {
+        await checkAndUpdateSessionStatuses();
+        // After updating statuses, refresh the sessions
+        fetchUserSessions();
+      } catch (error) {
+        console.error("Error in periodic session status check:", error);
+      }
+    }, 5 * 60 * 1000); // 5 minutes in milliseconds
+
+    // Clean up interval on unmount
+    return () => clearInterval(intervalId);
   }, [user]);
 
   // Book a session with proper type handling

@@ -13,6 +13,8 @@ import { Link } from "react-router-dom";
 import SessionDetails from "../SessionDetails";
 import SessionPayment from "./SessionPayment";
 import { useSession } from "../../context/SessionContext";
+import ReviewForm from "../ReviewForm";
+import { hasSessionRating } from "../../services/ratingService";
 
 interface SessionListProps {
   sessions: Session[];
@@ -29,6 +31,44 @@ const SessionList: React.FC<SessionListProps> = ({
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
   const [showPaymentFor, setShowPaymentFor] = useState<string | null>(null);
   const [isCancelling, setIsCancelling] = useState<string | null>(null);
+  const [showReviewFor, setShowReviewFor] = useState<string | null>(null);
+  const [sessionReviewStatus, setSessionReviewStatus] = useState<Record<string, boolean>>({});
+
+  // Define all useCallback hooks at the top level to maintain consistent hooks order
+  const handleShowPayment = useCallback((e: React.MouseEvent, sessionId: string) => {
+    e.stopPropagation();
+    setShowPaymentFor(sessionId);
+  }, []);
+
+  const handlePaymentSuccess = useCallback(() => {
+    // Refresh session list after successful payment
+    fetchUserSessions();
+    // Close payment form
+    setShowPaymentFor(null);
+  }, [fetchUserSessions]);
+
+  const handleShowReview = useCallback(async (e: React.MouseEvent, sessionId: string) => {
+    e.stopPropagation();
+    // Check if review already exists
+    try {
+      const hasRating = await hasSessionRating(sessionId);
+      if (hasRating) {
+        setSessionReviewStatus(prev => ({ ...prev, [sessionId]: true }));
+        alert("You've already submitted a review for this session.");
+      } else {
+        setShowReviewFor(sessionId);
+      }
+    } catch (err) {
+      console.error("Error checking for existing review:", err);
+    }
+  }, []);
+
+  const handleReviewSubmitted = useCallback((sessionId: string) => {
+    setSessionReviewStatus(prev => ({ ...prev, [sessionId]: true }));
+    setShowReviewFor(null);
+    // Optionally refresh session list to update UI
+    fetchUserSessions();
+  }, [fetchUserSessions]);
 
   if (!sessions || sessions.length === 0) {
     return (
@@ -65,18 +105,6 @@ const SessionList: React.FC<SessionListProps> = ({
     }
   };
 
-  const handleShowPayment = useCallback((e: React.MouseEvent, sessionId: string) => {
-    e.stopPropagation();
-    setShowPaymentFor(sessionId);
-  }, []);
-
-  const handlePaymentSuccess = useCallback(() => {
-    // Refresh session list after successful payment
-    fetchUserSessions();
-    // Close payment form
-    setShowPaymentFor(null);
-  }, [fetchUserSessions]);
-
   // Group sessions by status
   const upcomingSessions = sessions.filter(
     (session) => session.status === "scheduled"
@@ -93,20 +121,34 @@ const SessionList: React.FC<SessionListProps> = ({
     const isCompleted = session.status === "completed";
     const isPaid = session.paymentStatus === "completed";
     const isPending = session.paymentStatus === "pending";
-    const isRefunded = session.paymentStatus === "refunded";
+    // const isRefunded = session.paymentStatus === "refunded";
     const isSelected = selectedSessionId === session.id;
     const isShowingPayment = showPaymentFor === session.id;
-    const isMentor = currentUserId === session.mentorId;
-    const isMentee = currentUserId === session.menteeId;
+    const isShowingReview = showReviewFor === session.id;
+
+    // Debug current user ID and session
+    console.log("Current User ID:", currentUserId);
+    console.log("Session:", session);
+    console.log("Mentor ID:", session.mentorId);
+    console.log("Mentee ID:", session.menteeId);
+
+    // Use role information to determine if user is mentor/mentee
+    // This might be more reliable than comparing IDs directly
+    const isMentor = session.mentorId === currentUserId;
+    const isMentee = session.menteeId === currentUserId;
+
+    console.log("Is Mentor:", isMentor);
+    console.log("Is Mentee:", isMentee);
+
+    const hasReviewed = sessionReviewStatus[session.id];
 
     const formattedDate = new Date(session.date).toLocaleDateString();
 
     return (
       <div key={session.id} className="mb-4">
         <div
-          className={`bg-white rounded-lg shadow-sm p-4 cursor-pointer transition-all ${
-            isSelected ? "ring-2 ring-blue-500" : "hover:shadow-md"
-          }`}
+          className={`bg-white rounded-lg shadow-sm p-4 cursor-pointer transition-all ${isSelected ? "ring-2 ring-blue-500" : "hover:shadow-md"
+            }`}
           onClick={() => handleViewDetails(session.id)}
         >
           <div className="flex justify-between items-start">
@@ -134,70 +176,84 @@ const SessionList: React.FC<SessionListProps> = ({
             <div className="flex flex-col items-end">
               <div className="flex space-x-2 mb-2">
                 <span
-                  className={`px-2 py-1 rounded-full text-xs ${
-                    isCompleted
-                      ? "bg-green-100 text-green-800"
-                      : isUpcoming
+                  className={`px-2 py-1 rounded-full text-xs ${isCompleted
+                    ? "bg-green-100 text-green-800"
+                    : isUpcoming
                       ? "bg-blue-100 text-blue-800"
                       : "bg-red-100 text-red-800"
-                  }`}
+                    }`}
                 >
                   {session.status.charAt(0).toUpperCase() +
                     session.status.slice(1)}
                 </span>
 
                 <span
-                  className={`px-2 py-1 rounded-full text-xs ${
-                    isPaid
-                      ? "bg-green-100 text-green-800"
-                      : isPending
+                  className={`px-2 py-1 rounded-full text-xs ${isPaid
+                    ? "bg-green-100 text-green-800"
+                    : isPending
                       ? "bg-yellow-100 text-yellow-800"
                       : "bg-gray-100 text-gray-800"
-                  }`}
+                    }`}
                 >
                   {session.paymentStatus.charAt(0).toUpperCase() +
                     session.paymentStatus.slice(1)}
                 </span>
               </div>
 
-              {isUpcoming && (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleCancelClick(session.id);
-                  }}
-                  disabled={!!isCancelling}
-                  className="text-sm text-red-500 hover:text-red-700 flex items-center"
-                >
-                  {isCancelling === session.id ? (
-                    <>Cancelling...</>
-                  ) : (
-                    <>
-                      <FaTimesCircle className="mr-1" /> Cancel
-                    </>
-                  )}
-                </button>
-              )}
+              {/* Actions buttons */}
+              <div className="flex flex-col items-end space-y-2">
+                {/* Cancel button for upcoming sessions */}
+                {isUpcoming && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleCancelClick(session.id);
+                    }}
+                    disabled={!!isCancelling}
+                    className="text-sm text-red-500 hover:text-red-700 flex items-center"
+                  >
+                    {isCancelling === session.id ? (
+                      <>Cancelling...</>
+                    ) : (
+                      <>
+                        <FaTimesCircle className="mr-1" /> Cancel
+                      </>
+                    )}
+                  </button>
+                )}
 
-              {isCompleted && isPaid && isMentee && (
-                <div className="text-sm text-yellow-500 hover:text-yellow-700 flex items-center">
-                  <FaStar className="mr-1" /> Leave a review
-                </div>
-              )}
+                {/* Review button for completed and paid sessions */}
+                {isCompleted && isPaid && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      console.log("Review button clicked for session", session.id);
+                      console.log("isMentee:", isMentee);
+                      handleShowReview(e, session.id);
+                    }}
+                    className={`text-sm ${hasReviewed ? 'text-gray-500' : 'text-yellow-500 hover:text-yellow-700'} flex items-center`}
+                    disabled={hasReviewed}
+                  >
+                    <FaStar className="mr-1" /> {hasReviewed ? "Reviewed" : "Leave a Review"}
+                  </button>
+                )}
 
-              {isPending && isMentee && (
-                <button
-                  onClick={(e) => handleShowPayment(e, session.id)}
-                  className="text-sm text-blue-500 hover:text-blue-700 flex items-center"
-                >
-                  <FaMoneyCheckAlt className="mr-1" /> Complete Payment
-                </button>
-              )}
+                {/* Payment button for pending payments */}
+                {isPending && isMentee && (
+                  <button
+                    onClick={(e) => handleShowPayment(e, session.id)}
+                    className="text-sm text-blue-500 hover:text-blue-700 flex items-center"
+                  >
+                    <FaMoneyCheckAlt className="mr-1" /> Complete Payment
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         </div>
 
-        {isSelected && !isShowingPayment && (
+        {/* Expanded view details */}
+        {isSelected && !isShowingPayment && !isShowingReview && (
           <div className="mt-2 bg-gray-50 rounded-lg border p-4">
             <SessionDetails
               sessionId={session.id}
@@ -206,12 +262,25 @@ const SessionList: React.FC<SessionListProps> = ({
           </div>
         )}
 
+        {/* Payment form */}
         {isShowingPayment && (
-          <SessionPayment 
+          <SessionPayment
             sessionId={session.id}
             amount={session.paymentAmount}
             onSuccess={handlePaymentSuccess}
           />
+        )}
+
+        {/* Review form */}
+        {isShowingReview && (
+          <div className="mt-2">
+            <ReviewForm
+              sessionId={session.id}
+              mentorId={session.mentorId}
+              menteeId={session.menteeId}
+              onReviewSubmitted={() => handleReviewSubmitted(session.id)}
+            />
+          </div>
         )}
       </div>
     );

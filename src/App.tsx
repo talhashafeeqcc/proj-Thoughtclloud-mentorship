@@ -14,12 +14,13 @@ import NotFoundPage from "./pages/NotFoundPage";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
 import DatabaseErrorFallback from "./components/utility/DatabaseErrorFallback";
 import { useEffect, useState, useRef } from "react";
+import TestPage from "./pages/TestPage";
 
-// Import database module - this will trigger bootstrap
-import { nuclearReset, getBootstrapPromise } from "./services/database";
+// Import Firebase configuration
+import { firebaseApp } from "./services/firebase";
 
 function App() {
-  const [dbError, setDbError] = useState(false);
+  const [firebaseError, setFirebaseError] = useState(false);
   const [initializing, setInitializing] = useState(true);
   const initialCheckDone = useRef(false);
   // Add a ref to track component mounted state
@@ -33,54 +34,36 @@ function App() {
     if (initialCheckDone.current) return;
     initialCheckDone.current = true;
 
-    // Check if URL contains forcereset parameter
-    const urlParams = new URLSearchParams(window.location.search);
-    const forceReset = urlParams.get("forcereset");
+    // Initialize Firebase
+    try {
+      if (firebaseApp) {
+        console.log("Firebase initialized successfully");
 
-    if (forceReset) {
-      // Execute nuclear reset if the forcereset parameter is present
-      console.log("Force reset parameter detected, performing nuclear reset");
-      nuclearReset().then(() => {
-        // Clean URL by removing the parameter
-        window.history.replaceState(
-          {},
-          document.title,
-          window.location.pathname
-        );
-      });
-    }
-
-    // Wait for bootstrap promise to complete
-    const waitForBootstrap = async () => {
-      try {
-        // Get the bootstrap promise and await it
-        await getBootstrapPromise();
-        
-        if (isMounted.current) {
-          console.log("Bootstrap completed successfully");
-          setDbError(false);
-          setInitializing(false);
-        }
-      } catch (error) {
-        if (isMounted.current) {
-          console.error("Bootstrap failed:", error);
-          setDbError(true);
-          setInitializing(false);
-        }
+        // Short timeout to allow Firebase to connect
+        setTimeout(() => {
+          if (isMounted.current) {
+            setInitializing(false);
+          }
+        }, 1000);
+      } else {
+        throw new Error("Firebase app not initialized");
       }
-    };
-
-    // Start waiting for bootstrap
-    waitForBootstrap();
+    } catch (error) {
+      console.error("Firebase initialization error:", error);
+      if (isMounted.current) {
+        setFirebaseError(true);
+        setInitializing(false);
+      }
+    }
 
     // If initialization takes too long, show error
     const timeoutId = setTimeout(() => {
       if (isMounted.current && initializing) {
-        console.warn("Database initialization timed out");
-        setDbError(true);
+        console.warn("Firebase initialization timed out");
+        setFirebaseError(true);
         setInitializing(false);
       }
-    }, 10000); // 10 second timeout (increased from 8 seconds)
+    }, 5000); // 5 second timeout
 
     return () => {
       // Handle cleanup
@@ -98,7 +81,7 @@ function App() {
       <div className="fixed inset-0 flex items-center justify-center bg-gray-100">
         <div className="text-center">
           <h2 className="text-xl font-semibold mb-4">
-            Initializing Database...
+            Connecting to Firebase...
           </h2>
           <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
         </div>
@@ -106,8 +89,8 @@ function App() {
     );
   }
 
-  // If there's a database error, show the error fallback component
-  if (dbError) {
+  // If there's a Firebase error, show the error fallback component
+  if (firebaseError) {
     return <DatabaseErrorFallback />;
   }
 
@@ -151,6 +134,12 @@ function App() {
               <ProtectedRoute>
                 <SessionDetailsPage />
               </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/test"
+            element={
+              <TestPage />
             }
           />
           <Route path="*" element={<NotFoundPage />} />

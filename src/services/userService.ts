@@ -129,7 +129,7 @@ export const getMentorById = async (
 
     // First try to find by direct ID
     let mentorDoc = await db.mentors.findOne(id).exec();
-    
+
     if (mentorDoc) {
       console.log(`Found mentor directly with ID: ${id}`);
     } else {
@@ -401,7 +401,7 @@ export const updateMentorProfile = async (
 
     // First check if user exists
     let userDoc = await db.users.findOne(userId).exec();
-    
+
     // If user doesn't exist, throw an error
     if (!userDoc) {
       console.log("User not found in database with ID:", userId);
@@ -423,7 +423,7 @@ export const updateMentorProfile = async (
     if (mentorDocs.length === 0) {
       // Create new mentor profile
       const mentorId = uuidv4();
-      
+
       // Ensure all fields match the expected schema
       // Ensure arrays are properly initialized
       const expertiseArray = Array.isArray(updates.expertise) ? updates.expertise : [];
@@ -431,32 +431,32 @@ export const updateMentorProfile = async (
       const certificationsArray = Array.isArray(updates.certifications) ? updates.certifications : [];
       const educationArray = Array.isArray(updates.education) ? updates.education : [];
       const workExperienceArray = Array.isArray(updates.workExperience) ? updates.workExperience : [];
-      
+
       // Debug log for all fields
       console.log("Debug - mentor fields:", {
         expertise: {
-          value: expertiseArray, 
-          type: typeof expertiseArray, 
+          value: expertiseArray,
+          type: typeof expertiseArray,
           isArray: Array.isArray(expertiseArray)
         },
         portfolio: {
-          value: portfolioArray, 
-          type: typeof portfolioArray, 
+          value: portfolioArray,
+          type: typeof portfolioArray,
           isArray: Array.isArray(portfolioArray)
         },
         education: {
-          value: educationArray, 
-          type: typeof educationArray, 
+          value: educationArray,
+          type: typeof educationArray,
           isArray: Array.isArray(educationArray)
         },
         certifications: {
-          value: certificationsArray, 
-          type: typeof certificationsArray, 
+          value: certificationsArray,
+          type: typeof certificationsArray,
           isArray: Array.isArray(certificationsArray)
         },
         workExperience: {
-          value: workExperienceArray, 
-          type: typeof workExperienceArray, 
+          value: workExperienceArray,
+          type: typeof workExperienceArray,
           isArray: Array.isArray(workExperienceArray)
         },
         bio: {
@@ -468,7 +468,7 @@ export const updateMentorProfile = async (
           type: typeof (typeof updates.sessionPrice === 'number' ? updates.sessionPrice : 0)
         }
       });
-      
+
       // Create new mentor profile with properly initialized fields
       try {
         // Use JSON serialization/deserialization to ensure we have a clean object
@@ -487,9 +487,9 @@ export const updateMentorProfile = async (
           createdAt: now,
           updatedAt: now,
         }));
-        
+
         console.log("Safe mentor object to insert:", safeNewMentor);
-        
+
         mentorDoc = await db.mentors.insert(safeNewMentor);
         console.log("Successfully created mentor profile with ID:", mentorId);
       } catch (err: any) {

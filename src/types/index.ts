@@ -18,6 +18,7 @@ export interface Mentor extends User {
   sessionPrice: number;
   availability: AvailabilitySlot[];
   ratings: Rating[];
+  averageRating?: number;
 }
 
 export interface Mentee extends User {
@@ -87,6 +88,7 @@ export interface Session {
   menteeName?: string;
   title?: string;
   availabilitySlotId?: string;
+  meetingLink?: string;
 }
 
 // Rating and Review Types
@@ -158,4 +160,5 @@ export interface MentorProfile extends User {
   sessionPrice: number;
   availability?: AvailabilitySlot[];
   ratings?: Rating[];
+  averageRating?: number;
 }

@@ -1,8 +1,15 @@
 import { v4 as uuidv4 } from "uuid";
 import type { Mentee } from "../types";
-import { getDatabase } from "./database/db";
+import {
+  getDocument,
+  getDocuments,
+  setDocument,
+  updateDocument,
+  whereEqual,
+  COLLECTIONS
+} from "./firebase";
 
-// Define interfaces for RxDB document types
+// Define interfaces for Firestore document types
 interface MenteeDocument {
   id: string;
   userId: string;
@@ -37,35 +44,21 @@ export interface ExtendedMentee extends Mentee {
  */
 export const getMentees = async (): Promise<ExtendedMentee[]> => {
   try {
-    const db = await getDatabase();
-    const menteeDocs = await db.mentees.find().exec();
-
     // Get the mentee profiles
-    const menteeProfiles = menteeDocs.map((doc) =>
-      doc.toJSON()
-    );
+    const menteeProfiles = await getDocuments<MenteeDocument>(COLLECTIONS.MENTEES);
 
     // Get user data for all mentees
-    const userIds = menteeProfiles.map(
-      (mentee) => mentee.userId
+    const userIds = menteeProfiles.map(mentee => mentee.userId);
+    const users = await getDocuments<UserDocument>(
+      COLLECTIONS.USERS,
+      [whereEqual('id', userIds)]
     );
-    const userDocs = await db.users
-      .find({
-        selector: {
-          id: {
-            $in: userIds,
-          },
-        },
-      })
-      .exec();
 
     // Map users to their respective mentee profiles with type assertion
     return menteeProfiles.map((mentee) => {
-      const userDoc = userDocs.find(
-        (u) => u.id === mentee.userId
-      );
+      const user = users.find(u => u.id === mentee.userId);
 
-      if (!userDoc) {
+      if (!user) {
         // If we don't have user data, create a placeholder with required fields
         return {
           id: mentee.id,
@@ -80,7 +73,6 @@ export const getMentees = async (): Promise<ExtendedMentee[]> => {
         } as ExtendedMentee;
       }
 
-      const user = userDoc.toJSON();
       // Don't include password in the returned object
       const { password, ...safeUser } = user;
 
@@ -110,19 +102,16 @@ export const getMenteeById = async (
   id: string
 ): Promise<ExtendedMentee | null> => {
   try {
-    const db = await getDatabase();
-    const menteeDoc = await db.mentees.findOne(id).exec();
+    const mentee = await getDocument<MenteeDocument>(COLLECTIONS.MENTEES, id);
 
-    if (!menteeDoc) {
+    if (!mentee) {
       return null;
     }
 
-    const mentee = menteeDoc.toJSON() as MenteeDocument;
-
     // Get user data
-    const userDoc = await db.users.findOne(mentee.userId).exec();
+    const user = await getDocument<UserDocument>(COLLECTIONS.USERS, mentee.userId);
 
-    if (!userDoc) {
+    if (!user) {
       // If we don't have user data, create a placeholder
       return {
         id: mentee.id,
@@ -137,7 +126,6 @@ export const getMenteeById = async (
       };
     }
 
-    const user = userDoc.toJSON() as UserDocument;
     // Don't include password in the returned object
     const { password, ...safeUser } = user;
 
@@ -164,26 +152,22 @@ export const getMenteeByUserId = async (
   userId: string
 ): Promise<ExtendedMentee | null> => {
   try {
-    const db = await getDatabase();
-    const menteeDocs = await db.mentees
-      .find({
-        selector: {
-          userId: userId,
-        },
-      })
-      .exec();
+    // Get mentees filtered by userId
+    const mentees = await getDocuments<MenteeDocument>(
+      COLLECTIONS.MENTEES,
+      [whereEqual('userId', userId)]
+    );
 
-    if (menteeDocs.length === 0) {
+    if (mentees.length === 0) {
       return null;
     }
 
-    const menteeDoc = menteeDocs[0];
-    const mentee = menteeDoc.toJSON() as MenteeDocument;
+    const mentee = mentees[0];
 
     // Get user data
-    const userDoc = await db.users.findOne(userId).exec();
+    const user = await getDocument<UserDocument>(COLLECTIONS.USERS, userId);
 
-    if (!userDoc) {
+    if (!user) {
       return {
         id: mentee.id,
         email: "unknown@example.com",
@@ -197,7 +181,6 @@ export const getMenteeByUserId = async (
       };
     }
 
-    const user = userDoc.toJSON() as UserDocument;
     // Don't include password in the returned object
     const { password, ...safeUser } = user;
 
@@ -235,33 +218,27 @@ export const createMenteeProfile = async (
   }
 ): Promise<ExtendedMentee> => {
   try {
-    const db = await getDatabase();
     const now = Date.now();
 
     // Check if user already exists
-    const existingUsers = await db.users
-      .find({
-        selector: {
-          email: userData.email,
-        },
-      })
-      .exec();
+    const existingUsers = await getDocuments<UserDocument>(
+      COLLECTIONS.USERS,
+      [whereEqual('email', userData.email)]
+    );
 
     let userId: string;
 
     if (existingUsers.length > 0) {
       // User exists, use their ID
-      const existingUser = existingUsers[0].toJSON();
+      const existingUser = existingUsers[0];
       userId = existingUser.id;
 
       // Update user if needed (except password)
       if (userData.name || userData.profilePicture) {
-        await existingUsers[0].update({
-          $set: {
-            name: userData.name,
-            profilePicture: userData.profilePicture,
-            updatedAt: now,
-          },
+        await updateDocument(COLLECTIONS.USERS, userId, {
+          name: userData.name,
+          profilePicture: userData.profilePicture,
+          updatedAt: now,
         });
       }
     } else {
@@ -277,17 +254,14 @@ export const createMenteeProfile = async (
         createdAt: now,
         updatedAt: now,
       };
-      await db.users.insert(newUser);
+      await setDocument(COLLECTIONS.USERS, userId, newUser);
     }
 
     // Check if mentee profile already exists for this user
-    const existingMentees = await db.mentees
-      .find({
-        selector: {
-          userId: userId,
-        },
-      })
-      .exec();
+    const existingMentees = await getDocuments<MenteeDocument>(
+      COLLECTIONS.MENTEES,
+      [whereEqual('userId', userId)]
+    );
 
     if (existingMentees.length > 0) {
       // Mentee profile already exists, return it
@@ -296,49 +270,28 @@ export const createMenteeProfile = async (
 
     // Create the mentee profile
     const menteeId = uuidv4();
-    
-    // Ensure arrays are properly initialized
-    const interestsArray = Array.isArray(menteeData.interests) ? menteeData.interests : [];
-    const goalsArray = Array.isArray(menteeData.goals) ? menteeData.goals : [];
-    
-    try {
-      // Use JSON serialization to ensure clean objects for RxDB
-      const safeNewMentee = JSON.parse(JSON.stringify({
-        id: menteeId,
-        userId: userId,
-        interests: interestsArray,
-        bio: menteeData.bio || "",
-        goals: goalsArray,
-        currentPosition: menteeData.currentPosition || "",
-        createdAt: now,
-        updatedAt: now,
-      }));
-      
-      console.log("Safe mentee object to insert:", safeNewMentee);
-      
-      await db.mentees.insert(safeNewMentee);
-      console.log("Created new mentee profile with ID:", menteeId);
-      
-      // Return the complete mentee profile
-      return {
-        ...safeNewMentee,
-        email: userData.email,
-        name: userData.name,
-        role: "mentee" as const,
-        profilePicture: userData.profilePicture || "",
-        sessions: [],
-      };
-    } catch (err: any) {
-      console.error("Failed to create mentee profile:", err);
-      // Show more details about the error
-      if (err.parameters) {
-        console.error("Error parameters:", err.parameters);
-      }
-      if (err.rxdb) {
-        console.error("RxDB error details:", err.rxdb);
-      }
-      throw new Error(`Failed to create mentee profile: ${err.message}`);
-    }
+    const newMentee: MenteeDocument = {
+      id: menteeId,
+      userId: userId,
+      interests: menteeData.interests || [],
+      bio: menteeData.bio || "",
+      goals: menteeData.goals || [],
+      currentPosition: menteeData.currentPosition || "",
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    await setDocument(COLLECTIONS.MENTEES, menteeId, newMentee);
+
+    // Return the full mentee profile
+    return {
+      ...newMentee,
+      email: userData.email,
+      name: userData.name,
+      role: "mentee" as const,
+      profilePicture: userData.profilePicture || "",
+      sessions: [],
+    };
   } catch (error) {
     console.error("Failed to create mentee profile:", error);
     throw new Error("Failed to create mentee profile");
@@ -346,167 +299,47 @@ export const createMenteeProfile = async (
 };
 
 /**
- * Update a mentee profile
+ * Check if user has a mentee profile
+ */
+export const hasMenteeProfile = async (userId: string): Promise<boolean> => {
+  try {
+    const mentees = await getDocuments<MenteeDocument>(
+      COLLECTIONS.MENTEES,
+      [whereEqual('userId', userId)]
+    );
+    return mentees.length > 0;
+  } catch (error) {
+    console.error(`Failed to check mentee profile for user ${userId}:`, error);
+    return false;
+  }
+};
+
+/**
+ * Update mentee profile
  */
 export const updateMenteeProfile = async (
   userId: string,
   updates: Partial<ExtendedMentee>
 ): Promise<ExtendedMentee | null> => {
   try {
-    const db = await getDatabase();
-    console.log("Updating mentee profile for user:", userId);
+    // Get the mentee document for this user
+    const mentees = await getDocuments<MenteeDocument>(
+      COLLECTIONS.MENTEES,
+      [whereEqual('userId', userId)]
+    );
 
-    // First check if user exists
-    let userDoc = await db.users.findOne(userId).exec();
-    
-    if (!userDoc) {
-      console.error("User not found in database with ID:", userId);
-      
-      // Check if user exists in localStorage as a fallback
-      const storedUser = localStorage.getItem("currentUser");
-      if (storedUser) {
-        try {
-          const parsedUser = JSON.parse(storedUser);
-          if (parsedUser.id === userId) {
-            console.log("User found in localStorage but not in database. Creating user in database first.");
-            // Create user in database from localStorage data
-            const now = Date.now();
-            await db.users.insert({
-              id: userId,
-              email: parsedUser.email || "",
-              name: parsedUser.name || "",
-              role: parsedUser.role || "mentee",
-              password: "temporary_password", // This should be changed by the user later
-              profilePicture: parsedUser.profilePicture || "",
-              createdAt: now,
-              updatedAt: now,
-            });
-            
-            // Re-fetch the user
-            userDoc = await db.users.findOne(userId).exec();
-            if (!userDoc) {
-              throw new Error(`Failed to create user from localStorage data`);
-            }
-          } else {
-            throw new Error(`Cannot update mentee profile: User with ID ${userId} not found`);
-          }
-        } catch (parseError) {
-          console.error("Error parsing user from localStorage:", parseError);
-          throw new Error(`Cannot update mentee profile: User with ID ${userId} not found`);
-        }
-      } else {
-        throw new Error(`Cannot update mentee profile: User with ID ${userId} not found`);
-      }
+    if (mentees.length === 0) {
+      throw new Error(`No mentee profile found for user ${userId}`);
     }
 
-    // Find the mentee profile by userId
-    const menteeDocs = await db.mentees
-      .find({
-        selector: {
-          userId: userId,
-        },
-      })
-      .exec();
-
-    if (menteeDocs.length === 0) {
-      console.log("Mentee profile not found for user:", userId);
-      
-      // If no mentee profile exists, create one
-      console.log("Creating new mentee profile for user:", userId);
-      const now = Date.now();
-      const menteeId = uuidv4();
-      
-      // Ensure arrays are properly initialized
-      const interestsArray = Array.isArray(updates.interests) ? updates.interests : [];
-      
-      // Handle goals which can be either string[] or string
-      let goalsValue: string[] | string;
-      if (Array.isArray(updates.goals)) {
-        goalsValue = updates.goals;
-      } else if (typeof updates.goals === 'string') {
-        goalsValue = updates.goals;
-      } else {
-        goalsValue = [];
-      }
-      
-      try {
-        // Use JSON serialization to ensure clean objects for RxDB
-        const safeNewMentee = JSON.parse(JSON.stringify({
-          id: menteeId,
-          userId: userId,
-          interests: interestsArray,
-          bio: updates.bio || "",
-          goals: goalsValue,
-          currentPosition: updates.currentPosition || "",
-          createdAt: now,
-          updatedAt: now,
-        }));
-        
-        console.log("Safe mentee object to insert:", safeNewMentee);
-        
-        await db.mentees.insert(safeNewMentee);
-        console.log("Created new mentee profile with ID:", menteeId);
-      } catch (err: any) {
-        console.error("Failed to create mentee profile:", err);
-        // Show more details about the error
-        if (err.parameters) {
-          console.error("Error parameters:", err.parameters);
-        }
-        if (err.rxdb) {
-          console.error("RxDB error details:", err.rxdb);
-        }
-        throw new Error(`Failed to create mentee profile: ${err.message}`);
-      }
-      
-      // Continue with user update
-      if (updates.name || updates.email || updates.profilePicture) {
-        const updatedUserDoc = await db.users.findOne(userId).exec();
-
-        if (updatedUserDoc) {
-          const user = updatedUserDoc.toJSON();
-          const userUpdates: Partial<UserDocument> = {
-            name: updates.name !== undefined ? updates.name : user.name,
-            email: updates.email !== undefined ? updates.email : user.email,
-            profilePicture:
-              updates.profilePicture !== undefined
-                ? updates.profilePicture
-                : user.profilePicture,
-            updatedAt: now,
-          };
-
-          console.log("Updating user data:", userUpdates);
-
-          await updatedUserDoc.update({
-            $set: userUpdates,
-          });
-        }
-      }
-      
-      // Return the newly created mentee profile
-      return getMenteeByUserId(userId);
-    }
-
-    const menteeDoc = menteeDocs[0];
-    const mentee = menteeDoc.toJSON() as MenteeDocument;
+    const mentee = mentees[0];
     const now = Date.now();
 
-    // Prepare mentee updates with proper handling of goals field
-    let goalsValue: string[] | string;
-    if (Array.isArray(updates.goals)) {
-      goalsValue = updates.goals;
-    } else if (typeof updates.goals === 'string') {
-      goalsValue = updates.goals;
-    } else if (updates.goals !== undefined) {
-      goalsValue = [];
-    } else {
-      goalsValue = mentee.goals;
-    }
-
+    // Prepare mentee updates
     const menteeUpdates: Partial<MenteeDocument> = {
-      interests:
-        updates.interests !== undefined ? updates.interests : mentee.interests,
+      interests: updates.interests !== undefined ? updates.interests : mentee.interests,
       bio: updates.bio !== undefined ? updates.bio : mentee.bio,
-      goals: goalsValue,
+      goals: updates.goals !== undefined ? updates.goals : mentee.goals,
       currentPosition:
         updates.currentPosition !== undefined
           ? updates.currentPosition
@@ -516,17 +349,14 @@ export const updateMenteeProfile = async (
 
     console.log("Updating mentee data:", menteeUpdates);
 
-    // Update mentee data
-    await menteeDoc.update({
-      $set: menteeUpdates,
-    });
+    // Update the mentee document
+    await updateDocument(COLLECTIONS.MENTEES, mentee.id, menteeUpdates);
 
     // Update user data if provided
     if (updates.name || updates.email || updates.profilePicture) {
-      const userDoc = await db.users.findOne(userId).exec();
+      const user = await getDocument<UserDocument>(COLLECTIONS.USERS, userId);
 
-      if (userDoc) {
-        const user = userDoc.toJSON();
+      if (user) {
         const userUpdates: Partial<UserDocument> = {
           name: updates.name !== undefined ? updates.name : user.name,
           email: updates.email !== undefined ? updates.email : user.email,
@@ -539,9 +369,7 @@ export const updateMenteeProfile = async (
 
         console.log("Updating user data:", userUpdates);
 
-        await userDoc.update({
-          $set: userUpdates,
-        });
+        await updateDocument(COLLECTIONS.USERS, userId, userUpdates);
       }
     }
 

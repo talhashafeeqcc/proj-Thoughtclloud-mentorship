@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { getMentorById } from "../services/userService";
+import { getMentorById } from "../services/mentorService";
 import { useSession } from "../context/SessionContext";
 import { useAuth } from "../context/AuthContext";
 import MentorProfile from "../components/mentor/MentorProfile";
@@ -60,6 +60,11 @@ const MentorProfilePage: React.FC = () => {
             profile.availability ? profile.availability.length : 0,
             "slots"
           );
+          console.log("Mentor ratings:", profile.ratings ? profile.ratings.length : 0, "reviews");
+          console.log("Mentor average rating:", profile.averageRating);
+          if (profile.ratings && profile.ratings.length > 0) {
+            console.log("First rating:", profile.ratings[0]);
+          }
           setMentor(profile as MentorProfileType);
         }
       } catch (err: any) {
@@ -122,7 +127,7 @@ const MentorProfilePage: React.FC = () => {
       const session = await bookSession(sessionData);
       console.log("Session booked successfully with ID:", session.id);
       setBookingSuccess(true);
-      
+
       // Return the session ID for the BookingModal
       return session.id;
     } catch (error) {

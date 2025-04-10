@@ -1,17 +1,14 @@
 import { v4 as uuidv4 } from "uuid";
 import type { MentorProfile, AvailabilitySlot } from "../types";
 import { getDatabase } from "./database/db";
+import { Document } from "../types/database"; // Import the Document type
+import { getMentorRatings, getMentorAverageRating } from "./ratingService";
 
 // Extended MentorProfile with additional fields from our database schema
 interface ExtendedMentorProfile extends MentorProfile {
   yearsOfExperience?: number;
   userId?: string;
 }
-
-
-
-
-
 
 /**
  * Get all mentors with combined user and mentor data
@@ -22,14 +19,14 @@ export const getMentors = async (): Promise<MentorProfile[]> => {
     const mentorDocs = await db.mentors.find().exec();
 
     // Get the mentor profiles and convert to plain objects to avoid readonly issues
-    const mentorProfiles = mentorDocs.map((doc) => {
+    const mentorProfiles = mentorDocs.map((doc: Document) => {
       // Use JSON parse/stringify to convert readonly arrays to mutable ones
       return JSON.parse(JSON.stringify(doc.toJSON()));
     });
 
     // Get user data for all mentors
-    const userIds = mentorProfiles.map((mentor) => mentor.userId);
-    
+    const userIds = mentorProfiles.map((mentor: ExtendedMentorProfile) => mentor.userId);
+
     const userDocs = await db.users
       .find({
         selector: {
@@ -42,8 +39,12 @@ export const getMentors = async (): Promise<MentorProfile[]> => {
 
     // Map users to their respective mentor profiles
     return Promise.all(
-      mentorProfiles.map(async (mentor) => {
-        const userDoc = userDocs.find((u) => u.id === mentor.userId);
+      mentorProfiles.map(async (mentor: ExtendedMentorProfile) => {
+        const userDoc = userDocs.find((u: Document) => u.id === mentor.userId);
+
+        // Get ratings for this mentor
+        const ratings = await getMentorRatings(mentor.id);
+        const averageRating = await getMentorAverageRating(mentor.id);
 
         if (!userDoc) {
           // If we don't have user data, create a placeholder with required fields
@@ -56,6 +57,8 @@ export const getMentors = async (): Promise<MentorProfile[]> => {
             bio: mentor.bio,
             sessionPrice: mentor.sessionPrice,
             yearsOfExperience: mentor.yearsOfExperience,
+            ratings: ratings,
+            averageRating: averageRating,
           } as ExtendedMentorProfile;
         }
 
@@ -72,7 +75,7 @@ export const getMentors = async (): Promise<MentorProfile[]> => {
           })
           .exec();
 
-        const availability = availabilityDocs.map((doc) => 
+        const availability = availabilityDocs.map((doc: Document) =>
           JSON.parse(JSON.stringify(doc.toJSON()))
         );
 
@@ -85,6 +88,8 @@ export const getMentors = async (): Promise<MentorProfile[]> => {
           role: "mentor" as const,
           profilePicture: safeUser.profilePicture || "",
           availability: availability,
+          ratings: ratings,
+          averageRating: averageRating,
         } as ExtendedMentorProfile;
       })
     );
@@ -123,9 +128,13 @@ export const getMentorById = async (
       })
       .exec();
 
-    const availability = availabilityDocs.map(doc => 
+    const availability = availabilityDocs.map((doc: Document) =>
       JSON.parse(JSON.stringify(doc.toJSON()))
     );
+
+    // Get mentor ratings
+    const ratings = await getMentorRatings(id);
+    const averageRating = await getMentorAverageRating(id);
 
     if (!userDoc) {
       // If we don't have user data, create a placeholder with required fields
@@ -139,6 +148,8 @@ export const getMentorById = async (
         sessionPrice: mentor.sessionPrice,
         yearsOfExperience: mentor.yearsOfExperience,
         availability: availability,
+        ratings: ratings,
+        averageRating: averageRating,
       } as ExtendedMentorProfile;
     }
 
@@ -156,6 +167,8 @@ export const getMentorById = async (
       role: "mentor" as const,
       profilePicture: safeUser.profilePicture || "",
       availability: availability,
+      ratings: ratings,
+      averageRating: averageRating,
     } as ExtendedMentorProfile;
   } catch (error) {
     console.error(`Failed to get mentor with ID ${id}:`, error);
@@ -392,26 +405,20 @@ export const getMentorByUserId = async (
   userId: string
 ): Promise<ExtendedMentorProfile | null> => {
   try {
-    if (!userId) {
-      console.error("getMentorByUserId called with empty userId");
-      return null;
-    }
-    
-    console.log("getMentorByUserId called with userId:", userId);
+    console.log("Fetching mentor by user ID:", userId);
     const db = await getDatabase();
 
-    // First check if user exists and is a mentor
     const userDoc = await db.users.findOne(userId).exec();
-    
+
     if (!userDoc) {
       console.error("User not found for ID:", userId);
       return null;
     }
-    
+
     // Convert to plain JS object to avoid readonly issues
     const user = JSON.parse(JSON.stringify(userDoc.toJSON()));
     console.log("Found user:", user.name, user.role);
-    
+
     // Allow any user to have a mentor profile for testing purposes
     // if (user.role !== "mentor") {
     //   console.error("User is not a mentor:", userId);
@@ -428,11 +435,11 @@ export const getMentorByUserId = async (
       .exec();
 
     let mentor;
-    
+
     // If no mentor found with this userId, create a new mentor profile
     if (mentorDocs.length === 0) {
       console.log("No mentor profile found, creating new profile for:", userId);
-      
+
       // Create a new mentor profile with default values
       const newMentorProfile = {
         id: uuidv4(),
@@ -448,7 +455,7 @@ export const getMentorByUserId = async (
         createdAt: Date.now(),
         updatedAt: Date.now(),
       };
-      
+
       // Insert the new mentor profile
       const insertedDoc = await db.mentors.insert(newMentorProfile);
       mentor = JSON.parse(JSON.stringify(insertedDoc.toJSON()));
@@ -473,7 +480,7 @@ export const getMentorByUserId = async (
       })
       .exec();
 
-    const availability = availabilityDocs.map(doc => {
+    const availability = availabilityDocs.map((doc: Document) => {
       const slotData = JSON.parse(JSON.stringify(doc.toJSON()));
       return {
         id: slotData.id,
@@ -487,6 +494,10 @@ export const getMentorByUserId = async (
       };
     });
 
+    // Get mentor ratings
+    const ratings = await getMentorRatings(mentor.id);
+    const averageRating = await getMentorAverageRating(mentor.id);
+
     console.log(`Found ${availability.length} availability slots for mentor ${mentor.id}`);
 
     // Combine mentor and user data
@@ -498,6 +509,8 @@ export const getMentorByUserId = async (
       role: "mentor" as const,
       profilePicture: safeUser.profilePicture || "",
       availability: availability,
+      ratings: ratings,
+      averageRating: averageRating,
     } as ExtendedMentorProfile;
 
     console.log("Returning combined profile:", {
@@ -507,7 +520,9 @@ export const getMentorByUserId = async (
       expertise: combinedProfile.expertise,
       bio: combinedProfile.bio,
       sessionPrice: combinedProfile.sessionPrice,
-      yearsOfExperience: combinedProfile.yearsOfExperience
+      yearsOfExperience: combinedProfile.yearsOfExperience,
+      ratingsCount: combinedProfile.ratings?.length,
+      averageRating: combinedProfile.averageRating
     });
 
     return combinedProfile;
@@ -522,7 +537,7 @@ export const getMentorAvailabilitySlots = async (mentorId: string): Promise<Avai
   try {
     const db = await getDatabase();
     console.log("Fetching availability slots for mentor:", mentorId);
-    
+
     // Query availability collection
     const availabilityDocs = await db.availability
       .find({
@@ -531,17 +546,17 @@ export const getMentorAvailabilitySlots = async (mentorId: string): Promise<Avai
         }
       })
       .exec();
-    
+
     // Convert to plain objects using JSON parse/stringify to handle readonly issues
-    const slots = availabilityDocs.map(doc => {
+    const slots = availabilityDocs.map((doc: Document) => {
       const slotData = JSON.parse(JSON.stringify(doc.toJSON()));
-      
+
       // Normalize date format to YYYY-MM-DD for consistency
       let normalizedDate = slotData.date || "";
       if (normalizedDate.includes('T')) {
         normalizedDate = normalizedDate.split('T')[0];
       }
-      
+
       return {
         id: slotData.id,
         mentorId: slotData.mentorId,
@@ -551,7 +566,7 @@ export const getMentorAvailabilitySlots = async (mentorId: string): Promise<Avai
         isBooked: slotData.isBooked || false
       } as AvailabilitySlot;
     });
-    
+
     console.log(`Found ${slots.length} availability slots for mentor ${mentorId}`);
     return slots;
   } catch (error) {
@@ -564,7 +579,7 @@ export const getMentorAvailabilitySlots = async (mentorId: string): Promise<Avai
 export const addAvailabilitySlot = async (slot: AvailabilitySlot): Promise<AvailabilitySlot> => {
   try {
     const db = await getDatabase();
-    
+
     // First verify the mentor exists
     const mentorDoc = await db.mentors.findOne(slot.mentorId).exec();
     if (!mentorDoc) {
@@ -605,9 +620,9 @@ export const addAvailabilitySlot = async (slot: AvailabilitySlot): Promise<Avail
       createdAt: Date.now(),
       updatedAt: Date.now(),
     };
-    
+
     console.log("Adding new availability slot with date:", newSlot.date);
-    
+
     // Insert the slot into the availability collection
     const insertedDoc = await db.availability.insert(newSlot);
 
@@ -623,14 +638,14 @@ export const deleteAvailabilitySlot = async (slotId: string): Promise<void> => {
   try {
     const db = await getDatabase();
     console.log("Deleting availability slot:", slotId);
-    
+
     // Find and remove the slot
     const slotDoc = await db.availability.findOne(slotId).exec();
-    
+
     if (!slotDoc) {
       throw new Error(`Availability slot with ID ${slotId} not found`);
     }
-    
+
     await slotDoc.remove();
     console.log("Successfully deleted availability slot:", slotId);
   } catch (error) {
@@ -643,14 +658,14 @@ export const deleteAvailabilitySlot = async (slotId: string): Promise<void> => {
 export const getMentorAvailability = async (mentorId: string): Promise<AvailabilitySlot[]> => {
   try {
     const db = await getDatabase();
-    
+
     // First try to get from mentor profile
     const mentorDoc = await db.mentors.findOne(mentorId).exec();
     if (mentorDoc) {
       const mentor = JSON.parse(JSON.stringify(mentorDoc.toJSON()));
       return [...(mentor.availability || [])];
     }
-    
+
     // Fallback to availability collection
     const slots = await db.availability
       .find({
@@ -661,8 +676,8 @@ export const getMentorAvailability = async (mentorId: string): Promise<Availabil
         sort: [{ date: "asc" }]
       })
       .exec();
-    
-    return slots.map(doc => JSON.parse(JSON.stringify(doc.toJSON())));
+
+    return slots.map((doc: Document) => JSON.parse(JSON.stringify(doc.toJSON())));
   } catch (error) {
     console.error("Error getting mentor availability:", error);
     throw error;

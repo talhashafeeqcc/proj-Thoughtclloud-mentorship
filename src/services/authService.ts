@@ -1,5 +1,9 @@
-import { getDatabase } from "./database/db";
 import type { User } from "../types";
+import {
+  getDocuments,
+  whereEqual,
+  COLLECTIONS
+} from "./firebase";
 
 interface UserDocument {
   id: string;
@@ -20,18 +24,16 @@ const comparePasswords = (plain: string, hashed: string): boolean => {
 
 export const login = async (email: string, password: string, rememberMe: boolean = false): Promise<User> => {
   try {
-    const db = await getDatabase();
-    const userDoc = await db.users.findOne({
-      selector: {
-        email: email
-      }
-    }).exec();
+    const users = await getDocuments<UserDocument>(
+      COLLECTIONS.USERS,
+      [whereEqual('email', email)]
+    );
 
-    if (!userDoc) {
+    if (users.length === 0) {
       throw new Error("Invalid email or password");
     }
 
-    const user = userDoc.toJSON() as UserDocument;
+    const user = users[0];
     const isValid = comparePasswords(password, user.password);
 
     if (!isValid) {
@@ -48,7 +50,7 @@ export const login = async (email: string, password: string, rememberMe: boolean
     };
 
     localStorage.setItem("currentUser", JSON.stringify(userData));
-    
+
     // If remember me is checked, store credentials securely
     if (rememberMe) {
       const credentials = {

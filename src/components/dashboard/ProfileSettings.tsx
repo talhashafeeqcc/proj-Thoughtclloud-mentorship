@@ -79,35 +79,17 @@ const ProfileSettings: React.FC = () => {
 
         // First get the user data
         let userData = await getUserById(authState.user.id);
-        
+
         // If user data isn't found in the database but exists in auth state
         if (!userData) {
           console.error("getUserById returned null for user ID:", authState.user.id);
-          
-          // Get the current user from localStorage
-          const storedUser = localStorage.getItem("currentUser");
-          if (storedUser) {
-            try {
-              const parsedUser = JSON.parse(storedUser);
-              console.log("Found user in localStorage:", parsedUser.id);
-              
-              // Use the auth state user data directly if the ID matches
-              if (parsedUser.id === authState.user.id) {
-                console.log("Using auth state data to proceed with profile setup");
-                userData = { 
-                  ...authState.user 
-                };
-                
-                // Proceed with this user data
-                await processUserData(userData);
-                return;
-              }
-            } catch (parseError) {
-              console.error("Error parsing user from localStorage:", parseError);
-            }
-          }
-          
-          throw new Error("User data not found");
+
+          // Show a more specific error message
+          setMessage({
+            type: "error",
+            text: "Your user profile couldn't be found in the database. Please log out and log in again."
+          });
+          return;
         }
 
         await processUserData(userData);
@@ -124,7 +106,7 @@ const ProfileSettings: React.FC = () => {
         setLoading(false);
       }
     };
-    
+
     // Helper function to process user data and fetch role-specific data
     const processUserData = async (userData: User) => {
       console.log("Processing user data:", userData);
@@ -136,7 +118,7 @@ const ProfileSettings: React.FC = () => {
           roleData = await getMentorByUserId(userData.id);
           if (!roleData) {
             console.log("Mentor profile not found, will create a default one");
-            
+
             // Use updateMentorProfile to create a default profile
             const defaultMentorData: Partial<MentorProfile> = {
               bio: "",
@@ -147,8 +129,12 @@ const ProfileSettings: React.FC = () => {
               education: [],
               workExperience: []
             };
-            
+
             roleData = await updateMentorProfile(userData.id, defaultMentorData);
+
+            if (!roleData) {
+              throw new Error("Failed to create mentor profile");
+            }
             console.log("Created default mentor profile:", roleData);
           }
         } catch (error) {
@@ -165,7 +151,7 @@ const ProfileSettings: React.FC = () => {
           roleData = await getMenteeByUserId(userData.id);
           if (!roleData) {
             console.log("Mentee profile not found, will create a default one");
-            
+
             // Use updateMenteeProfile to create a default profile
             const defaultMenteeData = {
               bio: "",
@@ -173,8 +159,11 @@ const ProfileSettings: React.FC = () => {
               goals: [],
               currentPosition: ""
             };
-            
+
             roleData = await updateMenteeProfile(userData.id, defaultMenteeData);
+            if (!roleData) {
+              throw new Error("Failed to create mentee profile");
+            }
             console.log("Created default mentee profile:", roleData);
           }
         } catch (error) {
@@ -199,116 +188,148 @@ const ProfileSettings: React.FC = () => {
     };
 
     fetchProfileData();
-  }, [authState.user]);
+  }, [authState.user?.id]);
 
   const handleChange = (
-    e: React.ChangeEvent<
-      HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
-    >
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
   ) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
-
-    // Clear error when field is edited
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+    // Clear validation error when field is changed
     if (errors[name as keyof ValidationErrors]) {
-      setErrors((prev) => ({ ...prev, [name]: undefined }));
-    }
-  };
-
-  const handleArrayChange = (
-    e: React.ChangeEvent<HTMLInputElement>,
-    field: "expertise" | "interests" | "goals"
-  ) => {
-    const { value, checked } = e.target;
-    const currentArray = Array.isArray(formData[field])
-      ? [...formData[field]!]
-      : [];
-
-    if (checked) {
-      setFormData((prev) => ({
+      setErrors((prev) => ({
         ...prev,
-        [field]: [...currentArray, value],
-      }));
-    } else {
-      setFormData((prev) => ({
-        ...prev,
-        [field]: currentArray.filter((item) => item !== value),
+        [name]: undefined,
       }));
     }
   };
 
-  // New function to handle JSON textarea fields
-  const handleJsonFieldChange = (
-    e: React.ChangeEvent<HTMLTextAreaElement>,
-    field: "portfolio" | "education" | "certifications" | "workExperience"
+  const handleSelectChange = (
+    field: "expertise" | "interests" | "goals",
+    value: string
   ) => {
-    try {
-      const value = e.target.value.trim();
-      // If empty, set as empty array
-      if (!value) {
-        setFormData((prev) => ({
-          ...prev,
-          [field]: [],
-        }));
-        return;
-      }
+    setFormData((prev) => {
+      const currentArray = Array.isArray(prev[field]) ? [...prev[field]!] : [];
+      const index = currentArray.indexOf(value);
 
-      // Try to parse as JSON
-      const parsedArray = JSON.parse(value);
-      if (Array.isArray(parsedArray)) {
-        setFormData((prev) => ({
-          ...prev,
-          [field]: parsedArray,
-        }));
+      if (index === -1) {
+        currentArray.push(value);
       } else {
-        console.error(`Field ${field} must be an array`);
+        currentArray.splice(index, 1);
       }
-    } catch (err) {
-      console.error(`Invalid JSON for ${field}:`, err);
+
+      return {
+        ...prev,
+        [field]: currentArray,
+      };
+    });
+    // Clear validation error when field is changed
+    if (errors[field]) {
+      setErrors((prev) => ({
+        ...prev,
+        [field]: undefined,
+      }));
     }
   };
 
-  const validateForm = (): boolean => {
+  const handleNumberChange = (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const { name, value } = e.target;
+    const numValue = value === "" ? "" : Number(value);
+
+    setFormData((prev) => ({
+      ...prev,
+      [name]: numValue,
+    }));
+
+    // Clear validation error when field is changed
+    if (errors[name as keyof ValidationErrors]) {
+      setErrors((prev) => ({
+        ...prev,
+        [name]: undefined,
+      }));
+    }
+  };
+
+  const hasUnsavedChanges = () => {
+    for (const key in formData) {
+      const typedKey = key as keyof FormDataFields;
+
+      // Skip id field
+      if (typedKey === "id") continue;
+
+      // Check arrays
+      if (Array.isArray(formData[typedKey]) && Array.isArray(initialData[typedKey])) {
+        const formArray = formData[typedKey] as any[];
+        const initialArray = initialData[typedKey] as any[];
+
+        if (formArray.length !== initialArray.length) return true;
+
+        for (let i = 0; i < formArray.length; i++) {
+          if (JSON.stringify(formArray[i]) !== JSON.stringify(initialArray[i])) {
+            return true;
+          }
+        }
+        continue;
+      }
+
+      // Check primitive values
+      if (formData[typedKey] !== initialData[typedKey]) {
+        return true;
+      }
+    }
+    return false;
+  };
+
+  const validateForm = () => {
     const newErrors: ValidationErrors = {};
 
-    // User validation
+    // Validate name (required)
     if (!formData.name || formData.name.trim() === "") {
       newErrors.name = "Name is required";
     }
 
+    // Validate email (required and format)
     if (!formData.email || formData.email.trim() === "") {
       newErrors.email = "Email is required";
-    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
-      newErrors.email = "Email is invalid";
+    } else if (!/^\S+@\S+\.\S+$/.test(formData.email)) {
+      newErrors.email = "Please enter a valid email address";
     }
 
     // Role-specific validation
-    if (authState.user?.role === "mentor") {
+    if (formData.role === "mentor") {
+      // Bio is required for mentors
       if (!formData.bio || formData.bio.trim() === "") {
         newErrors.bio = "Bio is required for mentors";
       }
 
-      if (formData.sessionPrice !== undefined) {
-        const price = Number(formData.sessionPrice);
-        if (isNaN(price) || price < 0) {
-          newErrors.sessionPrice = "Session price must be a valid number";
-        }
-      }
-
+      // Expertise is required for mentors
       if (!formData.expertise || formData.expertise.length === 0) {
         newErrors.expertise = "Please select at least one expertise area";
       }
-    } else if (authState.user?.role === "admin") {
-      // No specific validation for admin role - they don't have mentor/mentee profiles
-    } else {
+
+      // Session price validation
+      if (formData.sessionPrice === undefined || formData.sessionPrice === "") {
+        newErrors.sessionPrice = "Session price is required";
+      } else if (Number(formData.sessionPrice) < 0) {
+        newErrors.sessionPrice = "Session price cannot be negative";
+      }
+    } else if (formData.role === "mentee") {
+      // Interests are required for mentees
       if (!formData.interests || formData.interests.length === 0) {
-        newErrors.interests = "Please select at least one interest";
+        newErrors.interests = "Please select at least one interest area";
       }
 
+      // Goals are required for mentees
       if (!formData.goals || formData.goals.length === 0) {
-        newErrors.goals = "Please add at least one goal";
+        newErrors.goals = "Please select at least one goal";
       }
 
+      // Current position is required
       if (!formData.currentPosition || formData.currentPosition.trim() === "") {
         newErrors.currentPosition = "Current position is required";
       }
@@ -318,14 +339,14 @@ const ProfileSettings: React.FC = () => {
     return Object.keys(newErrors).length === 0;
   };
 
-  const hasUnsavedChanges = (): boolean => {
-    return JSON.stringify(initialData) !== JSON.stringify(formData);
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!validateForm()) {
+      setMessage({
+        type: "error",
+        text: "Please fix the errors in the form before submitting",
+      });
       return;
     }
 
@@ -333,34 +354,47 @@ const ProfileSettings: React.FC = () => {
       setLoading(true);
       setMessage(null);
 
-      console.log("Starting profile update with form data:", formData);
-
-      if (!formData.id) {
-        throw new Error("User ID is required");
+      if (!authState.user?.id) {
+        throw new Error("No user ID found in auth state");
       }
 
+      // Get current userId from auth state
+      const userId = authState.user.id;
+
+      // Create a copy of form data to process
       const userData = { ...formData };
-      const userId: string = userData.id as string;
+
+      // Ensure the email is not changed (use type assertion for TypeScript)
+      userData.email = (initialData.email as string) || "";
+
+      console.log("Updating profile for user:", userId);
+      console.log("Form data:", userData);
+
+      // Process arrays for mentor/mentee profiles
       let success = false;
 
-      // Create role-specific update data with user fields included
+      // Process based on role
       if (userData.role === "mentor") {
-        // Ensure all arrays are properly initialized
+        // Process expertise array
         const expertise = Array.isArray(userData.expertise) ? userData.expertise : [];
+
+        // Process portfolio array - ensure it's an array
         const portfolio = Array.isArray(userData.portfolio) ? userData.portfolio : [];
-        const certifications = Array.isArray(userData.certifications) ? userData.certifications : [];
+
+        // Process education, certifications and work experience arrays
         const education = Array.isArray(userData.education) ? userData.education : [];
+        const certifications = Array.isArray(userData.certifications) ? userData.certifications : [];
         const workExperience = Array.isArray(userData.workExperience) ? userData.workExperience : [];
-        
-        // Ensure numeric values are properly converted
-        const sessionPrice = typeof userData.sessionPrice === 'number' 
-          ? userData.sessionPrice 
+
+        // Process session price (convert string to number if needed)
+        const sessionPrice = typeof userData.sessionPrice === 'number'
+          ? userData.sessionPrice
           : Number(userData.sessionPrice) || 0;
-        
+
         const yearsOfExperience = typeof userData.yearsOfExperience === 'number'
           ? userData.yearsOfExperience
           : Number(userData.yearsOfExperience) || 0;
-        
+
         const mentorUpdateData = {
           bio: userData.bio || "",
           expertise: expertise,
@@ -371,28 +405,28 @@ const ProfileSettings: React.FC = () => {
           education: education,
           workExperience: workExperience,
           name: userData.name || "",
-          email: userData.email || "",
+          // Don't include email in the update to prevent changing it
           profilePicture: userData.profilePicture
         };
 
         console.log("Updating mentor profile with data:", mentorUpdateData);
-        
+
         const updatedProfile = await updateMentorProfile(userId, mentorUpdateData);
-        
+
         if (updatedProfile) {
           console.log("Mentor profile updated successfully");
           success = true;
-          
+
           // Update auth context with the new user data
           updateAuthUser({
             id: userId,
             name: userData.name || "",
-            email: userData.email || "",
+            email: (initialData.email as string) || "", // Type assertion
             role: "mentor",
             profilePicture: userData.profilePicture
           });
         }
-      } 
+      }
       else if (userData.role === "mentee") {
         const menteeUpdateData = {
           bio: userData.bio || "",
@@ -400,23 +434,23 @@ const ProfileSettings: React.FC = () => {
           goals: userData.goals || [],
           currentPosition: userData.currentPosition || "",
           name: userData.name || "",
-          email: userData.email || "",
+          // Don't include email in the update to prevent changing it
           profilePicture: userData.profilePicture
         };
 
         console.log("Updating mentee profile:", menteeUpdateData);
-        
+
         const updatedProfile = await updateMenteeProfile(userId, menteeUpdateData);
-        
+
         if (updatedProfile) {
           console.log("Mentee profile updated successfully");
           success = true;
-          
+
           // Update auth context with the new user data
           updateAuthUser({
             id: userId,
             name: userData.name || "",
-            email: userData.email || "",
+            email: (initialData.email as string) || "", // Type assertion
             role: "mentee",
             profilePicture: userData.profilePicture
           });
@@ -426,20 +460,21 @@ const ProfileSettings: React.FC = () => {
         const adminUpdateData = {
           id: userId,
           name: userData.name || "",
-          email: userData.email || "",
+          // Don't include email in the update to prevent changing it
           profilePicture: userData.profilePicture,
           role: "admin" as const
         };
 
         const updatedUser = await updateUser(userId, adminUpdateData);
-        
+
         if (updatedUser) {
           console.log("Admin profile updated successfully");
           success = true;
-          
+
           // Update auth context with the new user data
           updateAuthUser({
             ...updatedUser,
+            email: (initialData.email as string) || "", // Type assertion
             role: "admin"
           });
         }
@@ -462,7 +497,7 @@ const ProfileSettings: React.FC = () => {
       setTimeout(() => {
         window.location.reload();
       }, 1500);
-      
+
     } catch (error) {
       console.error("Error updating profile:", error);
       setMessage({
@@ -539,11 +574,10 @@ const ProfileSettings: React.FC = () => {
         <form onSubmit={handleSubmit} className="p-6">
           {message && (
             <div
-              className={`mb-6 p-4 rounded-md ${
-                message.type === "success"
-                  ? "bg-green-100 text-green-700"
-                  : "bg-red-100 text-red-700"
-              }`}
+              className={`mb-6 p-4 rounded-md ${message.type === "success"
+                ? "bg-green-100 text-green-700"
+                : "bg-red-100 text-red-700"
+                }`}
             >
               {message.text}
             </div>
@@ -566,9 +600,8 @@ const ProfileSettings: React.FC = () => {
                   name="name"
                   value={formData.name || ""}
                   onChange={handleChange}
-                  className={`shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline ${
-                    errors.name ? "border-red-500" : ""
-                  }`}
+                  className={`shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline ${errors.name ? "border-red-500" : ""
+                    }`}
                 />
                 {errors.name && (
                   <p className="text-red-500 text-xs italic mt-1">
@@ -590,9 +623,8 @@ const ProfileSettings: React.FC = () => {
                   name="email"
                   value={formData.email || ""}
                   onChange={handleChange}
-                  className={`shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline ${
-                    errors.email ? "border-red-500" : ""
-                  }`}
+                  className={`shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline ${errors.email ? "border-red-500" : ""
+                    }`}
                 />
                 {errors.email && (
                   <p className="text-red-500 text-xs italic mt-1">
@@ -626,8 +658,8 @@ const ProfileSettings: React.FC = () => {
               {authState.user?.role === "mentor"
                 ? "Mentor Profile"
                 : authState.user?.role === "admin"
-                ? "Admin Profile"
-                : "Mentee Profile"}
+                  ? "Admin Profile"
+                  : "Mentee Profile"}
             </h3>
 
             {authState.user?.role === "mentor" ? (
@@ -645,9 +677,8 @@ const ProfileSettings: React.FC = () => {
                     value={formData.bio || ""}
                     onChange={handleChange}
                     rows={4}
-                    className={`shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline ${
-                      errors.bio ? "border-red-500" : ""
-                    }`}
+                    className={`shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline ${errors.bio ? "border-red-500" : ""
+                      }`}
                   />
                   {errors.bio && (
                     <p className="text-red-500 text-xs italic mt-1">
@@ -668,7 +699,7 @@ const ProfileSettings: React.FC = () => {
                           name="expertise"
                           value={option}
                           checked={hasValue("expertise", option)}
-                          onChange={(e) => handleArrayChange(e, "expertise")}
+                          onChange={(e) => handleSelectChange(e.target.name as "expertise", e.target.value)}
                           className="mr-2"
                         />
                         {option}
@@ -694,10 +725,9 @@ const ProfileSettings: React.FC = () => {
                     id="sessionPrice"
                     name="sessionPrice"
                     value={formData.sessionPrice || ""}
-                    onChange={handleChange}
-                    className={`shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline ${
-                      errors.sessionPrice ? "border-red-500" : ""
-                    }`}
+                    onChange={handleNumberChange}
+                    className={`shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline ${errors.sessionPrice ? "border-red-500" : ""
+                      }`}
                   />
                   {errors.sessionPrice && (
                     <p className="text-red-500 text-xs italic mt-1">
@@ -718,7 +748,7 @@ const ProfileSettings: React.FC = () => {
                     id="yearsOfExperience"
                     name="yearsOfExperience"
                     value={formData.yearsOfExperience || ""}
-                    onChange={handleChange}
+                    onChange={handleNumberChange}
                     className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
                   />
                 </div>
@@ -738,7 +768,7 @@ const ProfileSettings: React.FC = () => {
                         ? JSON.stringify(formData.portfolio, null, 2)
                         : "[]"
                     }
-                    onChange={(e) => handleJsonFieldChange(e, "portfolio")}
+                    onChange={(e) => handleChange(e)}
                     rows={4}
                     className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline font-mono text-sm"
                   />
@@ -764,7 +794,7 @@ const ProfileSettings: React.FC = () => {
                         ? JSON.stringify(formData.education, null, 2)
                         : "[]"
                     }
-                    onChange={(e) => handleJsonFieldChange(e, "education")}
+                    onChange={(e) => handleChange(e)}
                     rows={4}
                     className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline font-mono text-sm"
                   />
@@ -790,7 +820,7 @@ const ProfileSettings: React.FC = () => {
                         ? JSON.stringify(formData.certifications, null, 2)
                         : "[]"
                     }
-                    onChange={(e) => handleJsonFieldChange(e, "certifications")}
+                    onChange={(e) => handleChange(e)}
                     rows={4}
                     className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline font-mono text-sm"
                   />
@@ -815,7 +845,7 @@ const ProfileSettings: React.FC = () => {
                         ? JSON.stringify(formData.workExperience, null, 2)
                         : "[]"
                     }
-                    onChange={(e) => handleJsonFieldChange(e, "workExperience")}
+                    onChange={(e) => handleChange(e)}
                     rows={4}
                     className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline font-mono text-sm"
                   />
@@ -855,7 +885,7 @@ const ProfileSettings: React.FC = () => {
                           name="interests"
                           value={option}
                           checked={hasValue("interests", option)}
-                          onChange={(e) => handleArrayChange(e, "interests")}
+                          onChange={(e) => handleSelectChange(e.target.name as "interests", e.target.value)}
                           className="mr-2"
                         />
                         {option}
@@ -881,7 +911,7 @@ const ProfileSettings: React.FC = () => {
                           name="goals"
                           value={option}
                           checked={hasValue("goals", option)}
-                          onChange={(e) => handleArrayChange(e, "goals")}
+                          onChange={(e) => handleSelectChange(e.target.name as "goals", e.target.value)}
                           className="mr-2"
                         />
                         {option}
@@ -908,9 +938,8 @@ const ProfileSettings: React.FC = () => {
                     name="currentPosition"
                     value={formData.currentPosition || ""}
                     onChange={handleChange}
-                    className={`shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline ${
-                      errors.currentPosition ? "border-red-500" : ""
-                    }`}
+                    className={`shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline ${errors.currentPosition ? "border-red-500" : ""
+                      }`}
                   />
                   {errors.currentPosition && (
                     <p className="text-red-500 text-xs italic mt-1">
@@ -934,11 +963,10 @@ const ProfileSettings: React.FC = () => {
             <button
               type="submit"
               disabled={loading || !hasUnsavedChanges()}
-              className={`bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline ${
-                loading || !hasUnsavedChanges()
-                  ? "opacity-50 cursor-not-allowed"
-                  : ""
-              }`}
+              className={`bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline ${loading || !hasUnsavedChanges()
+                ? "opacity-50 cursor-not-allowed"
+                : ""
+                }`}
             >
               {loading ? "Saving..." : "Save Changes"}
             </button>

@@ -1,9 +1,21 @@
 import { v4 as uuidv4 } from "uuid";
-import { getDatabase } from "./database/db";
+import {
+  getDocument,
+  getDocuments,
+  setDocument,
+  updateDocument,
+  whereEqual,
+  COLLECTIONS
+} from "./firebase";
 import { updateSession } from "./sessionService";
 import type { Payment } from "../types";
+import {
+  createPaymentIntent,
+  confirmPayment,
+  createRefund
+} from "./stripe";
 
-// Define interface for RxDB document type
+// Define interface for Firestore document type
 interface PaymentDocument {
   id: string;
   sessionId: string;
@@ -13,29 +25,29 @@ interface PaymentDocument {
   status: string;
   date: string;
   transactionId: string;
+  paymentIntentId?: string;
+  paymentMethodId?: string;
   createdAt: number;
   updatedAt: number;
 }
 
 /**
- * Process a payment for a session
- * This is a simulation service that would be replaced with a real payment gateway in production
+ * Process a payment for a session using Stripe
  */
 export const processPayment = async (
   sessionId: string,
-  amount: number
+  amount: number,
+  paymentMethodId?: string
 ): Promise<Payment> => {
   try {
-    const db = await getDatabase();
-
     // Special handling for temporary session IDs
     if (sessionId === 'temp-session-id') {
       console.log('Processing payment for temporary session');
-      
+
       // Create a simulated payment for demonstration
       const paymentId = uuidv4();
       const transactionId = `tx_${Math.random().toString(36).substring(2, 15)}`;
-      
+
       return {
         id: paymentId,
         sessionId: sessionId,
@@ -47,24 +59,19 @@ export const processPayment = async (
     }
 
     // Check if session exists
-    const sessionDoc = await db.sessions.findOne(sessionId).exec();
-    if (!sessionDoc) {
+    const session = await getDocument(COLLECTIONS.SESSIONS, sessionId);
+    if (!session) {
       throw new Error(`Session with ID ${sessionId} not found`);
     }
 
-    const session = sessionDoc.toJSON();
-
     // Check if payment has already been processed
-    const existingPayments = await db.payments
-      .find({
-        selector: {
-          sessionId: sessionId,
-        },
-      })
-      .exec();
+    const existingPayments = await getDocuments(
+      COLLECTIONS.PAYMENTS,
+      [whereEqual('sessionId', sessionId)]
+    );
 
     if (existingPayments.length > 0) {
-      const existingPayment = existingPayments[0].toJSON();
+      const existingPayment = existingPayments[0];
       if (existingPayment.status === "completed") {
         throw new Error("Payment has already been processed for this session");
       }
@@ -72,7 +79,40 @@ export const processPayment = async (
 
     const now = Date.now();
     const paymentId = uuidv4();
-    const transactionId = `tx_${Math.random().toString(36).substring(2, 15)}`;
+    let transactionId = `tx_${Math.random().toString(36).substring(2, 15)}`;
+    let paymentIntentId = "";
+
+    // In a real app, we would use Stripe here
+    if (paymentMethodId) {
+      try {
+        // Create a payment intent
+        const paymentIntent = await createPaymentIntent(
+          amount * 100, // Stripe uses cents
+          'usd',
+          `Payment for session ${sessionId}`
+        );
+
+        // Confirm the payment
+        const confirmation = await confirmPayment(
+          paymentIntent.client_secret,
+          paymentMethodId
+        );
+
+        if (confirmation.error) {
+          throw new Error(confirmation.error.message);
+        }
+
+        if (confirmation.paymentIntent.status === 'succeeded') {
+          transactionId = confirmation.paymentIntent.id;
+          paymentIntentId = confirmation.paymentIntent.id;
+        } else {
+          throw new Error(`Payment failed with status: ${confirmation.paymentIntent.status}`);
+        }
+      } catch (stripeError) {
+        console.error("Stripe payment error:", stripeError);
+        throw new Error(`Payment processing failed: ${stripeError.message}`);
+      }
+    }
 
     // Create payment record
     const newPayment = {
@@ -81,9 +121,11 @@ export const processPayment = async (
       mentorId: session.mentorId,
       menteeId: session.menteeId,
       amount: amount,
-      status: "completed" as const, // In a real app, this would start as "pending" and be updated after gateway response
+      status: "completed" as const,
       date: new Date().toISOString().split("T")[0],
       transactionId: transactionId,
+      paymentIntentId: paymentIntentId,
+      paymentMethodId: paymentMethodId,
       createdAt: now,
       updatedAt: now,
     };
@@ -91,7 +133,7 @@ export const processPayment = async (
     console.log("Creating payment record:", newPayment);
 
     // Insert the payment
-    await db.payments.insert(newPayment);
+    await setDocument(COLLECTIONS.PAYMENTS, paymentId, newPayment);
 
     // Update the session payment status
     await updateSession(sessionId, {
@@ -114,33 +156,41 @@ export const processPayment = async (
 };
 
 /**
- * Refund a payment
+ * Refund a payment using Stripe
  */
 export const refundPayment = async (paymentId: string): Promise<Payment> => {
   try {
-    const db = await getDatabase();
-
     // Check if payment exists
-    const paymentDoc = await db.payments.findOne(paymentId).exec();
-    if (!paymentDoc) {
+    const payment = await getDocument<PaymentDocument>(COLLECTIONS.PAYMENTS, paymentId);
+    if (!payment) {
       throw new Error(`Payment with ID ${paymentId} not found`);
     }
-
-    const payment = paymentDoc.toJSON() as PaymentDocument;
 
     // Check if payment can be refunded
     if (payment.status !== "completed") {
       throw new Error("Only completed payments can be refunded");
     }
 
+    // Process the refund through Stripe if there's a paymentIntentId
+    if (payment.paymentIntentId) {
+      try {
+        const refund = await createRefund(payment.paymentIntentId);
+
+        if (refund.error) {
+          throw new Error(refund.error.message);
+        }
+      } catch (stripeError) {
+        console.error("Stripe refund error:", stripeError);
+        throw new Error(`Refund processing failed: ${stripeError.message}`);
+      }
+    }
+
     const now = Date.now();
 
     // Update payment status
-    await paymentDoc.update({
-      $set: {
-        status: "refunded",
-        updatedAt: now,
-      },
+    await updateDocument(COLLECTIONS.PAYMENTS, paymentId, {
+      status: "refunded",
+      updatedAt: now,
     });
 
     // Update the session payment status
@@ -167,32 +217,23 @@ export const refundPayment = async (paymentId: string): Promise<Payment> => {
  */
 export const getUserPayments = async (userId: string): Promise<Payment[]> => {
   try {
-    const db = await getDatabase();
-
     // Find payments where user is either the mentor or mentee
-    const mentorPayments = await db.payments
-      .find({
-        selector: {
-          mentorId: userId,
-        },
-      })
-      .exec();
+    const mentorPayments = await getDocuments<PaymentDocument>(
+      COLLECTIONS.PAYMENTS,
+      [whereEqual('mentorId', userId)]
+    );
 
-    const menteePayments = await db.payments
-      .find({
-        selector: {
-          menteeId: userId,
-        },
-      })
-      .exec();
+    const menteePayments = await getDocuments<PaymentDocument>(
+      COLLECTIONS.PAYMENTS,
+      [whereEqual('menteeId', userId)]
+    );
 
     // Combine and deduplicate payments
     const allPayments = [...mentorPayments, ...menteePayments];
     const uniquePaymentIds = new Set();
     const uniquePayments = [];
 
-    for (const doc of allPayments) {
-      const payment = doc.toJSON() as PaymentDocument;
+    for (const payment of allPayments) {
       if (!uniquePaymentIds.has(payment.id)) {
         uniquePaymentIds.add(payment.id);
         uniquePayments.push({
@@ -218,14 +259,12 @@ export const getUserPayments = async (userId: string): Promise<Payment[]> => {
  */
 export const getPaymentById = async (id: string): Promise<Payment | null> => {
   try {
-    const db = await getDatabase();
-    const paymentDoc = await db.payments.findOne(id).exec();
+    const payment = await getDocument<PaymentDocument>(COLLECTIONS.PAYMENTS, id);
 
-    if (!paymentDoc) {
+    if (!payment) {
       return null;
     }
 
-    const payment = paymentDoc.toJSON() as PaymentDocument;
     return {
       id: payment.id,
       sessionId: payment.sessionId,
@@ -247,20 +286,16 @@ export const getSessionPayment = async (
   sessionId: string
 ): Promise<Payment | null> => {
   try {
-    const db = await getDatabase();
-    const paymentDocs = await db.payments
-      .find({
-        selector: {
-          sessionId: sessionId,
-        },
-      })
-      .exec();
+    const payments = await getDocuments<PaymentDocument>(
+      COLLECTIONS.PAYMENTS,
+      [whereEqual('sessionId', sessionId)]
+    );
 
-    if (paymentDocs.length === 0) {
+    if (payments.length === 0) {
       return null;
     }
 
-    const payment = paymentDocs[0].toJSON() as PaymentDocument;
+    const payment = payments[0];
     return {
       id: payment.id,
       sessionId: payment.sessionId,

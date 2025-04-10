@@ -144,7 +144,7 @@ export const createRating = async (
     if (session.status !== "completed") {
       throw new Error("Only completed sessions can be rated");
     }
-
+    console.log("Session:", session, "Rating Data:", ratingData);
     // Ensure the mentee is rating their own session
     if (session.menteeId !== ratingData.menteeId) {
       throw new Error("You can only rate sessions you participated in");
@@ -197,7 +197,6 @@ export const updateRating = async (
       return null;
     }
 
-    const rating = ratingDoc.toJSON() as RatingDocument;
     const now = Date.now();
 
     // Only allow updating score and review

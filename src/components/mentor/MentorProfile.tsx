@@ -1,34 +1,45 @@
-import React, { useState } from 'react';
-import { Mentor, Rating } from '../../types';
+import React, { useState, useEffect } from 'react';
+import { MentorProfile as MentorProfileType, Rating } from '../../types';
 import { FaStar, FaGraduationCap, FaBriefcase, FaCertificate, FaComment } from 'react-icons/fa';
 
 interface MentorProfileProps {
-  mentor: Partial<Mentor>;
+  mentor: Partial<MentorProfileType>;
 }
 
 const MentorProfile: React.FC<MentorProfileProps> = ({ mentor }) => {
   const [showAllReviews, setShowAllReviews] = useState(false);
-  
-  // Calculate average rating
-  const averageRating = mentor.ratings && mentor.ratings.length > 0
-    ? mentor.ratings.reduce((sum, rating) => sum + rating.score, 0) / mentor.ratings.length
-    : 0;
+
+  // Add debugging logs
+  useEffect(() => {
+    console.log('MentorProfile component mounted with mentor:', mentor);
+    console.log('Ratings available:', mentor.ratings);
+    console.log('Average rating:', mentor.averageRating);
+  }, [mentor]);
+
+  // Calculate average rating, use the provided averageRating or calculate it
+  const averageRating = mentor.averageRating !== undefined
+    ? mentor.averageRating
+    : (mentor.ratings && mentor.ratings.length > 0
+      ? mentor.ratings.reduce((sum, rating) => sum + rating.score, 0) / mentor.ratings.length
+      : 0);
 
   // Sort ratings by date (newest first)
-  const sortedRatings = mentor.ratings 
+  const sortedRatings = mentor.ratings && Array.isArray(mentor.ratings)
     ? [...mentor.ratings].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
     : [];
-  
+
+  console.log('Sorted ratings:', sortedRatings);
+
   // Show only first 3 reviews unless "show all" is clicked
   const displayedRatings = showAllReviews ? sortedRatings : sortedRatings.slice(0, 3);
 
   // Format date to a readable format
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', { 
-      year: 'numeric', 
-      month: 'long', 
-      day: 'numeric' 
+    return date.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
     });
   };
 
@@ -39,9 +50,8 @@ const MentorProfile: React.FC<MentorProfileProps> = ({ mentor }) => {
         {[1, 2, 3, 4, 5].map((star) => (
           <FaStar
             key={star}
-            className={`${
-              star <= score ? 'text-yellow-400' : 'text-gray-300'
-            } w-4 h-4`}
+            className={`${star <= score ? 'text-yellow-400' : 'text-gray-300'
+              } w-4 h-4`}
           />
         ))}
       </div>
@@ -77,9 +87,8 @@ const MentorProfile: React.FC<MentorProfileProps> = ({ mentor }) => {
                   {[1, 2, 3, 4, 5].map((star) => (
                     <FaStar
                       key={star}
-                      className={`${
-                        star <= Math.round(averageRating) ? 'text-yellow-400' : 'text-gray-300'
-                      }`}
+                      className={`${star <= Math.round(averageRating) ? 'text-yellow-400' : 'text-gray-300'
+                        }`}
                     />
                   ))}
                 </div>
@@ -192,7 +201,7 @@ const MentorProfile: React.FC<MentorProfileProps> = ({ mentor }) => {
         <h2 className="text-xl font-semibold mb-4 flex items-center">
           <FaComment className="mr-2" /> Reviews
         </h2>
-        
+
         {sortedRatings.length > 0 ? (
           <div>
             <div className="mb-6 p-4 bg-blue-50 rounded-lg">
@@ -210,7 +219,7 @@ const MentorProfile: React.FC<MentorProfileProps> = ({ mentor }) => {
                 </div>
               </div>
             </div>
-            
+
             <div className="space-y-6">
               {displayedRatings.map((rating: Rating) => (
                 <div key={rating.id} className="border-b border-gray-200 pb-6 last:border-0 last:pb-0">
@@ -227,9 +236,9 @@ const MentorProfile: React.FC<MentorProfileProps> = ({ mentor }) => {
                 </div>
               ))}
             </div>
-            
+
             {sortedRatings.length > 3 && (
-              <button 
+              <button
                 onClick={() => setShowAllReviews(!showAllReviews)}
                 className="mt-6 text-blue-600 hover:text-blue-800 font-medium"
               >
