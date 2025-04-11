@@ -3,6 +3,7 @@ import type { MentorProfile, AvailabilitySlot } from "../types";
 import { getDatabase } from "./database/db";
 import { Document } from "../types/database"; // Import the Document type
 import { getMentorRatings, getMentorAverageRating } from "./ratingService";
+import { deleteDocument, COLLECTIONS } from "./firebase/firestore";
 
 // Extended MentorProfile with additional fields from our database schema
 interface ExtendedMentorProfile extends MentorProfile {
@@ -639,14 +640,26 @@ export const deleteAvailabilitySlot = async (slotId: string): Promise<void> => {
     const db = await getDatabase();
     console.log("Deleting availability slot:", slotId);
 
-    // Find and remove the slot
+    // Find the slot
     const slotDoc = await db.availability.findOne(slotId).exec();
 
     if (!slotDoc) {
       throw new Error(`Availability slot with ID ${slotId} not found`);
     }
 
-    await slotDoc.remove();
+    // Try the collection-level remove method first
+    if (typeof db.availability.remove === 'function') {
+      await db.availability.remove(slotDoc);
+    }
+    // Fall back to the document-level remove method if available
+    else if (slotDoc && typeof slotDoc.remove === 'function') {
+      await slotDoc.remove();
+    }
+    // Last resort - try direct deletion
+    else {
+      await deleteDocument(COLLECTIONS.AVAILABILITY, slotId);
+    }
+
     console.log("Successfully deleted availability slot:", slotId);
   } catch (error) {
     console.error("Error deleting availability slot:", error);

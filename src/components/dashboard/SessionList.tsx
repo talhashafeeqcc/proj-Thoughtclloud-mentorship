@@ -15,6 +15,7 @@ import SessionPayment from "./SessionPayment";
 import { useSession } from "../../context/SessionContext";
 import ReviewForm from "../ReviewForm";
 import { hasSessionRating } from "../../services/ratingService";
+import ConfirmationModal from '../shared/ConfirmationModal';
 
 interface SessionListProps {
   sessions: Session[];
@@ -33,6 +34,7 @@ const SessionList: React.FC<SessionListProps> = ({
   const [isCancelling, setIsCancelling] = useState<string | null>(null);
   const [showReviewFor, setShowReviewFor] = useState<string | null>(null);
   const [sessionReviewStatus, setSessionReviewStatus] = useState<Record<string, boolean>>({});
+  const [showCancelModal, setShowCancelModal] = useState<string | null>(null);
 
   // Define all useCallback hooks at the top level to maintain consistent hooks order
   const handleShowPayment = useCallback((e: React.MouseEvent, sessionId: string) => {
@@ -84,16 +86,22 @@ const SessionList: React.FC<SessionListProps> = ({
     );
   }
 
-  const handleCancelClick = async (sessionId: string) => {
-    if (window.confirm("Are you sure you want to cancel this session?")) {
-      setIsCancelling(sessionId);
-      try {
-        await onCancelSession(sessionId);
-      } catch (error) {
-        console.error("Error cancelling session:", error);
-      } finally {
-        setIsCancelling(null);
-      }
+  const handleCancelClick = (e: React.MouseEvent, sessionId: string) => {
+    e.stopPropagation();
+    setShowCancelModal(sessionId);
+  };
+
+  const confirmCancelSession = async () => {
+    if (!showCancelModal) return;
+
+    setIsCancelling(showCancelModal);
+    try {
+      await onCancelSession(showCancelModal);
+    } catch (error) {
+      console.error("Error cancelling session:", error);
+    } finally {
+      setIsCancelling(null);
+      setShowCancelModal(null);
     }
   };
 
@@ -202,13 +210,10 @@ const SessionList: React.FC<SessionListProps> = ({
 
               {/* Actions buttons */}
               <div className="flex flex-col items-end space-y-2">
-                {/* Cancel button for upcoming sessions */}
+                {/* Cancel button for upcoming sessions - show for both mentor and mentee */}
                 {isUpcoming && (
                   <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleCancelClick(session.id);
-                    }}
+                    onClick={(e) => handleCancelClick(e, session.id)}
                     disabled={!!isCancelling}
                     className="text-sm text-red-500 hover:text-red-700 flex items-center"
                   >
@@ -287,34 +292,48 @@ const SessionList: React.FC<SessionListProps> = ({
   };
 
   return (
-    <div>
-      {upcomingSessions.length > 0 && (
-        <div className="mb-6">
-          <h3 className="text-lg font-semibold mb-3 flex items-center">
-            <FaCalendar className="mr-2 text-blue-500" /> Upcoming Sessions
-          </h3>
-          <div>{upcomingSessions.map(renderSession)}</div>
-        </div>
-      )}
+    <>
+      {/* Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={!!showCancelModal}
+        title="Cancel Session"
+        message="Are you sure you want to cancel this session? This action cannot be undone."
+        confirmText="Yes, Cancel Session"
+        cancelText="No, Keep Session"
+        onConfirm={confirmCancelSession}
+        onCancel={() => setShowCancelModal(null)}
+        type="danger"
+      />
 
-      {completedSessions.length > 0 && (
-        <div className="mb-6">
-          <h3 className="text-lg font-semibold mb-3 flex items-center">
-            <FaCheckCircle className="mr-2 text-green-500" /> Completed Sessions
-          </h3>
-          <div>{completedSessions.map(renderSession)}</div>
-        </div>
-      )}
+      <div>
+        {upcomingSessions.length > 0 && (
+          <div className="mb-6">
+            <h3 className="text-lg font-semibold mb-3 flex items-center">
+              <FaCalendar className="mr-2 text-blue-500" /> Upcoming Sessions
+            </h3>
+            <div>{upcomingSessions.map(renderSession)}</div>
+          </div>
+        )}
 
-      {cancelledSessions.length > 0 && (
-        <div>
-          <h3 className="text-lg font-semibold mb-3 flex items-center">
-            <FaTimesCircle className="mr-2 text-red-500" /> Cancelled Sessions
-          </h3>
-          <div>{cancelledSessions.map(renderSession)}</div>
-        </div>
-      )}
-    </div>
+        {completedSessions.length > 0 && (
+          <div className="mb-6">
+            <h3 className="text-lg font-semibold mb-3 flex items-center">
+              <FaCheckCircle className="mr-2 text-green-500" /> Completed Sessions
+            </h3>
+            <div>{completedSessions.map(renderSession)}</div>
+          </div>
+        )}
+
+        {cancelledSessions.length > 0 && (
+          <div>
+            <h3 className="text-lg font-semibold mb-3 flex items-center">
+              <FaTimesCircle className="mr-2 text-red-500" /> Cancelled Sessions
+            </h3>
+            <div>{cancelledSessions.map(renderSession)}</div>
+          </div>
+        )}
+      </div>
+    </>
   );
 };
 

@@ -529,6 +529,10 @@ export const getDatabase = async () => {
                                         return { ...doc, ...updateObj.$set } as Document;
                                     }
                                     return doc;
+                                },
+                                remove: async () => {
+                                    await deleteDocument(COLLECTIONS.AVAILABILITY, doc.id);
+                                    return true;
                                 }
                             }));
                         }
@@ -548,6 +552,10 @@ export const getDatabase = async () => {
                                         return { ...doc, ...updateObj.$set } as Document;
                                     }
                                     return doc;
+                                },
+                                remove: async () => {
+                                    await deleteDocument(COLLECTIONS.AVAILABILITY, id);
+                                    return true;
                                 }
                             };
                         }
@@ -566,6 +574,10 @@ export const getDatabase = async () => {
                                     return { ...doc, ...updateObj.$set } as Document;
                                 }
                                 return doc;
+                            },
+                            remove: async () => {
+                                await deleteDocument(COLLECTIONS.AVAILABILITY, data.id);
+                                return true;
                             }
                         };
                     } else {
@@ -580,9 +592,18 @@ export const getDatabase = async () => {
                                     return { ...doc, ...updateObj.$set } as Document;
                                 }
                                 return doc;
+                            },
+                            remove: async () => {
+                                await deleteDocument(COLLECTIONS.AVAILABILITY, id);
+                                return true;
                             }
                         };
                     }
+                },
+                remove: async (docOrId: any) => {
+                    const id = typeof docOrId === 'string' ? docOrId : docOrId.id;
+                    await deleteDocument(COLLECTIONS.AVAILABILITY, id);
+                    return true;
                 }
             }
         };
