@@ -29,7 +29,7 @@ const MentorDashboard: React.FC = () => {
   }
 
   const { authState } = useAuth();
-  const { sessionState, fetchUserSessions } = sessionContextValue;
+  const { sessionState, fetchUserSessions, cancelUserSession } = sessionContextValue;
 
   const [mentorId, setMentorId] = useState<string>("");
   const [loading, setLoading] = useState(true);
@@ -59,6 +59,22 @@ const MentorDashboard: React.FC = () => {
     // Empty callback - just here to maintain hooks order
     console.log("Slot selected (placeholder)");
   }, []);
+
+  // Handle session cancellation and refresh calendar
+  const handleCancelSession = useCallback(async (sessionId: string) => {
+    try {
+      // Call the cancelUserSession from SessionContext
+      await cancelUserSession(sessionId);
+
+      // Increment availability version to force calendar refresh
+      setAvailabilityVersion(prev => prev + 1);
+
+      // Fetch updated session list
+      fetchUserSessions(true);
+    } catch (error) {
+      console.error("Error cancelling session:", error);
+    }
+  }, [cancelUserSession, fetchUserSessions]);
 
   // Handler for when availability changes (add/edit/delete)
   const handleAvailabilityChange = useCallback(() => {
@@ -253,12 +269,11 @@ const MentorDashboard: React.FC = () => {
         </div>
       )}
 
-      {/* Tab Content */}
       <div className="mt-2">
         {activeTab === "sessions" && (
           <SessionList
             sessions={sessionState.sessions.filter(s => s.mentorId === mentorId)}
-            onCancelSession={() => Promise.resolve()}
+            onCancelSession={handleCancelSession}
             currentUserId={authState.user?.id || ""}
           />
         )}
@@ -268,6 +283,7 @@ const MentorDashboard: React.FC = () => {
             mentorId={mentorId}
             key={`calendar-${availabilityVersion}`}
             onSlotSelect={onSlotSelect}
+            versionKey={availabilityVersion}
           />
         )}
 

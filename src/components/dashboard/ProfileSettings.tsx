@@ -11,6 +11,10 @@ import {
   updateMenteeProfile,
 } from "../../services/menteeService";
 import { User, MentorProfile } from "../../types";
+import PortfolioManager from '../profile/PortfolioManager';
+import EducationManager from '../profile/EducationManager';
+import CertificationManager from '../profile/CertificationManager';
+import WorkExperienceManager from '../profile/WorkExperienceManager';
 
 // Create a more specific combined type with all possible fields
 interface FormDataFields {
@@ -194,10 +198,13 @@ const ProfileSettings: React.FC = () => {
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
   ) => {
     const { name, value } = e.target;
+
+    // Remove JSON field handling - let component managers handle this
     setFormData((prev) => ({
       ...prev,
       [name]: value,
     }));
+
     // Clear validation error when field is changed
     if (errors[name as keyof ValidationErrors]) {
       setErrors((prev) => ({
@@ -211,6 +218,8 @@ const ProfileSettings: React.FC = () => {
     field: "expertise" | "interests" | "goals",
     value: string
   ) => {
+    console.log(`handleSelectChange - Field: ${field}, Value: ${value}`); // Log input
+    console.log("handleSelectChange - Before update:", formData); // Log before
     setFormData((prev) => {
       const currentArray = Array.isArray(prev[field]) ? [...prev[field]!] : [];
       const index = currentArray.indexOf(value);
@@ -221,10 +230,12 @@ const ProfileSettings: React.FC = () => {
         currentArray.splice(index, 1);
       }
 
-      return {
+      const newState = {
         ...prev,
         [field]: currentArray,
       };
+      console.log("handleSelectChange - After update:", newState); // Log after
+      return newState;
     });
     // Clear validation error when field is changed
     if (errors[field]) {
@@ -239,12 +250,15 @@ const ProfileSettings: React.FC = () => {
     e: React.ChangeEvent<HTMLInputElement>
   ) => {
     const { name, value } = e.target;
+    console.log(`handleNumberChange - Field: ${name}, Value: ${value}`); // Log input
     const numValue = value === "" ? "" : Number(value);
 
-    setFormData((prev) => ({
-      ...prev,
-      [name]: numValue,
-    }));
+    console.log("handleNumberChange - Before update:", formData); // Log before
+    setFormData((prev) => {
+      const newState = { ...prev, [name]: numValue };
+      console.log("handleNumberChange - After update:", newState); // Log after
+      return newState;
+    });
 
     // Clear validation error when field is changed
     if (errors[name as keyof ValidationErrors]) {
@@ -255,257 +269,224 @@ const ProfileSettings: React.FC = () => {
     }
   };
 
+  const handlePortfolioChange = (updatedItems: any[]) => {
+    setFormData(prev => ({
+      ...prev,
+      portfolio: updatedItems
+    }));
+  };
+
+  const handleEducationChange = (updatedItems: any[]) => {
+    setFormData(prev => ({
+      ...prev,
+      education: updatedItems
+    }));
+  };
+
+  const handleCertificationsChange = (updatedItems: any[]) => {
+    setFormData(prev => ({
+      ...prev,
+      certifications: updatedItems
+    }));
+  };
+
+  const handleWorkExperienceChange = (updatedItems: any[]) => {
+    setFormData(prev => ({
+      ...prev,
+      workExperience: updatedItems
+    }));
+  };
+
   const hasUnsavedChanges = () => {
-    for (const key in formData) {
-      const typedKey = key as keyof FormDataFields;
-
-      // Skip id field
-      if (typedKey === "id") continue;
-
-      // Check arrays
-      if (Array.isArray(formData[typedKey]) && Array.isArray(initialData[typedKey])) {
-        const formArray = formData[typedKey] as any[];
-        const initialArray = initialData[typedKey] as any[];
-
-        if (formArray.length !== initialArray.length) return true;
-
-        for (let i = 0; i < formArray.length; i++) {
-          if (JSON.stringify(formArray[i]) !== JSON.stringify(initialArray[i])) {
-            return true;
-          }
-        }
-        continue;
-      }
-
-      // Check primitive values
-      if (formData[typedKey] !== initialData[typedKey]) {
-        return true;
-      }
+    try {
+      return JSON.stringify(formData) !== JSON.stringify(initialData);
+    } catch (e) {
+      console.error("Error comparing data:", e);
+      return false;
     }
-    return false;
   };
 
   const validateForm = () => {
     const newErrors: ValidationErrors = {};
+    let isValid = true;
 
-    // Validate name (required)
-    if (!formData.name || formData.name.trim() === "") {
+    // Validate general user fields
+    if (!formData.name?.trim()) {
       newErrors.name = "Name is required";
+      isValid = false;
     }
 
-    // Validate email (required and format)
-    if (!formData.email || formData.email.trim() === "") {
+    if (!formData.email?.trim()) {
       newErrors.email = "Email is required";
-    } else if (!/^\S+@\S+\.\S+$/.test(formData.email)) {
-      newErrors.email = "Please enter a valid email address";
+      isValid = false;
+    } else if (
+      !/^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i.test(formData.email?.trim())
+    ) {
+      newErrors.email = "Invalid email address";
+      isValid = false;
     }
 
-    // Role-specific validation
-    if (formData.role === "mentor") {
-      // Bio is required for mentors
-      if (!formData.bio || formData.bio.trim() === "") {
-        newErrors.bio = "Bio is required for mentors";
+    // Validate mentor-specific fields
+    if (authState.user?.role === "mentor") {
+      if (!formData.bio?.trim()) {
+        newErrors.bio = "Bio is required";
+        isValid = false;
       }
 
-      // Expertise is required for mentors
+      // Expertise validation
       if (!formData.expertise || formData.expertise.length === 0) {
-        newErrors.expertise = "Please select at least one expertise area";
+        newErrors.expertise = "At least one area of expertise is required";
+        isValid = false;
       }
 
       // Session price validation
-      if (formData.sessionPrice === undefined || formData.sessionPrice === "") {
-        newErrors.sessionPrice = "Session price is required";
-      } else if (Number(formData.sessionPrice) < 0) {
-        newErrors.sessionPrice = "Session price cannot be negative";
+      if (
+        formData.sessionPrice === undefined ||
+        formData.sessionPrice === "" ||
+        (typeof formData.sessionPrice === 'number' && formData.sessionPrice < 0)
+      ) {
+        newErrors.sessionPrice = "Valid session price is required";
+        isValid = false;
       }
-    } else if (formData.role === "mentee") {
-      // Interests are required for mentees
+    }
+
+    // Validate mentee-specific fields
+    if (authState.user?.role === "mentee") {
       if (!formData.interests || formData.interests.length === 0) {
-        newErrors.interests = "Please select at least one interest area";
-      }
-
-      // Goals are required for mentees
-      if (!formData.goals || formData.goals.length === 0) {
-        newErrors.goals = "Please select at least one goal";
-      }
-
-      // Current position is required
-      if (!formData.currentPosition || formData.currentPosition.trim() === "") {
-        newErrors.currentPosition = "Current position is required";
+        newErrors.interests = "At least one interest is required";
+        isValid = false;
       }
     }
 
     setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    return isValid;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    // Clear previous messages and set loading
+    setLoading(true);
+    setMessage(null);
+
     if (!validateForm()) {
+      setLoading(false);
       setMessage({
         type: "error",
-        text: "Please fix the errors in the form before submitting",
+        text: "Please correct the errors in the form."
       });
       return;
     }
 
     try {
-      setLoading(true);
-      setMessage(null);
-
-      if (!authState.user?.id) {
-        throw new Error("No user ID found in auth state");
-      }
-
-      // Get current userId from auth state
-      const userId = authState.user.id;
-
-      // Create a copy of form data to process
-      const userData = { ...formData };
-
-      // Ensure the email is not changed (use type assertion for TypeScript)
-      userData.email = (initialData.email as string) || "";
-
-      console.log("Updating profile for user:", userId);
-      console.log("Form data:", userData);
-
-      // Process arrays for mentor/mentee profiles
-      let success = false;
-
-      // Process based on role
-      if (userData.role === "mentor") {
-        // Process expertise array
-        const expertise = Array.isArray(userData.expertise) ? userData.expertise : [];
-
-        // Process portfolio array - ensure it's an array
-        const portfolio = Array.isArray(userData.portfolio) ? userData.portfolio : [];
-
-        // Process education, certifications and work experience arrays
-        const education = Array.isArray(userData.education) ? userData.education : [];
-        const certifications = Array.isArray(userData.certifications) ? userData.certifications : [];
-        const workExperience = Array.isArray(userData.workExperience) ? userData.workExperience : [];
-
-        // Process session price (convert string to number if needed)
-        const sessionPrice = typeof userData.sessionPrice === 'number'
-          ? userData.sessionPrice
-          : Number(userData.sessionPrice) || 0;
-
-        const yearsOfExperience = typeof userData.yearsOfExperience === 'number'
-          ? userData.yearsOfExperience
-          : Number(userData.yearsOfExperience) || 0;
-
-        const mentorUpdateData = {
-          bio: userData.bio || "",
-          expertise: expertise,
-          sessionPrice: sessionPrice,
-          yearsOfExperience: yearsOfExperience,
-          portfolio: portfolio,
-          certifications: certifications,
-          education: education,
-          workExperience: workExperience,
-          name: userData.name || "",
-          // Don't include email in the update to prevent changing it
-          profilePicture: userData.profilePicture
-        };
-
-        console.log("Updating mentor profile with data:", mentorUpdateData);
-
-        const updatedProfile = await updateMentorProfile(userId, mentorUpdateData);
-
-        if (updatedProfile) {
-          console.log("Mentor profile updated successfully");
-          success = true;
-
-          // Update auth context with the new user data
-          updateAuthUser({
-            id: userId,
-            name: userData.name || "",
-            email: (initialData.email as string) || "", // Type assertion
-            role: "mentor",
-            profilePicture: userData.profilePicture
-          });
-        }
-      }
-      else if (userData.role === "mentee") {
-        const menteeUpdateData = {
-          bio: userData.bio || "",
-          interests: userData.interests || [],
-          goals: userData.goals || [],
-          currentPosition: userData.currentPosition || "",
-          name: userData.name || "",
-          // Don't include email in the update to prevent changing it
-          profilePicture: userData.profilePicture
-        };
-
-        console.log("Updating mentee profile:", menteeUpdateData);
-
-        const updatedProfile = await updateMenteeProfile(userId, menteeUpdateData);
-
-        if (updatedProfile) {
-          console.log("Mentee profile updated successfully");
-          success = true;
-
-          // Update auth context with the new user data
-          updateAuthUser({
-            id: userId,
-            name: userData.name || "",
-            email: (initialData.email as string) || "", // Type assertion
-            role: "mentee",
-            profilePicture: userData.profilePicture
-          });
-        }
-      }
-      else if (userData.role === "admin") {
-        const adminUpdateData = {
-          id: userId,
-          name: userData.name || "",
-          // Don't include email in the update to prevent changing it
-          profilePicture: userData.profilePicture,
-          role: "admin" as const
-        };
-
-        const updatedUser = await updateUser(userId, adminUpdateData);
-
-        if (updatedUser) {
-          console.log("Admin profile updated successfully");
-          success = true;
-
-          // Update auth context with the new user data
-          updateAuthUser({
-            ...updatedUser,
-            email: (initialData.email as string) || "", // Type assertion
-            role: "admin"
-          });
-        }
-      }
-
-      if (!success) {
-        throw new Error("Failed to update profile");
-      }
-
-      // Update the form data and initial data
-      setFormData(userData);
-      setInitialData(userData);
-
+      // Set temporary saving message
       setMessage({
         type: "success",
-        text: "Profile updated successfully!",
+        text: "Saving your changes..."
       });
 
-      // Refresh the page to see the changes
+      // Prepare the user data for update
+      if (!authState.user?.id) {
+        throw new Error("User ID is missing");
+      }
+
+      // Use a safer approach by creating properly typed objects
+      const userId = authState.user.id;
+      const userRole = authState.user.role as "mentor" | "mentee" | "admin";
+
+      // We know these fields can't be undefined at this point because of validateForm
+      const name = formData.name?.trim() || "";
+      const email = formData.email?.trim() || "";
+      const profilePicture = formData.profilePicture || "";
+
+      // Create a properly typed user data object
+      const userData = {
+        id: userId,
+        name,
+        email,
+        role: userRole,
+        profilePicture,
+      };
+
+      console.log("Updating user with data:", userData);
+
+      // Update the user's basic info
+      const updatedUser = await updateUser(userId, userData);
+
+      if (!updatedUser) {
+        throw new Error("Failed to update user profile");
+      }
+
+      // Update auth context with new user data
+      updateAuthUser({
+        ...authState.user,
+        name,
+        email,
+        profilePicture,
+      });
+
+      if (userRole === "mentor") {
+        // Create a properly typed mentor data object
+        const mentorData = {
+          bio: formData.bio?.trim() || "",
+          expertise: formData.expertise || [],
+          sessionPrice: Number(formData.sessionPrice) || 0,
+          yearsOfExperience: Number(formData.yearsOfExperience) || 0,
+          portfolio: Array.isArray(formData.portfolio) ? formData.portfolio : [],
+          certifications: Array.isArray(formData.certifications) ? formData.certifications : [],
+          education: Array.isArray(formData.education) ? formData.education : [],
+          workExperience: Array.isArray(formData.workExperience) ? formData.workExperience : [],
+        };
+
+        console.log("Updating mentor profile with data:", mentorData);
+
+        // Update mentor profile
+        const updatedMentorProfile = await updateMentorProfile(
+          userId,
+          mentorData
+        );
+
+        if (!updatedMentorProfile) {
+          throw new Error("Failed to update mentor profile");
+        }
+      } else if (userRole === "mentee") {
+        // Create a properly typed mentee data object
+        const menteeData = {
+          bio: formData.bio?.trim() || "",
+          interests: formData.interests || [],
+          goals: formData.goals || [],
+          currentPosition: formData.currentPosition?.trim() || "",
+        };
+
+        console.log("Updating mentee profile with data:", menteeData);
+
+        // Update mentee profile
+        const updatedMenteeProfile = await updateMenteeProfile(
+          userId,
+          menteeData
+        );
+
+        if (!updatedMenteeProfile) {
+          throw new Error("Failed to update mentee profile");
+        }
+      }
+
+      // Update initialData to reflect the current state
+      setInitialData({ ...formData });
+      setMessage({
+        type: "success",
+        text: "Profile updated successfully!"
+      });
+
+      // Auto clear the success message after 3 seconds
       setTimeout(() => {
-        window.location.reload();
-      }, 1500);
+        setMessage(null);
+      }, 3000);
 
     } catch (error) {
-      console.error("Error updating profile:", error);
       setMessage({
         type: "error",
-        text:
-          error instanceof Error
-            ? error.message
-            : "Failed to update profile. Please try again.",
+        text: error instanceof Error ? error.message : "Failed to update profile"
       });
     } finally {
       setLoading(false);
@@ -559,39 +540,28 @@ const ProfileSettings: React.FC = () => {
       : false;
   };
 
+  const isDisabled = loading || !hasUnsavedChanges();
+
   return (
-    <div>
-      <div className="bg-white rounded-lg shadow-md overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-200">
-          <h2 className="text-xl font-semibold">Profile Settings</h2>
-          {hasUnsavedChanges() && (
-            <p className="text-sm text-amber-600 mt-1">
-              You have unsaved changes
-            </p>
-          )}
-        </div>
+    <div className="bg-white shadow-md rounded-lg overflow-hidden relative">
+      <div className="p-6">
+        <h2 className="text-xl font-semibold mb-4">Profile Settings</h2>
 
-        <form onSubmit={handleSubmit} className="p-6">
-          {message && (
-            <div
-              className={`mb-6 p-4 rounded-md ${message.type === "success"
-                ? "bg-green-100 text-green-700"
-                : "bg-red-100 text-red-700"
-                }`}
-            >
-              {message.text}
-            </div>
-          )}
+        {message && (
+          <div
+            className={`${message.type === "success" ? "bg-green-100 border-green-400 text-green-700" : "bg-red-100 border-red-400 text-red-700"} px-4 py-3 rounded border mb-4 animate-fadeIn`}
+          >
+            <p>{message.text}</p>
+          </div>
+        )}
 
-          {/* User Information Section */}
-          <div className="mb-8">
-            <h3 className="text-lg font-medium mb-4">Basic Information</h3>
-            <div className="space-y-4">
+        <div className="space-y-6">
+          <div className="p-5 border border-gray-200 rounded-lg">
+            <h3 className="text-lg font-medium mb-4 text-gray-800 border-b pb-2">Basic Information</h3>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label
-                  htmlFor="name"
-                  className="block text-gray-700 text-sm font-bold mb-2"
-                >
+                <label htmlFor="name" className="block text-gray-700 text-sm font-bold mb-2">
                   Name
                 </label>
                 <input
@@ -600,21 +570,15 @@ const ProfileSettings: React.FC = () => {
                   name="name"
                   value={formData.name || ""}
                   onChange={handleChange}
-                  className={`shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline ${errors.name ? "border-red-500" : ""
-                    }`}
+                  className={`shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline ${errors.name ? "border-red-500" : ""}`}
                 />
                 {errors.name && (
-                  <p className="text-red-500 text-xs italic mt-1">
-                    {errors.name}
-                  </p>
+                  <p className="text-red-500 text-xs italic mt-1">{errors.name}</p>
                 )}
               </div>
 
               <div>
-                <label
-                  htmlFor="email"
-                  className="block text-gray-700 text-sm font-bold mb-2"
-                >
+                <label htmlFor="email" className="block text-gray-700 text-sm font-bold mb-2">
                   Email
                 </label>
                 <input
@@ -623,52 +587,57 @@ const ProfileSettings: React.FC = () => {
                   name="email"
                   value={formData.email || ""}
                   onChange={handleChange}
-                  className={`shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline ${errors.email ? "border-red-500" : ""
-                    }`}
+                  className={`shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline ${errors.email ? "border-red-500" : ""}`}
                 />
                 {errors.email && (
-                  <p className="text-red-500 text-xs italic mt-1">
-                    {errors.email}
-                  </p>
+                  <p className="text-red-500 text-xs italic mt-1">{errors.email}</p>
                 )}
               </div>
+            </div>
 
-              <div>
-                <label
-                  htmlFor="profilePicture"
-                  className="block text-gray-700 text-sm font-bold mb-2"
-                >
-                  Profile Picture URL
-                </label>
-                <input
-                  type="url"
-                  id="profilePicture"
-                  name="profilePicture"
-                  value={formData.profilePicture || ""}
-                  onChange={handleChange}
-                  className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-                />
-              </div>
+            <div className="mt-4">
+              <label htmlFor="profilePicture" className="block text-gray-700 text-sm font-bold mb-2">
+                Profile Picture URL
+              </label>
+              <input
+                type="text"
+                id="profilePicture"
+                name="profilePicture"
+                value={formData.profilePicture || ""}
+                onChange={handleChange}
+                className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Enter a URL to an image (e.g. https://example.com/image.jpg)
+              </p>
+            </div>
+
+            <div className="mt-4">
+              <label htmlFor="role" className="block text-gray-700 text-sm font-bold mb-2">
+                Role
+              </label>
+              <input
+                type="text"
+                id="role"
+                name="role"
+                value={formData.role || ""}
+                disabled
+                className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-500 bg-gray-100 leading-tight"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Role cannot be changed
+              </p>
             </div>
           </div>
 
-          {/* Role-specific Information Section */}
-          <div className="mb-8">
-            <h3 className="text-lg font-medium mb-4">
-              {authState.user?.role === "mentor"
-                ? "Mentor Profile"
-                : authState.user?.role === "admin"
-                  ? "Admin Profile"
-                  : "Mentee Profile"}
-            </h3>
+          {/* Role-specific sections */}
+          {authState.user?.role === "mentor" ? (
+            <div className="space-y-6">
+              <div className="p-5 border border-gray-200 rounded-lg">
+                <h3 className="text-lg font-medium mb-4 text-gray-800 border-b pb-2">Mentor Profile</h3>
 
-            {authState.user?.role === "mentor" ? (
-              <div className="space-y-4">
                 <div>
-                  <label
-                    htmlFor="bio"
-                    className="block text-gray-700 text-sm font-bold mb-2"
-                  >
+                  <label htmlFor="bio" className="block text-gray-700 text-sm font-bold mb-2">
                     Bio
                   </label>
                   <textarea
@@ -677,21 +646,18 @@ const ProfileSettings: React.FC = () => {
                     value={formData.bio || ""}
                     onChange={handleChange}
                     rows={4}
-                    className={`shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline ${errors.bio ? "border-red-500" : ""
-                      }`}
+                    className={`shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline ${errors.bio ? "border-red-500" : ""}`}
                   />
                   {errors.bio && (
-                    <p className="text-red-500 text-xs italic mt-1">
-                      {errors.bio}
-                    </p>
+                    <p className="text-red-500 text-xs italic mt-1">{errors.bio}</p>
                   )}
                 </div>
 
-                <div>
+                <div className="mt-4">
                   <label className="block text-gray-700 text-sm font-bold mb-2">
                     Expertise
                   </label>
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
                     {expertiseOptions.map((option) => (
                       <label key={option} className="flex items-center">
                         <input
@@ -699,7 +665,9 @@ const ProfileSettings: React.FC = () => {
                           name="expertise"
                           value={option}
                           checked={hasValue("expertise", option)}
-                          onChange={(e) => handleSelectChange(e.target.name as "expertise", e.target.value)}
+                          onChange={(e) =>
+                            handleSelectChange(e.target.name as "expertise", e.target.value)
+                          }
                           className="mr-2"
                         />
                         {option}
@@ -707,271 +675,208 @@ const ProfileSettings: React.FC = () => {
                     ))}
                   </div>
                   {errors.expertise && (
-                    <p className="text-red-500 text-xs italic mt-1">
-                      {errors.expertise}
-                    </p>
+                    <p className="text-red-500 text-xs italic mt-1">{errors.expertise}</p>
                   )}
                 </div>
 
-                <div>
-                  <label
-                    htmlFor="sessionPrice"
-                    className="block text-gray-700 text-sm font-bold mb-2"
-                  >
-                    Session Price (USD)
-                  </label>
-                  <input
-                    type="number"
-                    id="sessionPrice"
-                    name="sessionPrice"
-                    value={formData.sessionPrice || ""}
-                    onChange={handleNumberChange}
-                    className={`shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline ${errors.sessionPrice ? "border-red-500" : ""
-                      }`}
-                  />
-                  {errors.sessionPrice && (
-                    <p className="text-red-500 text-xs italic mt-1">
-                      {errors.sessionPrice}
-                    </p>
-                  )}
-                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                  <div>
+                    <label htmlFor="sessionPrice" className="block text-gray-700 text-sm font-bold mb-2">
+                      Session Price (USD)
+                    </label>
+                    <input
+                      type="number"
+                      id="sessionPrice"
+                      name="sessionPrice"
+                      value={formData.sessionPrice || ""}
+                      onChange={handleNumberChange}
+                      className={`shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline ${errors.sessionPrice ? "border-red-500" : ""}`}
+                    />
+                    {errors.sessionPrice && (
+                      <p className="text-red-500 text-xs italic mt-1">{errors.sessionPrice}</p>
+                    )}
+                  </div>
 
-                <div>
-                  <label
-                    htmlFor="yearsOfExperience"
-                    className="block text-gray-700 text-sm font-bold mb-2"
-                  >
-                    Years of Experience
-                  </label>
-                  <input
-                    type="number"
-                    id="yearsOfExperience"
-                    name="yearsOfExperience"
-                    value={formData.yearsOfExperience || ""}
-                    onChange={handleNumberChange}
-                    className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-                  />
-                </div>
-
-                <div>
-                  <label
-                    htmlFor="portfolio"
-                    className="block text-gray-700 text-sm font-bold mb-2"
-                  >
-                    Portfolio (JSON format)
-                  </label>
-                  <textarea
-                    id="portfolio"
-                    name="portfolio"
-                    value={
-                      formData.portfolio
-                        ? JSON.stringify(formData.portfolio, null, 2)
-                        : "[]"
-                    }
-                    onChange={(e) => handleChange(e)}
-                    rows={4}
-                    className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline font-mono text-sm"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">
-                    Format: [{"{"}"id":"1","title":"Project
-                    Name","description":"Project
-                    Description","link":"https://example.com"{"}"}]
-                  </p>
-                </div>
-
-                <div>
-                  <label
-                    htmlFor="education"
-                    className="block text-gray-700 text-sm font-bold mb-2"
-                  >
-                    Education (JSON format)
-                  </label>
-                  <textarea
-                    id="education"
-                    name="education"
-                    value={
-                      formData.education
-                        ? JSON.stringify(formData.education, null, 2)
-                        : "[]"
-                    }
-                    onChange={(e) => handleChange(e)}
-                    rows={4}
-                    className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline font-mono text-sm"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">
-                    Format: [{"{"}
-                    "id":"1","institution":"University","degree":"Bachelor's","field":"Computer
-                    Science","startDate":"2015","endDate":"2019"{"}"}]
-                  </p>
-                </div>
-
-                <div>
-                  <label
-                    htmlFor="certifications"
-                    className="block text-gray-700 text-sm font-bold mb-2"
-                  >
-                    Certifications (JSON format)
-                  </label>
-                  <textarea
-                    id="certifications"
-                    name="certifications"
-                    value={
-                      formData.certifications
-                        ? JSON.stringify(formData.certifications, null, 2)
-                        : "[]"
-                    }
-                    onChange={(e) => handleChange(e)}
-                    rows={4}
-                    className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline font-mono text-sm"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">
-                    Format: [{"{"}"id":"1","name":"AWS
-                    Certification","issuer":"Amazon","date":"2021"{"}"}]
-                  </p>
-                </div>
-
-                <div>
-                  <label
-                    htmlFor="workExperience"
-                    className="block text-gray-700 text-sm font-bold mb-2"
-                  >
-                    Work Experience (JSON format)
-                  </label>
-                  <textarea
-                    id="workExperience"
-                    name="workExperience"
-                    value={
-                      formData.workExperience
-                        ? JSON.stringify(formData.workExperience, null, 2)
-                        : "[]"
-                    }
-                    onChange={(e) => handleChange(e)}
-                    rows={4}
-                    className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline font-mono text-sm"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">
-                    Format: [{"{"}"id":"1","company":"Company
-                    Name","position":"Position","startDate":"2020-01","endDate":"2022-01","description":"Job
-                    description"{"}"}]
-                  </p>
+                  <div>
+                    <label htmlFor="yearsOfExperience" className="block text-gray-700 text-sm font-bold mb-2">
+                      Years of Experience
+                    </label>
+                    <input
+                      type="number"
+                      id="yearsOfExperience"
+                      name="yearsOfExperience"
+                      value={formData.yearsOfExperience || ""}
+                      onChange={handleNumberChange}
+                      className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                    />
+                  </div>
                 </div>
               </div>
-            ) : authState.user?.role === "admin" ? (
-              <div className="space-y-4">
-                <div className="bg-blue-50 p-4 rounded-md mb-4">
-                  <p className="text-blue-800">
-                    As an admin, you have access to site management features.
-                    Your profile settings are limited to basic information.
-                  </p>
-                </div>
 
-                <div>
-                  <p className="text-gray-600 mb-2">
-                    Role: <span className="font-medium">Administrator</span>
-                  </p>
+              <div className="p-5 border border-gray-200 rounded-lg">
+                <h3 className="text-lg font-medium mb-4 text-gray-800 border-b pb-2">Portfolio</h3>
+                <PortfolioManager
+                  portfolioItems={formData.portfolio || []}
+                  onChange={handlePortfolioChange}
+                />
+              </div>
+
+              <div className="p-5 border border-gray-200 rounded-lg">
+                <h3 className="text-lg font-medium mb-4 text-gray-800 border-b pb-2">Education</h3>
+                <EducationManager
+                  educationItems={formData.education || []}
+                  onChange={handleEducationChange}
+                />
+              </div>
+
+              <div className="p-5 border border-gray-200 rounded-lg">
+                <h3 className="text-lg font-medium mb-4 text-gray-800 border-b pb-2">Certifications</h3>
+                <CertificationManager
+                  certificationItems={formData.certifications || []}
+                  onChange={handleCertificationsChange}
+                />
+              </div>
+
+              <div className="p-5 border border-gray-200 rounded-lg">
+                <h3 className="text-lg font-medium mb-4 text-gray-800 border-b pb-2">Work Experience</h3>
+                <WorkExperienceManager
+                  workExperienceItems={formData.workExperience || []}
+                  onChange={handleWorkExperienceChange}
+                />
+              </div>
+            </div>
+          ) : authState.user?.role === "admin" ? (
+            <div className="p-5 border border-gray-200 rounded-lg">
+              <div className="bg-blue-50 p-4 rounded-md mb-4">
+                <p className="text-blue-800">
+                  As an admin, you have access to site management features.
+                  Your profile settings are limited to basic information.
+                </p>
+              </div>
+              <div>
+                <p className="text-gray-600 mb-2">
+                  Role: <span className="font-medium">Administrator</span>
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="p-5 border border-gray-200 rounded-lg">
+              <h3 className="text-lg font-medium mb-4 text-gray-800 border-b pb-2">Mentee Profile</h3>
+
+              <div>
+                <label className="block text-gray-700 text-sm font-bold mb-2">
+                  Interests
+                </label>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                  {interestOptions.map((option) => (
+                    <label key={option} className="flex items-center">
+                      <input
+                        type="checkbox"
+                        name="interests"
+                        value={option}
+                        checked={hasValue("interests", option)}
+                        onChange={(e) =>
+                          handleSelectChange(e.target.name as "interests", e.target.value)
+                        }
+                        className="mr-2"
+                      />
+                      {option}
+                    </label>
+                  ))}
                 </div>
+                {errors.interests && (
+                  <p className="text-red-500 text-xs italic mt-1">{errors.interests}</p>
+                )}
+              </div>
+
+              <div className="mt-4">
+                <label htmlFor="bio" className="block text-gray-700 text-sm font-bold mb-2">
+                  Bio
+                </label>
+                <textarea
+                  id="bio"
+                  name="bio"
+                  value={formData.bio || ""}
+                  onChange={handleChange}
+                  rows={4}
+                  className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                />
+              </div>
+
+              <div className="mt-4">
+                <label className="block text-gray-700 text-sm font-bold mb-2">
+                  Goals
+                </label>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                  {goalOptions.map((option) => (
+                    <label key={option} className="flex items-center">
+                      <input
+                        type="checkbox"
+                        name="goals"
+                        value={option}
+                        checked={hasValue("goals", option)}
+                        onChange={(e) =>
+                          handleSelectChange(e.target.name as "goals", e.target.value)
+                        }
+                        className="mr-2"
+                      />
+                      {option}
+                    </label>
+                  ))}
+                </div>
+                {errors.goals && (
+                  <p className="text-red-500 text-xs italic mt-1">{errors.goals}</p>
+                )}
+              </div>
+
+              <div className="mt-4">
+                <label htmlFor="currentPosition" className="block text-gray-700 text-sm font-bold mb-2">
+                  Current Position
+                </label>
+                <input
+                  type="text"
+                  id="currentPosition"
+                  name="currentPosition"
+                  value={formData.currentPosition || ""}
+                  onChange={handleChange}
+                  className={`shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline ${errors.currentPosition ? "border-red-500" : ""}`}
+                />
+                {errors.currentPosition && (
+                  <p className="text-red-500 text-xs italic mt-1">{errors.currentPosition}</p>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Keep only the enhanced bottom button with animations */}
+        <div className="flex justify-between items-center mt-6">
+          <button
+            type="button"
+            onClick={(e) => handleSubmit(e as unknown as React.FormEvent)}
+            disabled={isDisabled}
+            className={`bg-blue-500 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition-all duration-300 ${isDisabled ? "opacity-50 cursor-not-allowed" : "hover:bg-blue-700"
+              }`}
+          >
+            {loading ? (
+              <div className="flex items-center">
+                <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Saving...
               </div>
             ) : (
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-gray-700 text-sm font-bold mb-2">
-                    Interests
-                  </label>
-                  <div className="grid grid-cols-2 gap-2">
-                    {interestOptions.map((option) => (
-                      <label key={option} className="flex items-center">
-                        <input
-                          type="checkbox"
-                          name="interests"
-                          value={option}
-                          checked={hasValue("interests", option)}
-                          onChange={(e) => handleSelectChange(e.target.name as "interests", e.target.value)}
-                          className="mr-2"
-                        />
-                        {option}
-                      </label>
-                    ))}
-                  </div>
-                  {errors.interests && (
-                    <p className="text-red-500 text-xs italic mt-1">
-                      {errors.interests}
-                    </p>
-                  )}
-                </div>
-
-                <div>
-                  <label className="block text-gray-700 text-sm font-bold mb-2">
-                    Goals
-                  </label>
-                  <div className="grid grid-cols-2 gap-2">
-                    {goalOptions.map((option) => (
-                      <label key={option} className="flex items-center">
-                        <input
-                          type="checkbox"
-                          name="goals"
-                          value={option}
-                          checked={hasValue("goals", option)}
-                          onChange={(e) => handleSelectChange(e.target.name as "goals", e.target.value)}
-                          className="mr-2"
-                        />
-                        {option}
-                      </label>
-                    ))}
-                  </div>
-                  {errors.goals && (
-                    <p className="text-red-500 text-xs italic mt-1">
-                      {errors.goals}
-                    </p>
-                  )}
-                </div>
-
-                <div>
-                  <label
-                    htmlFor="currentPosition"
-                    className="block text-gray-700 text-sm font-bold mb-2"
-                  >
-                    Current Position
-                  </label>
-                  <input
-                    type="text"
-                    id="currentPosition"
-                    name="currentPosition"
-                    value={formData.currentPosition || ""}
-                    onChange={handleChange}
-                    className={`shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline ${errors.currentPosition ? "border-red-500" : ""
-                      }`}
-                  />
-                  {errors.currentPosition && (
-                    <p className="text-red-500 text-xs italic mt-1">
-                      {errors.currentPosition}
-                    </p>
-                  )}
-                </div>
-              </div>
+              "Save Changes"
             )}
-          </div>
+          </button>
 
-          <div className="flex justify-between">
-            <button
-              type="button"
-              onClick={() => setFormData(initialData)}
-              className="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
-              disabled={!hasUnsavedChanges() || loading}
-            >
-              Reset Changes
-            </button>
-            <button
-              type="submit"
-              disabled={loading || !hasUnsavedChanges()}
-              className={`bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline ${loading || !hasUnsavedChanges()
-                ? "opacity-50 cursor-not-allowed"
-                : ""
-                }`}
-            >
-              {loading ? "Saving..." : "Save Changes"}
-            </button>
-          </div>
-        </form>
+          {hasUnsavedChanges() && (
+            <div className="text-sm text-amber-600 animate-pulse">
+              You have unsaved changes
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

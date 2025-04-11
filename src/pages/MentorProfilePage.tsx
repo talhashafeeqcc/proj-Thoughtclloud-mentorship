@@ -21,8 +21,8 @@ const MentorProfilePage: React.FC = () => {
     null
   );
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [bookingSuccess, setBookingSuccess] = useState(false);
   const [bookingError, setBookingError] = useState<string | null>(null);
+  const [calendarVersion, setCalendarVersion] = useState(0);
 
   // Check if the current user is a mentee
   const isMentee = authState?.user?.role === "mentee";
@@ -36,61 +36,28 @@ const MentorProfilePage: React.FC = () => {
   const canBook = isMentee && isAuthenticated;
   const showLoginPrompt = !isAuthenticated;
 
+  // Fetch the mentor profile data when the component mounts
   useEffect(() => {
-    const fetchMentorProfile = async () => {
-      if (!mentorId) {
-        console.error("No mentorId in URL params");
-        setError("No mentor ID provided");
-        setLoading(false);
-        return;
-      }
+    const fetchMentor = async () => {
+      if (!mentorId) return;
 
       setLoading(true);
       setError(null);
       try {
-        console.log("Fetching mentor with ID:", mentorId);
-        const profile = await getMentorById(mentorId);
-        if (!profile) {
-          console.error("Mentor not found for ID:", mentorId);
-          setError("Mentor not found");
-        } else {
-          console.log("Successfully loaded mentor profile:", profile.id);
-          console.log(
-            "Mentor availability:",
-            profile.availability ? profile.availability.length : 0,
-            "slots"
-          );
-          console.log("Mentor ratings:", profile.ratings ? profile.ratings.length : 0, "reviews");
-          console.log("Mentor average rating:", profile.averageRating);
-          if (profile.ratings && profile.ratings.length > 0) {
-            console.log("First rating:", profile.ratings[0]);
-          }
-          setMentor(profile as MentorProfileType);
-        }
-      } catch (err: any) {
-        console.error("Error fetching mentor profile:", err);
-        setError(err.message || "Failed to load mentor profile");
+        const mentorData = await getMentorById(mentorId);
+        setMentor(mentorData);
+      } catch (error) {
+        console.error("Error fetching mentor:", error);
+        setError("Failed to load mentor profile");
       } finally {
         setLoading(false);
       }
     };
 
-    fetchMentorProfile();
+    fetchMentor();
   }, [mentorId]);
 
   const handleSlotSelect = (slot: AvailabilitySlot | null) => {
-    if (!isAuthenticated) {
-      // Redirect unauthenticated users to login when they try to book
-      navigate("/login", { state: { redirect: `/mentors/${mentorId}` } });
-      return;
-    }
-
-    if (!canBook) {
-      // If not a mentee, don't allow booking
-      setBookingError("Only mentees can book sessions with mentors");
-      return;
-    }
-
     setSelectedSlot(slot);
     if (slot) {
       setIsModalOpen(true);
@@ -126,7 +93,9 @@ const MentorProfilePage: React.FC = () => {
 
       const session = await bookSession(sessionData);
       console.log("Session booked successfully with ID:", session.id);
-      setBookingSuccess(true);
+
+      // Refresh the calendar after successful booking
+      setCalendarVersion(prev => prev + 1);
 
       // Return the session ID for the BookingModal
       return session.id;
@@ -156,16 +125,16 @@ const MentorProfilePage: React.FC = () => {
   if (error) {
     return (
       <div className="container mx-auto p-4">
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-          <p className="font-bold">Error</p>
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+          <p className="font-bold">Error:</p>
           <p>{error}</p>
+          <button
+            onClick={() => navigate(-1)}
+            className="mt-4 bg-gray-200 hover:bg-gray-300 text-gray-800 py-2 px-4 rounded"
+          >
+            Go Back
+          </button>
         </div>
-        <button
-          onClick={() => navigate("/mentors")}
-          className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
-        >
-          Back to Mentor List
-        </button>
       </div>
     );
   }
@@ -173,122 +142,120 @@ const MentorProfilePage: React.FC = () => {
   if (!mentor) {
     return (
       <div className="container mx-auto p-4">
-        <div className="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded mb-4">
-          <p>Mentor not found</p>
+        <div className="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded">
+          <p className="font-bold">Mentor Not Found</p>
+          <p>The mentor you're looking for could not be found.</p>
+          <button
+            onClick={() => navigate("/mentors")}
+            className="mt-4 bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded"
+          >
+            Browse Mentors
+          </button>
         </div>
-        <button
-          onClick={() => navigate("/mentors")}
-          className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
-        >
-          Back to Mentor List
-        </button>
       </div>
     );
   }
 
+  // Get the current user role for display purposes
+  const userRoleDisplay = isAuthenticated
+    ? isMentee
+      ? "mentee"
+      : isMentor
+        ? "mentor"
+        : "user"
+    : "visitor";
+
   return (
     <div className="container mx-auto p-4">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div
-          className={`md:col-span-${canBook || showLoginPrompt ? "2" : "3"}`}
-        >
+      <div className="flex flex-col md:flex-row gap-8">
+        {/* Mentor Profile Section */}
+        <div className="md:w-1/3">
           <MentorProfile mentor={mentor} />
 
-          {bookingSuccess && (
-            <div className="mt-4 p-4 bg-green-100 text-green-800 rounded-md">
-              Session booked successfully! Redirecting to your dashboard...
-            </div>
-          )}
-
-          {bookingError && (
-            <div className="mt-4 p-4 bg-red-100 text-red-800 rounded-md">
-              Error: {bookingError}
+          {/* Show login prompt for unauthenticated users */}
+          {showLoginPrompt && (
+            <div className="mt-6 bg-blue-50 p-6 rounded-lg shadow-md">
+              <h2 className="text-xl font-semibold mb-4">Want to book a session?</h2>
+              <p className="mb-4">
+                Please log in or create an account to book a session with this
+                mentor.
+              </p>
+              <div className="flex space-x-4">
+                <button
+                  onClick={() => navigate("/login")}
+                  className="bg-blue-500 hover:bg-blue-700 text-white py-2 px-4 rounded"
+                >
+                  Log In
+                </button>
+                <button
+                  onClick={() => navigate("/signup")}
+                  className="bg-gray-200 hover:bg-gray-300 text-gray-800 py-2 px-4 rounded"
+                >
+                  Sign Up
+                </button>
+              </div>
             </div>
           )}
         </div>
 
-        {/* Show different content in the right column based on user status */}
-        {showLoginPrompt && (
-          <div className="bg-blue-50 p-6 rounded-lg shadow-md">
-            <h2 className="text-xl font-semibold mb-4">
-              Want to book a session?
-            </h2>
-            <p className="mb-4">
-              Please log in or create an account to book a session with{" "}
-              {mentor.name}.
-            </p>
-            <div className="space-x-3">
-              <button
-                onClick={() =>
-                  navigate("/login", {
-                    state: { redirect: `/mentors/${mentorId}` },
-                  })
-                }
-                className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
-              >
-                Log In
-              </button>
-              <button
-                onClick={() =>
-                  navigate("/register", {
-                    state: { redirect: `/mentors/${mentorId}`, role: "mentee" },
-                  })
-                }
-                className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded"
-              >
-                Sign Up
-              </button>
+        {/* Booking Section */}
+        <div className="md:w-2/3">
+          <h1 className="text-2xl font-bold mb-2">
+            Book a Session with {mentor.name}
+          </h1>
+          <p className="text-gray-600 mb-6">
+            You are viewing this page as a {userRoleDisplay}.
+          </p>
+
+          {/* Only show booking section for mentees */}
+          {canBook && (
+            <div>
+              <h2 className="text-xl font-semibold mb-4">Book a Session</h2>
+              <p className="mb-4">
+                Select an available time slot to book a session with {mentor.name}
+                .
+              </p>
+              <AvailabilityCalendar
+                mentorId={mentor.id}
+                onSlotSelect={handleSlotSelect}
+                versionKey={calendarVersion}
+              />
             </div>
-          </div>
+          )}
+
+          {/* Show info message for mentors */}
+          {isMentor && isAuthenticated && (
+            <div className="bg-yellow-50 p-6 rounded-lg shadow-md">
+              <h2 className="text-xl font-semibold mb-4">Mentor View</h2>
+              <p>
+                As a mentor, you're viewing another mentor's profile. Only mentees
+                can book sessions.
+              </p>
+            </div>
+          )}
+        </div>
+
+        {canBook && selectedSlot && (
+          <BookingModal
+            show={isModalOpen}
+            selectedSlot={selectedSlot}
+            onClose={handleCloseModal}
+            onBook={handleConfirmBooking}
+            mentorId={mentor.id}
+            mentorName={mentor.name}
+            sessionPrice={mentor.sessionPrice}
+          />
         )}
 
-        {/* Only show booking section for mentees */}
-        {canBook && (
-          <div>
-            <h2 className="text-xl font-semibold mb-4">Book a Session</h2>
-            <p className="mb-4">
-              Select an available time slot to book a session with {mentor.name}
-              .
-            </p>
-            <AvailabilityCalendar
-              mentorId={mentor.id}
-              onSlotSelect={handleSlotSelect}
-            />
-          </div>
-        )}
-
-        {/* Show info message for mentors */}
-        {isMentor && isAuthenticated && (
-          <div className="bg-yellow-50 p-6 rounded-lg shadow-md">
-            <h2 className="text-xl font-semibold mb-4">Mentor View</h2>
-            <p>
-              As a mentor, you're viewing another mentor's profile. Only mentees
-              can book sessions.
-            </p>
+        {bookingError && (
+          <div className="container mx-auto p-4 mt-4">
+            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+              <p className="font-bold">Error:</p>
+              <p>{bookingError}</p>
+            </div>
           </div>
         )}
       </div>
-
-      {canBook && selectedSlot && (
-        <BookingModal
-          show={isModalOpen}
-          selectedSlot={selectedSlot}
-          onClose={handleCloseModal}
-          onBook={handleConfirmBooking}
-          mentorId={mentor.id}
-          mentorName={mentor.name}
-          sessionPrice={mentor.sessionPrice}
-        />
-      )}
-
-      {bookingError && (
-        <div className="container mx-auto p-4 mt-4">
-          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
-            <p className="font-bold">Error:</p>
-            <p>{bookingError}</p>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
