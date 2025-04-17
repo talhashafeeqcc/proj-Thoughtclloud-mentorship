@@ -69,6 +69,30 @@ const ItemModal: React.FC<ItemModalProps> = ({
             }
         });
 
+        // Check if this is an education form and validate dates
+        if (title.toLowerCase().includes('education')) {
+            // Check if start date is after end date
+            if (formData.startDate && formData.endDate && formData.endDate !== 'Present') {
+                // Convert year strings to numbers for comparison
+                const startYear = parseInt(formData.startDate, 10);
+                const endYear = parseInt(formData.endDate, 10);
+                
+                if (!isNaN(startYear) && !isNaN(endYear) && startYear > endYear) {
+                    newErrors.startDate = 'Start year cannot be later than end year';
+                    isValid = false;
+                }
+            }
+        }
+
+        // Email validation if there's an email field
+        if (formData.email) {
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(formData.email)) {
+                newErrors.email = 'Please enter a valid email address';
+                isValid = false;
+            }
+        }
+
         setErrors(newErrors);
         return isValid;
     };

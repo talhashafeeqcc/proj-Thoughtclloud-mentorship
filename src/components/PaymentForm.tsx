@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
-import { getStripe } from '../services/stripe/config';
+import React, { useState, useEffect } from 'react';
 import { createPaymentIntent, confirmPayment } from '../services/stripe';
 import { processPayment } from '../services/paymentService';
+import { CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
 
 interface PaymentFormProps {
     sessionId: string;
@@ -17,34 +17,50 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
     onError
 }) => {
     const [isLoading, setIsLoading] = useState(false);
-    const [paymentMethod, setPaymentMethod] = useState<string>('');
-    const [cardNumber, setCardNumber] = useState<string>('');
-    const [expiry, setExpiry] = useState<string>('');
-    const [cvc, setCvc] = useState<string>('');
-    const [name, setName] = useState<string>('');
+    const [name, setName] = useState('');
+    
+    // Initialize Stripe
+    const stripe = useStripe();
+    const elements = useElements();
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
-        if (!cardNumber || !expiry || !cvc || !name) {
-            onError('Please fill in all payment details');
+        if (!stripe || !elements) {
+            onError('Stripe has not been initialized');
+            return;
+        }
+
+        const cardElement = elements.getElement(CardElement);
+        if (!cardElement) {
+            onError('Card element not found');
             return;
         }
 
         setIsLoading(true);
 
         try {
-            // In a real implementation, we would use Stripe.js to collect payment method details
-            // and create a real payment method. For this demo, we're simulating the process.
+            // Step 1: Create a PaymentMethod
+            const { error: createPaymentMethodError, paymentMethod } = await stripe.createPaymentMethod({
+                type: 'card',
+                card: cardElement,
+                billing_details: {
+                    name: name,
+                }
+            });
 
-            // 1. Simulate creating a payment method (in real code, this would use Stripe Elements)
-            const paymentMethodId = `pm_${Math.random().toString(36).substring(2, 15)}`;
-            setPaymentMethod(paymentMethodId);
+            if (createPaymentMethodError) {
+                throw new Error(createPaymentMethodError.message);
+            }
 
-            // 2. Process the payment with our backend
-            const payment = await processPayment(sessionId, amount, paymentMethodId);
+            if (!paymentMethod) {
+                throw new Error('Failed to create payment method');
+            }
 
-            // 3. Call the success callback with the payment ID
+            // Step 2: Process the payment using our service
+            const payment = await processPayment(sessionId, amount, paymentMethod.id);
+
+            // Step 3: Call onSuccess with the payment ID
             onSuccess(payment.id);
         } catch (error) {
             console.error('Payment error:', error);
@@ -54,33 +70,23 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
         }
     };
 
-    // Format card number with spaces
-    const formatCardNumber = (value: string) => {
-        const v = value.replace(/\s+/g, '').replace(/[^0-9]/gi, '');
-        const matches = v.match(/\d{4,16}/g);
-        const match = (matches && matches[0]) || '';
-        const parts = [];
-
-        for (let i = 0, len = match.length; i < len; i += 4) {
-            parts.push(match.substring(i, i + 4));
+    // Card element styling
+    const cardElementOptions = {
+        style: {
+            base: {
+                color: '#32325d',
+                fontFamily: '"Helvetica Neue", Helvetica, sans-serif',
+                fontSmoothing: 'antialiased',
+                fontSize: '16px',
+                '::placeholder': {
+                    color: '#aab7c4'
+                }
+            },
+            invalid: {
+                color: '#fa755a',
+                iconColor: '#fa755a'
+            }
         }
-
-        if (parts.length) {
-            return parts.join(' ');
-        } else {
-            return value;
-        }
-    };
-
-    // Format expiry date (MM/YY)
-    const formatExpiry = (value: string) => {
-        const v = value.replace(/\s+/g, '').replace(/[^0-9]/gi, '');
-
-        if (v.length >= 3) {
-            return `${v.substring(0, 2)}/${v.substring(2, 4)}`;
-        }
-
-        return value;
     };
 
     return (
@@ -103,54 +109,13 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
                     />
                 </div>
 
-                {/* Card Number */}
+                {/* Stripe Card Element */}
                 <div className="mb-4">
-                    <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="card">
-                        Card Number
+                    <label className="block text-gray-700 text-sm font-bold mb-2">
+                        Card Details
                     </label>
-                    <input
-                        id="card"
-                        type="text"
-                        className="appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-                        placeholder="4242 4242 4242 4242"
-                        value={cardNumber}
-                        onChange={(e) => setCardNumber(formatCardNumber(e.target.value))}
-                        maxLength={19}
-                        required
-                    />
-                </div>
-
-                {/* Expiry and CVC */}
-                <div className="flex mb-4">
-                    <div className="w-1/2 mr-2">
-                        <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="expiry">
-                            Expiry Date
-                        </label>
-                        <input
-                            id="expiry"
-                            type="text"
-                            className="appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-                            placeholder="MM/YY"
-                            value={expiry}
-                            onChange={(e) => setExpiry(formatExpiry(e.target.value))}
-                            maxLength={5}
-                            required
-                        />
-                    </div>
-                    <div className="w-1/2 ml-2">
-                        <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="cvc">
-                            CVC
-                        </label>
-                        <input
-                            id="cvc"
-                            type="text"
-                            className="appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-                            placeholder="123"
-                            value={cvc}
-                            onChange={(e) => setCvc(e.target.value.replace(/[^0-9]/g, ''))}
-                            maxLength={3}
-                            required
-                        />
+                    <div className="border rounded p-3">
+                        <CardElement options={cardElementOptions} />
                     </div>
                 </div>
 
@@ -158,9 +123,8 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
                 <div className="mt-6">
                     <button
                         type="submit"
-                        className={`w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline ${isLoading ? 'opacity-50 cursor-not-allowed' : ''
-                            }`}
-                        disabled={isLoading}
+                        className={`w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        disabled={isLoading || !stripe}
                     >
                         {isLoading ? 'Processing...' : `Pay ${new Intl.NumberFormat('en-US', {
                             style: 'currency',
@@ -168,6 +132,17 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
                         }).format(amount)}`}
                     </button>
                 </div>
+
+                {/* Test Card Info */}
+                {process.env.NODE_ENV !== 'production' && (
+                    <div className="mt-4 p-3 bg-gray-100 rounded text-xs">
+                        <p className="font-semibold mb-1">Test Card Details:</p>
+                        <p>Card Number: 4242 4242 4242 4242</p>
+                        <p>Expiry: Any future date (e.g., 12/25)</p>
+                        <p>CVC: Any 3 digits</p>
+                        <p>ZIP: Any 5 digits</p>
+                    </div>
+                )}
 
                 {/* Terms */}
                 <p className="text-xs text-gray-500 mt-4">

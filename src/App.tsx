@@ -17,6 +17,7 @@ import { useEffect, useState, useRef } from "react";
 import { useTheme } from "./context/ThemeContext";
 import TestPage from "./pages/TestPage";
 import { Helmet } from "react-helmet";
+import StripeProvider from "./components/StripeProvider";
 
 // Import Firebase configuration
 import { firebaseApp } from "./services/firebase";
@@ -120,62 +121,64 @@ function App() {
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <meta name="theme-color" content={mode === 'dark' ? '#1e1e1e' : '#ffffff'} />
       </Helmet>
-      <div className="flex flex-col min-h-screen transition-colors duration-300 bg-white dark:bg-gray-900 text-gray-900 dark:text-white">
-        <Navbar />
-        <main className="flex-grow relative">
-          {/* Background decorative elements */}
-          <div className="hidden md:block absolute top-40 right-10 w-64 h-64 bg-purple-100 dark:bg-purple-900/20 rounded-full mix-blend-multiply dark:mix-blend-soft-light filter blur-3xl opacity-70 animate-float"></div>
-          <div className="hidden md:block absolute bottom-40 left-10 w-72 h-72 bg-indigo-100 dark:bg-indigo-900/20 rounded-full mix-blend-multiply dark:mix-blend-soft-light filter blur-3xl opacity-70 animate-float" style={{ animationDelay: "2s" }}></div>
+      <StripeProvider>
+        <div className="flex flex-col min-h-screen transition-colors duration-300 bg-white dark:bg-gray-900 text-gray-900 dark:text-white">
+          <Navbar />
+          <main className="flex-grow relative">
+            {/* Background decorative elements */}
+            <div className="hidden md:block absolute top-40 right-10 w-64 h-64 bg-purple-100 dark:bg-purple-900/20 rounded-full mix-blend-multiply dark:mix-blend-soft-light filter blur-3xl opacity-70 animate-float"></div>
+            <div className="hidden md:block absolute bottom-40 left-10 w-72 h-72 bg-indigo-100 dark:bg-indigo-900/20 rounded-full mix-blend-multiply dark:mix-blend-soft-light filter blur-3xl opacity-70 animate-float" style={{ animationDelay: "2s" }}></div>
 
-          <Routes>
-            <Route path="/" element={<HomePage />} />
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/register" element={<RegisterPage />} />
-            <Route path="/mentors" element={<MentorListPage />} />
-            <Route path="/mentors/:mentorId" element={<MentorProfilePage />} />
-            <Route
-              path="/dashboard"
-              element={
-                <ProtectedRoute>
-                  <DashboardPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/settings"
-              element={
-                <ProtectedRoute>
-                  <SettingsPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/payment/:sessionId"
-              element={
-                <ProtectedRoute>
-                  <PaymentPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/sessions/:sessionId"
-              element={
-                <ProtectedRoute>
-                  <SessionDetailsPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/test"
-              element={
-                <TestPage />
-              }
-            />
-            <Route path="*" element={<NotFoundPage />} />
-          </Routes>
-        </main>
-        <Footer />
-      </div>
+            <Routes>
+              <Route path="/" element={<HomePage />} />
+              <Route path="/login" element={<LoginPage />} />
+              <Route path="/register" element={<RegisterPage />} />
+              <Route path="/mentors" element={<MentorListPage />} />
+              <Route path="/mentors/:mentorId" element={<MentorProfilePage />} />
+              <Route
+                path="/dashboard"
+                element={
+                  <ProtectedRoute>
+                    <DashboardPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/settings"
+                element={
+                  <ProtectedRoute>
+                    <SettingsPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/payment/:sessionId"
+                element={
+                  <ProtectedRoute>
+                    <PaymentPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/sessions/:sessionId"
+                element={
+                  <ProtectedRoute>
+                    <SessionDetailsPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/test"
+                element={
+                  <TestPage />
+                }
+              />
+              <Route path="*" element={<NotFoundPage />} />
+            </Routes>
+          </main>
+          <Footer />
+        </div>
+      </StripeProvider>
     </>
   );
 }
