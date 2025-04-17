@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import stripe from './stripeConfig';
 
-// Webhook secret from environment variable or use the provided test webhook secret
+// Set the webhook signing secret provided by Stripe CLI
 const endpointSecret = process.env.VITE_STRIPE_WEBHOOK_SECRET || 
   'whsec_7c86e9664e7ef6bf9d733dd5bed87664056f6bb4b04d11412ec8c13621025cd2';
 
@@ -54,8 +54,8 @@ export const handleStripeWebhook = async (req: Request, res: Response) => {
 
     // Return a 200 response to acknowledge receipt of the event
     res.status(200).json({ received: true });
-  } catch (err) {
-    console.error('Webhook error:', err);
-    res.status(400).send(`Webhook Error: ${err.message}`);
+  } catch (error: any) {
+    console.error('Webhook error:', error);
+    res.status(400).send(`Webhook Error: ${error.message}`);
   }
 }; 

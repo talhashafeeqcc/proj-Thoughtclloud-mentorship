@@ -3,17 +3,24 @@ import cors from 'cors';
 import bodyParser from 'body-parser';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+import * as dotenv from 'dotenv';
 import type { RequestHandler } from 'express';
-import { createPaymentIntentHandler } from './api/createPaymentIntent';
-import { capturePaymentHandler } from './api/capturePayment';
-import { createRefundHandler } from './api/createRefund';
-import { getMentorBalanceHandler } from './api/getMentorBalance';
-import { createConnectAccountHandler } from './api/createConnectAccount';
-import { handleStripeWebhook } from './api/stripeWebhook';
+
+// Load environment variables
+dotenv.config();
+
+// Import API handlers
+import { createPaymentIntentHandler } from './api/createPaymentIntent.js';
+import { capturePaymentHandler } from './api/capturePayment.js';
+import { createRefundHandler } from './api/createRefund.js';
+import { getMentorBalanceHandler } from './api/getMentorBalance.js';
+import { createConnectAccountHandler } from './api/createConnectAccount.js';
+import { handleStripeWebhook } from './api/stripeWebhook.js';
 
 // Get current file directory with ES modules
 const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const __dirname = dirname(__filename);
 
 const app = express();
 const port = process.env.PORT || 3001;
@@ -29,7 +36,7 @@ app.use('/api/webhook', bodyParser.raw({ type: 'application/json' }));
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
-// API Routes - Cast handlers to RequestHandler to fix type issues
+// API Routes - use type assertion for handlers
 app.post('/api/create-payment-intent', createPaymentIntentHandler as RequestHandler);
 app.post('/api/capture-payment', capturePaymentHandler as RequestHandler);
 app.post('/api/create-refund', createRefundHandler as RequestHandler);
@@ -46,7 +53,7 @@ if (isProduction) {
   app.use(express.static(distPath));
   
   // For any other request, send index.html (for SPA routing)
-  app.get('*', (async (req, res) => {
+  app.get('*', ((req, res) => {
     // Skip API routes
     if (req.url.startsWith('/api/')) {
       return res.status(404).json({ error: 'API route not found' });
