@@ -16,7 +16,7 @@ import DatabaseErrorFallback from "./components/utility/DatabaseErrorFallback";
 import { useEffect, useState, useRef } from "react";
 import { useTheme } from "./context/ThemeContext";
 import TestPage from "./pages/TestPage";
-import { Helmet } from "react-helmet";
+import { Helmet, HelmetProvider } from "react-helmet-async";
 import StripeProvider from "./components/StripeProvider";
 
 // Import Firebase configuration
@@ -114,7 +114,7 @@ function App() {
   }
 
   return (
-    <>
+    <HelmetProvider>
       <Helmet>
         <title>MentorMatch - Find Your Perfect Mentor</title>
         <meta name="description" content="Connect with experienced professionals who can guide you through your career journey" />
@@ -179,7 +179,7 @@ function App() {
           <Footer />
         </div>
       </StripeProvider>
-    </>
+    </HelmetProvider>
   );
 }
 

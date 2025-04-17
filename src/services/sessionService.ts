@@ -389,11 +389,7 @@ export const createSession = async (
       throw new Error("This time slot is already booked");
     }
     
-    // Double check for active sessions again (redundant but safe)
-    if (existingSessions.length > 0) {
-      console.log(`Active sessions found for this slot: ${existingSessions.length}`);
-      throw new Error("This time slot is already booked");
-    }
+  
 
     // Check if the mentor exists in the mentors collection
     const mentorDoc = await db.mentors.findOne(sessionData.mentorId).exec();
