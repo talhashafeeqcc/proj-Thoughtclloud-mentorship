@@ -1,9 +1,13 @@
 import { v4 as uuidv4 } from "uuid";
 import type { Rating } from "../types";
 import { getDatabase } from "./database/db";
-import type { RxDocument } from "rxdb";
 
-// Define interface for RxDB document type
+// Define a generic Document interface to replace RxDocument
+interface Document<T> {
+  toJSON(): T;
+}
+
+// Define interface for document type
 interface RatingDocument {
   id: string;
   sessionId: string;
@@ -30,7 +34,7 @@ export const getMentorRatings = async (mentorId: string): Promise<Rating[]> => {
       })
       .exec();
 
-    return ratingDocs.map((doc: RxDocument<RatingDocument>) => {
+    return ratingDocs.map((doc: Document<RatingDocument>) => {
       const rating = doc.toJSON() as RatingDocument;
       return {
         id: rating.id,
