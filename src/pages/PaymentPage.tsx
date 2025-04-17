@@ -53,6 +53,9 @@ const PaymentPage: React.FC = () => {
   const handlePaymentError = (errorMessage: string) => {
     console.error('Payment error:', errorMessage);
     setError(`Payment failed: ${errorMessage}`);
+    
+    // Scroll to the top of the page to show the error
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleReturn = () => {

@@ -2,13 +2,17 @@
 import { initializeApp } from 'firebase/app';
 import { getFirestore } from 'firebase/firestore';
 
+// Determine if we're in a browser environment with Vite's import.meta.env
+const isViteEnvironment = typeof import.meta.env !== 'undefined';
+
 // Read Firebase config from environment variables if available
-const useEnvConfig = import.meta.env.VITE_FIREBASE_API_KEY &&
+const hasViteEnvConfig = isViteEnvironment && 
+    import.meta.env.VITE_FIREBASE_API_KEY &&
     import.meta.env.VITE_FIREBASE_AUTH_DOMAIN &&
     import.meta.env.VITE_FIREBASE_PROJECT_ID;
 
 // Firebase configuration
-const firebaseConfig = useEnvConfig ? {
+const firebaseConfig = hasViteEnvConfig ? {
     apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
     authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
     projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
@@ -27,8 +31,8 @@ const firebaseConfig = useEnvConfig ? {
 };
 
 // Log which configuration we're using (only in development)
-if (import.meta.env.DEV) {
-    console.log(`Using Firebase config from ${useEnvConfig ? 'environment variables' : 'hardcoded values'}`);
+if (isViteEnvironment && import.meta.env.DEV) {
+    console.log(`Using Firebase config from ${hasViteEnvConfig ? 'environment variables' : 'hardcoded values'}`);
 }
 
 // Initialize Firebase

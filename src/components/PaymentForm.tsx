@@ -64,7 +64,8 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
             onSuccess(payment.id);
         } catch (error) {
             console.error('Payment error:', error);
-            onError(error.message || 'An error occurred during payment processing');
+            const errorMessage = error instanceof Error ? error.message : 'An error occurred during payment processing';
+            onError(errorMessage);
         } finally {
             setIsLoading(false);
         }

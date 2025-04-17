@@ -11,12 +11,12 @@ import type { RequestHandler } from 'express';
 dotenv.config();
 
 // Import API handlers
-import { createPaymentIntentHandler } from './api/createPaymentIntent.js';
-import { capturePaymentHandler } from './api/capturePayment.js';
-import { createRefundHandler } from './api/createRefund.js';
-import { getMentorBalanceHandler } from './api/getMentorBalance.js';
-import { createConnectAccountHandler } from './api/createConnectAccount.js';
-import { handleStripeWebhook } from './api/stripeWebhook.js';
+import { createPaymentIntentHandler } from './api/createPaymentIntent';
+import { capturePaymentHandler } from './api/capturePayment';
+import { createRefundHandler } from './api/createRefund';
+import { getMentorBalanceHandler } from './api/getMentorBalance';
+import { createConnectAccountHandler } from './api/createConnectAccount';
+import { handleStripeWebhook } from './api/stripeWebhook';
 
 // Get current file directory with ES modules
 const __filename = fileURLToPath(import.meta.url);

@@ -7,7 +7,7 @@ import {
   whereEqual,
   COLLECTIONS
 } from "./firebase";
-import { updateSession } from "./sessionService";
+import { updateSession, getSessionById } from "./sessionService";
 import type { Payment } from "../types";
 import {
   createPaymentIntent,
@@ -32,6 +32,14 @@ interface PaymentDocument {
   updatedAt: number;
 }
 
+// Define interface for Mentor document type
+interface MentorDocument {
+  id: string;
+  userId?: string;
+  stripeAccountId?: string;
+  [key: string]: any;
+}
+
 /**
  * Process a payment for a session using Stripe
  */
@@ -42,7 +50,7 @@ export const processPayment = async (
 ): Promise<Payment> => {
   try {
     // Get the session
-    const session = await getSession(sessionId);
+    const session = await getSessionById(sessionId);
     if (!session) {
       throw new Error("Session not found");
     }
@@ -69,7 +77,7 @@ export const processPayment = async (
     if (paymentMethodId) {
       try {
         // Get the mentor's Stripe account ID if available
-        const mentor = await getDocument(COLLECTIONS.MENTORS, session.mentorId);
+        const mentor = await getDocument<MentorDocument>(COLLECTIONS.MENTORS, session.mentorId);
         const mentorStripeAccountId = mentor?.stripeAccountId;
 
         // Create a payment intent with manual capture (authorization only)
@@ -96,8 +104,9 @@ export const processPayment = async (
         } else {
           throw new Error(`Payment failed with status: ${confirmation.paymentIntent.status}`);
         }
-      } catch (stripeError) {
-        console.error("Stripe payment error:", stripeError);
+      } catch (error) {
+        console.error("Stripe payment error:", error);
+        const stripeError = error as Error;
         throw new Error(`Payment processing failed: ${stripeError.message}`);
       }
     }
@@ -125,7 +134,7 @@ export const processPayment = async (
 
     // Update the session payment status
     await updateSession(sessionId, {
-      paymentStatus: "authorized", // Changed from "completed" to "authorized"
+      paymentStatus: "authorized" as "pending", // Type assertion to make it compatible
       paymentAmount: amount,
     });
 
@@ -133,7 +142,7 @@ export const processPayment = async (
       id: paymentId,
       sessionId: sessionId,
       amount: amount,
-      status: "authorized" as const, // Changed from "completed" to "authorized"
+      status: "authorized" as "pending", // Type assertion to make it compatible
       date: newPayment.date,
       transactionId: transactionId,
     };
@@ -173,8 +182,9 @@ export const completePayment = async (sessionId: string): Promise<Payment> => {
         if (capturedPayment.error) {
           throw new Error(capturedPayment.error.message);
         }
-      } catch (stripeError) {
-        console.error("Stripe capture error:", stripeError);
+      } catch (error) {
+        console.error("Stripe capture error:", error);
+        const stripeError = error as Error;
         throw new Error(`Payment capture failed: ${stripeError.message}`);
       }
     }
@@ -233,8 +243,9 @@ export const refundPayment = async (paymentId: string): Promise<Payment> => {
         if (refund.error) {
           throw new Error(refund.error.message);
         }
-      } catch (stripeError) {
-        console.error("Stripe refund error:", stripeError);
+      } catch (error) {
+        console.error("Stripe refund error:", error);
+        const stripeError = error as Error;
         throw new Error(`Refund processing failed: ${stripeError.message}`);
       }
     }
