@@ -25,7 +25,8 @@
       "node",
       "express",
       "body-parser",
-      "cors"
+      "cors",
+      "rxdb"
     ]
   },
   "include": ["src"]

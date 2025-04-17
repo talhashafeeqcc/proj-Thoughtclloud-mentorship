@@ -338,20 +338,61 @@ export const createSession = async (
       throw new Error("Mentor and mentee IDs are required");
     }
 
-    // First check if there's already a session with this availability slot
-    if (sessionData.availabilitySlotId) {
-      const existingSessions = await db.sessions
-        .find({
-          selector: {
-            availabilityId: sessionData.availabilitySlotId,
-          },
-        })
-        .exec();
+    // Check if the availability slot exists
+    const availabilityDoc = await db.availability
+      .findOne(sessionData.availabilitySlotId)
+      .exec();
 
-      if (existingSessions.length > 0) {
-        console.warn(`Session already exists for availability slot ${sessionData.availabilitySlotId}`);
-        throw new Error("This time slot is already booked");
-      }
+    if (!availabilityDoc) {
+      throw new Error(
+        `Availability slot with ID ${sessionData.availabilitySlotId} not found`
+      );
+    }
+
+    const availability = availabilityDoc.toJSON() as AvailabilityDocument;
+    console.log(`Checking availability slot:`, {
+      id: availability.id,
+      date: availability.date,
+      startTime: availability.startTime,
+      endTime: availability.endTime,
+      isBooked: availability.isBooked
+    });
+
+    // First, let's reset the isBooked flag if needed by checking for active sessions
+    const existingSessions = await db.sessions
+      .find({
+        selector: {
+          availabilityId: sessionData.availabilitySlotId,
+          status: { $ne: "cancelled" }
+        },
+      })
+      .exec();
+
+    console.log(`Found ${existingSessions.length} active sessions for this slot`);
+    
+    // If the slot is marked as booked but no active sessions exist, fix the inconsistency
+    if (availability.isBooked && existingSessions.length === 0) {
+      console.log(`Fixing inconsistency: Slot marked as booked but has no active sessions`);
+      await availabilityDoc.update({
+        $set: {
+          isBooked: false,
+          updatedAt: Date.now()
+        }
+      });
+      // Update the local copy as well
+      availability.isBooked = false;
+    }
+    
+    // After potential fix, if slot is still marked as booked, throw error
+    if (availability.isBooked) {
+      console.log(`Slot is still marked as booked after consistency check`);
+      throw new Error("This time slot is already booked");
+    }
+    
+    // Double check for active sessions again (redundant but safe)
+    if (existingSessions.length > 0) {
+      console.log(`Active sessions found for this slot: ${existingSessions.length}`);
+      throw new Error("This time slot is already booked");
     }
 
     // Check if the mentor exists in the mentors collection
@@ -425,23 +466,6 @@ export const createSession = async (
     }
 
     const menteeName = menteeUser ? menteeUser.toJSON().name : "Unnamed Mentee";
-
-    // Check if the availability slot exists and is not booked
-    const availabilityDoc = await db.availability
-      .findOne(sessionData.availabilitySlotId)
-      .exec();
-
-    if (!availabilityDoc) {
-      throw new Error(
-        `Availability slot with ID ${sessionData.availabilitySlotId} not found`
-      );
-    }
-
-    const availability = availabilityDoc.toJSON() as AvailabilityDocument;
-
-    if (availability.isBooked) {
-      throw new Error("This time slot is already booked");
-    }
 
     // Generate a unique ID
     const sessionId = uuidv4();
