@@ -17,6 +17,8 @@ import { createRefundHandler } from './api/createRefund';
 import { getMentorBalanceHandler } from './api/getMentorBalance';
 import { createConnectAccountHandler } from './api/createConnectAccount';
 import { handleStripeWebhook } from './api/stripeWebhook';
+import { createMentorStripeAccountHandler } from './api/createMentorStripeAccount';
+import { createMentorPayoutHandler } from './api/createMentorPayout';
 
 // Get current file directory with ES modules
 const __filename = fileURLToPath(import.meta.url);
@@ -43,6 +45,10 @@ app.post('/api/create-refund', createRefundHandler as RequestHandler);
 app.get('/api/mentor-balance/:mentorId', getMentorBalanceHandler as RequestHandler);
 app.post('/api/create-connect-account', createConnectAccountHandler as RequestHandler);
 app.post('/api/webhook', handleStripeWebhook as RequestHandler);
+
+// New mentor Stripe endpoints
+app.post('/api/mentor-stripe-account/:mentorId', createMentorStripeAccountHandler as RequestHandler);
+app.post('/api/mentor-payout/:mentorId', createMentorPayoutHandler as RequestHandler);
 
 // In production, serve the static frontend files
 if (isProduction) {

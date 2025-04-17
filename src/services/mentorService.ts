@@ -4,11 +4,28 @@ import { getDatabase } from "./database/db";
 import { Document } from "../types/database"; // Import the Document type
 import { getMentorRatings, getMentorAverageRating } from "./ratingService";
 import { deleteDocument, COLLECTIONS } from "./firebase/firestore";
+import {
+  getDocuments,
+  whereEqual,
+} from './firebase';
+import { API_BASE_URL } from './config';
 
 // Extended MentorProfile with additional fields from our database schema
 interface ExtendedMentorProfile extends MentorProfile {
   yearsOfExperience?: number;
   userId?: string;
+}
+
+// Define the interface for a mentor document
+interface MentorDocument {
+  id: string;
+  userId?: string;
+  stripeAccountId?: string;
+  expertise?: string[];
+  bio?: string;
+  sessionPrice?: number;
+  balance?: number;
+  [key: string]: any;
 }
 
 /**
@@ -402,134 +419,76 @@ export const updateMentorProfile = async (
 /**
  * Get mentor by user ID
  */
-export const getMentorByUserId = async (
-  userId: string
-): Promise<ExtendedMentorProfile | null> => {
+export const getMentorByUserId = async (userId: string) => {
   try {
-    console.log("Fetching mentor by user ID:", userId);
-    const db = await getDatabase();
+    // Find mentors with matching userId
+    const mentors = await getDocuments<MentorDocument>(
+      COLLECTIONS.MENTORS,
+      [whereEqual('userId', userId)]
+    );
 
-    const userDoc = await db.users.findOne(userId).exec();
-
-    if (!userDoc) {
-      console.error("User not found for ID:", userId);
+    if (mentors.length === 0) {
       return null;
     }
 
-    // Convert to plain JS object to avoid readonly issues
-    const user = JSON.parse(JSON.stringify(userDoc.toJSON()));
-    console.log("Found user:", user.name, user.role);
+    return mentors[0];
+  } catch (error) {
+    console.error("Error getting mentor by user ID:", error);
+    throw error;
+  }
+};
 
-    // Allow any user to have a mentor profile for testing purposes
-    // if (user.role !== "mentor") {
-    //   console.error("User is not a mentor:", userId);
-    //   return null;
-    // }
+/**
+ * Create or get a Stripe Connect account for a mentor
+ */
+export const createMentorStripeAccount = async (mentorId: string) => {
+  try {
+    // Call the server API to create/get a Stripe account
+    const response = await fetch(`${API_BASE_URL}/api/mentor-stripe-account/${mentorId}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      }
+    });
 
-    // Find the mentor document with the given userId
-    const mentorDocs = await db.mentors
-      .find({
-        selector: {
-          userId: userId,
-        },
-      })
-      .exec();
-
-    let mentor;
-
-    // If no mentor found with this userId, create a new mentor profile
-    if (mentorDocs.length === 0) {
-      console.log("No mentor profile found, creating new profile for:", userId);
-
-      // Create a new mentor profile with default values
-      const newMentorProfile = {
-        id: uuidv4(),
-        userId: userId,
-        expertise: ["JavaScript", "React", "Node.js"],  // Add default expertise
-        bio: "Mentor bio will appear here.",
-        sessionPrice: 50,
-        yearsOfExperience: 3,
-        portfolio: [],
-        certifications: [],
-        education: [],
-        workExperience: [],
-        createdAt: Date.now(),
-        updatedAt: Date.now(),
-      };
-
-      // Insert the new mentor profile
-      const insertedDoc = await db.mentors.insert(newMentorProfile);
-      mentor = JSON.parse(JSON.stringify(insertedDoc.toJSON()));
-      console.log("Created new mentor profile:", mentor.id);
-    } else {
-      // Get the first mentor document
-      const mentorDoc = mentorDocs[0];
-      mentor = JSON.parse(JSON.stringify(mentorDoc.toJSON()));
-      console.log("Found existing mentor profile:", mentor.id);
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || 'Failed to create Stripe account');
     }
 
-    // Don't include password in the returned object
-    const { password, ...safeUser } = user;
-
-    // Get availability slots for this mentor
-    const availabilityDocs = await db.availability
-      .find({
-        selector: {
-          mentorId: mentor.id,
-        },
-        sort: [{ date: "asc" }] // Sort by date ascending
-      })
-      .exec();
-
-    const availability = availabilityDocs.map((doc: Document) => {
-      const slotData = JSON.parse(JSON.stringify(doc.toJSON()));
-      return {
-        id: slotData.id,
-        mentorId: slotData.mentorId,
-        date: slotData.date,
-        startTime: slotData.startTime,
-        endTime: slotData.endTime,
-        isBooked: slotData.isBooked || false,
-        createdAt: slotData.createdAt,
-        updatedAt: slotData.updatedAt
-      };
-    });
-
-    // Get mentor ratings
-    const ratings = await getMentorRatings(mentor.id);
-    const averageRating = await getMentorAverageRating(mentor.id);
-
-    console.log(`Found ${availability.length} availability slots for mentor ${mentor.id}`);
-
-    // Combine mentor and user data
-    const combinedProfile = {
-      ...mentor,
-      id: mentor.id,
-      email: safeUser.email,
-      name: safeUser.name,
-      role: "mentor" as const,
-      profilePicture: safeUser.profilePicture || "",
-      availability: availability,
-      ratings: ratings,
-      averageRating: averageRating,
-    } as ExtendedMentorProfile;
-
-    console.log("Returning combined profile:", {
-      id: combinedProfile.id,
-      name: combinedProfile.name,
-      availabilityCount: combinedProfile.availability?.length,
-      expertise: combinedProfile.expertise,
-      bio: combinedProfile.bio,
-      sessionPrice: combinedProfile.sessionPrice,
-      yearsOfExperience: combinedProfile.yearsOfExperience,
-      ratingsCount: combinedProfile.ratings?.length,
-      averageRating: combinedProfile.averageRating
-    });
-
-    return combinedProfile;
+    return await response.json();
   } catch (error) {
-    console.error(`Failed to get mentor with user ID ${userId}:`, error);
-    throw new Error(`Failed to get mentor with user ID ${userId}`);
+    console.error("Error creating Stripe account for mentor:", error);
+    throw error;
+  }
+};
+
+/**
+ * Create a payout (withdrawal) for a mentor
+ */
+export const createMentorPayout = async (mentorId: string, amount: number, currency: string = 'usd') => {
+  try {
+    // Call the server API to create a payout
+    const response = await fetch(`${API_BASE_URL}/api/mentor-payout/${mentorId}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        amount,
+        currency
+      })
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || 'Failed to create payout');
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error("Error creating payout for mentor:", error);
+    throw error;
   }
 };
 

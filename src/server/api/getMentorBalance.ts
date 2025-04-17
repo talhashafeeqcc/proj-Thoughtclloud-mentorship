@@ -2,6 +2,18 @@ import { Request, Response } from 'express';
 import stripe from './stripeConfig';
 import { getDocument, COLLECTIONS } from '../../services/firebase';
 
+// Define the interface for a mentor document from Firebase
+interface MentorDocument {
+  id: string;
+  userId?: string;
+  stripeAccountId?: string;
+  expertise?: string[];
+  bio?: string;
+  sessionPrice?: number;
+  balance?: number;
+  [key: string]: any;
+}
+
 export const getMentorBalanceHandler = async (req: Request, res: Response) => {
   try {
     const { mentorId } = req.params;
@@ -11,9 +23,13 @@ export const getMentorBalanceHandler = async (req: Request, res: Response) => {
     }
 
     // Get the mentor's Stripe account ID from Firebase
-    const mentor = await getDocument(COLLECTIONS.MENTORS, mentorId);
+    const mentor = await getDocument<MentorDocument>(COLLECTIONS.MENTORS, mentorId);
     
-    if (!mentor || !mentor.stripeAccountId) {
+    if (!mentor) {
+      return res.status(404).json({ error: 'Mentor not found' });
+    }
+
+    if (!mentor.stripeAccountId) {
       return res.status(404).json({ error: 'Mentor has no connected Stripe account' });
     }
 

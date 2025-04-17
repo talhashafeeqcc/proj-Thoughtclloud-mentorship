@@ -2,14 +2,31 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from "react"
 import AvailabilityCalendar from "./AvailabilityCalendar";
 import AvailabilityManager from "./AvailabilityManager";
 import { useAuth } from "../../context/AuthContext";
-import { FaCalendarAlt, FaCalendarCheck, FaList, FaTools } from "react-icons/fa";
+import { FaCalendarAlt, FaCalendarCheck, FaList, FaTools, FaWallet } from "react-icons/fa";
 import SessionList from "./SessionList";
 import { clearDatabase } from "../../services/database/db";
 // import { seedDatabase } from "../../services/database/seedData";
 import { retryBootstrap } from "../../services/database/bootstrap";
 import ProfileCompletionBanner from "./ProfileCompletionBanner";
 import { useSession } from "../../context/SessionContext";
-import { getMentorByUserId } from "../../services/mentorService";
+import { getMentorByUserId, createMentorPayout } from "../../services/mentorService";
+import { getMentorBalance } from "../../services/stripe";
+
+// Interface for the balance data structure
+interface MentorBalance {
+  available: {
+    amount: number;
+    currency: string;
+  }[];
+  pending: {
+    amount: number;
+    currency: string;
+  }[];
+  instant_available: {
+    amount: number;
+    currency: string;
+  }[];
+}
 
 const MentorDashboard: React.FC = () => {
   // Add error handling for context issues
@@ -37,6 +54,9 @@ const MentorDashboard: React.FC = () => {
   const [activeTab, setActiveTab] = useState("sessions"); // 'sessions', 'calendar', or 'manage'
   // Track availability changes to refresh calendar when needed
   const [availabilityVersion, setAvailabilityVersion] = useState(0);
+  // State for storing mentor balance
+  const [balance, setBalance] = useState<MentorBalance | null>(null);
+  const [balanceLoading, setBalanceLoading] = useState(false);
 
   // Ref to track component mounted state and fetching state
   const mountedRef = useRef(true);
@@ -129,6 +149,23 @@ const MentorDashboard: React.FC = () => {
         // Only update state if component is still mounted
         if (mountedRef.current && mentorData) {
           setMentorId(mentorData.id || "");
+          
+          // Fetch mentor balance after getting mentor ID
+          if (mentorData.id) {
+            setBalanceLoading(true);
+            try {
+              const balanceData = await getMentorBalance(mentorData.id);
+              if (mountedRef.current) {
+                setBalance(balanceData);
+              }
+            } catch (balanceError) {
+              console.error("Error fetching balance:", balanceError);
+            } finally {
+              if (mountedRef.current) {
+                setBalanceLoading(false);
+              }
+            }
+          }
         }
       } catch (err: any) {
         if (mountedRef.current) {
@@ -184,6 +221,15 @@ const MentorDashboard: React.FC = () => {
     </div>
   ), []);
 
+  // Helper to format currency amount from cents to dollars
+  const formatCurrency = (amount: number, currency: string) => {
+    const formatter = new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: currency.toUpperCase(),
+    });
+    return formatter.format(amount / 100);
+  };
+
   // Handle early returns based on loading state
   if (loading) {
     return loadingUI;
@@ -202,6 +248,63 @@ const MentorDashboard: React.FC = () => {
     <div>
       {/* Profile Completion Banner */}
       <ProfileCompletionBanner />
+
+      {/* Balance Summary Card */}
+      <div className="bg-white shadow-md rounded-lg p-4 mb-6">
+        <div className="flex items-center mb-3">
+          <FaWallet className="text-blue-500 mr-2" />
+          <h3 className="text-lg font-semibold">Your Balance</h3>
+        </div>
+        
+        {balanceLoading ? (
+          <div className="flex items-center">
+            <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mr-2"></div>
+            <span className="text-gray-600">Loading balance...</span>
+          </div>
+        ) : balance ? (
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+            <div className="bg-blue-50 p-3 rounded-md">
+              <h4 className="text-sm text-gray-600">Available</h4>
+              <p className="text-xl font-semibold">
+                {balance.available.length > 0 
+                  ? formatCurrency(balance.available[0].amount, balance.available[0].currency)
+                  : '$0.00'}
+              </p>
+              {balance.available.length > 0 && balance.available[0].amount > 0 && (
+                <button 
+                  onClick={async () => {
+                    try {
+                      setBalanceLoading(true);
+                      await createMentorPayout(mentorId, balance.available[0].amount, balance.available[0].currency);
+                      // Refresh balance after withdrawal
+                      const balanceData = await getMentorBalance(mentorId);
+                      setBalance(balanceData);
+                    } catch (error) {
+                      console.error("Error creating payout:", error);
+                      alert("Failed to process withdrawal. Please try again later.");
+                    } finally {
+                      setBalanceLoading(false);
+                    }
+                  }}
+                  className="mt-2 bg-blue-500 hover:bg-blue-600 text-white text-sm py-1 px-3 rounded"
+                >
+                  Withdraw
+                </button>
+              )}
+            </div>
+            <div className="bg-gray-50 p-3 rounded-md">
+              <h4 className="text-sm text-gray-600">Pending</h4>
+              <p className="text-xl font-semibold">
+                {balance.pending.length > 0 
+                  ? formatCurrency(balance.pending[0].amount, balance.pending[0].currency)
+                  : '$0.00'}
+              </p>
+            </div>
+          </div>
+        ) : (
+          <p className="text-gray-600">No balance information available. Make sure your account is connected to Stripe.</p>
+        )}
+      </div>
 
       {/* Tabs */}
       <div className="border-b border-gray-200 mb-6">

@@ -3,17 +3,12 @@ import {
     updateDocument,
     COLLECTIONS
 } from '../firebase';
-
-// Set the base URL for API calls
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 
-    (import.meta.env.PROD 
-        ? window.location.origin
-        : 'http://localhost:3001');
+import { API_BASE_URL } from '../config';
 
 // Check if we're in a development environment
-const isDevelopment = import.meta.env.DEV ||
-    window.location.hostname === 'localhost' ||
-    window.location.hostname === '127.0.0.1';
+// const isDevelopment = import.meta.env.DEV ||
+//     window.location.hostname === 'localhost' ||
+//     window.location.hostname === '127.0.0.1';
 
 // Process payment with Stripe
 export const createPaymentIntent = async (
