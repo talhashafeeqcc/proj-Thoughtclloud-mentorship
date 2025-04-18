@@ -3,7 +3,8 @@ import { useSession } from "../../context/SessionContext";
 import { useAuth } from "../../context/AuthContext";
 import SessionList from "./SessionList";
 import { Link } from "react-router-dom";
-import { FaUserCheck } from "react-icons/fa";
+import { Users, Calendar, AlertCircle } from "lucide-react";
+import { motion } from "framer-motion";
 
 const MenteeDashboard: React.FC = () => {
   // Add error handling for context issues
@@ -14,10 +15,15 @@ const MenteeDashboard: React.FC = () => {
   } catch (error) {
     console.error("Error accessing SessionContext:", error);
     return (
-      <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-6">
-        <p className="font-bold">Session Context Error</p>
-        <p>There was an error accessing the session data. Please try refreshing the page.</p>
-        <p className="text-sm mt-2">Error details: {error instanceof Error ? error.message : String(error)}</p>
+      <div className="bg-red-50 dark:bg-red-900/30 border-l-4 border-red-500 text-red-700 dark:text-red-300 p-5 mb-6 rounded-md shadow-sm">
+        <div className="flex items-start">
+          <AlertCircle className="h-5 w-5 mr-3 mt-0.5 flex-shrink-0" />
+          <div>
+            <p className="font-bold">Session Context Error</p>
+            <p>There was an error accessing the session data. Please try refreshing the page.</p>
+            <p className="text-sm mt-2">Error details: {error instanceof Error ? error.message : String(error)}</p>
+          </div>
+        </div>
       </div>
     );
   }
@@ -53,14 +59,14 @@ const MenteeDashboard: React.FC = () => {
     }
 
     return sessionState.sessions;
-  }, [sessionState.sessions]);
+  }, [sessionState.sessions, authState.user?.id]);
 
   // Memoize loading UI to avoid recreating it on each render
   const loadingUI = useMemo(
     () => (
-      <div className="text-center py-8">
-        <div className="inline-block w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-        <p className="mt-2">Loading your sessions...</p>
+      <div className="text-center py-10">
+        <div className="inline-block w-12 h-12 border-4 border-indigo-500 border-t-transparent dark:border-indigo-400 rounded-full animate-spin mb-4"></div>
+        <p className="text-gray-700 dark:text-gray-300 text-lg">Loading your sessions...</p>
       </div>
     ),
     []
@@ -70,9 +76,14 @@ const MenteeDashboard: React.FC = () => {
   const errorUI = useMemo(
     () =>
       sessionState.error && (
-        <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-6">
-          <p className="font-bold">Error</p>
-          <p>{sessionState.error}</p>
+        <div className="bg-red-50 dark:bg-red-900/30 border-l-4 border-red-500 text-red-700 dark:text-red-300 p-5 mb-6 rounded-md shadow-sm">
+          <div className="flex items-start">
+            <AlertCircle className="h-5 w-5 mr-3 mt-0.5 flex-shrink-0" />
+            <div>
+              <p className="font-bold">Error</p>
+              <p>{sessionState.error}</p>
+            </div>
+          </div>
         </div>
       ),
     [sessionState.error]
@@ -81,16 +92,19 @@ const MenteeDashboard: React.FC = () => {
   // Memoize the header
   const header = useMemo(
     () => (
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-xl font-semibold flex items-center">
-          <FaUserCheck className="mr-2" /> Your Mentoring Sessions
+      <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4 mb-8">
+        <h2 className="text-2xl font-semibold flex items-center text-gray-900 dark:text-white">
+          <Calendar className="mr-2 text-indigo-600 dark:text-indigo-400 h-6 w-6" /> 
+          Your Mentoring Sessions
         </h2>
-        <Link
-          to="/mentors"
-          className="bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-md flex items-center"
-        >
-          <FaUserCheck className="mr-2" /> Find a Mentor
-        </Link>
+        <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
+          <Link
+            to="/mentors"
+            className="bg-indigo-600 hover:bg-indigo-700 text-white py-2.5 px-4 rounded-lg shadow-sm flex items-center justify-center transition-colors"
+          >
+            <Users className="h-5 w-5 mr-2" /> Find a Mentor
+          </Link>
+        </motion.div>
       </div>
     ),
     []
@@ -99,24 +113,38 @@ const MenteeDashboard: React.FC = () => {
   // No sessions message
   const noSessionsMessage = useMemo(
     () => (
-      <div className="bg-blue-50 border border-blue-200 rounded-md p-4 text-center">
-        <p className="text-blue-800 mb-2">You don't have any sessions yet.</p>
-        <p className="text-sm text-blue-600">
-          Find a mentor and book your first session to get started!
+      <motion.div 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4 }}
+        className="bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-700 rounded-xl p-8 text-center"
+      >
+        <div className="inline-flex items-center justify-center w-16 h-16 bg-indigo-100 dark:bg-indigo-800/50 rounded-full mb-4">
+          <Calendar className="h-8 w-8 text-indigo-600 dark:text-indigo-400" />
+        </div>
+        <h3 className="text-xl font-semibold mb-2 text-gray-900 dark:text-white">No sessions yet</h3>
+        <p className="text-gray-700 dark:text-gray-300 mb-6 max-w-md mx-auto">
+          You don't have any mentoring sessions scheduled yet. Find a mentor and book your first session to get started!
         </p>
-        <Link
-          to="/mentors"
-          className="mt-3 inline-block bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-md"
-        >
-          Browse Mentors
-        </Link>
-      </div>
+        <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
+          <Link
+            to="/mentors"
+            className="inline-flex items-center bg-indigo-600 hover:bg-indigo-700 text-white py-2.5 px-5 rounded-lg shadow-sm transition-colors"
+          >
+            <Users className="mr-2 h-5 w-5" /> Browse Mentors
+          </Link>
+        </motion.div>
+      </motion.div>
     ),
     []
   );
 
   return (
-    <div>
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.3 }}
+    >
       {header}
 
       {sessionState.loading ? (
@@ -132,7 +160,7 @@ const MenteeDashboard: React.FC = () => {
           currentUserId={authState.user?.id || ""}
         />
       )}
-    </div>
+    </motion.div>
   );
 };
 

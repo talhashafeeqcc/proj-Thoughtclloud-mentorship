@@ -1,14 +1,21 @@
 import React, { useState } from "react";
+import { Link } from "react-router-dom";
+import { AlertCircle, RefreshCw, Terminal, HelpCircle } from "lucide-react";
+
+interface DatabaseErrorFallbackProps {
+  error?: string | null;
+}
 
 /**
  * A fallback component that displays when database initialization fails.
  * Offers solutions to the user including hard reset options.
  */
-const DatabaseErrorFallback: React.FC = () => {
+const DatabaseErrorFallback: React.FC<DatabaseErrorFallbackProps> = ({ error }) => {
   const [isResetting, setIsResetting] = useState(false);
   const [message, setMessage] = useState(
-    "There was an error connecting to the database. Let's try to fix it."
+    error || "There was an error connecting to the database. Let's try to fix it."
   );
+  const [showTechDetails, setShowTechDetails] = useState(false);
 
   const handleHardReset = async () => {
     setIsResetting(true);
@@ -61,36 +68,65 @@ const DatabaseErrorFallback: React.FC = () => {
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-100">
-      <div className="bg-white p-8 rounded-lg shadow-md max-w-md w-full">
-        <h2 className="text-2xl font-bold mb-4 text-red-600">
-          Firebase Connection Error
-        </h2>
-        <p className="mb-6 whitespace-pre-line">{message}</p>
+    <div className="flex items-center justify-center min-h-screen bg-gray-100 dark:bg-gray-900 transition-colors duration-300">
+      <div className="bg-white dark:bg-gray-800 p-8 rounded-xl shadow-lg max-w-md w-full border border-gray-200 dark:border-gray-700 transition-all">
+        <div className="flex items-center mb-6">
+          <AlertCircle className="text-red-600 dark:text-red-400 w-8 h-8 mr-3 flex-shrink-0" />
+          <h2 className="text-2xl font-bold text-red-600 dark:text-red-400">
+            Database Connection Error
+          </h2>
+        </div>
+        
+        <p className="mb-6 whitespace-pre-line text-gray-700 dark:text-gray-300">{message}</p>
+
+        {showTechDetails && error && (
+          <div className="mb-6 p-3 bg-gray-100 dark:bg-gray-900 rounded-md border border-gray-200 dark:border-gray-700 overflow-auto">
+            <p className="text-sm font-mono text-gray-600 dark:text-gray-400">
+              {error}
+            </p>
+          </div>
+        )}
 
         <div className="space-y-4">
           {!isResetting && (
             <>
               <button
                 onClick={handleHardReset}
-                className="w-full py-2 px-4 bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
+                className="w-full py-3 px-4 bg-red-600 dark:bg-red-700 text-white rounded-lg hover:bg-red-700 dark:hover:bg-red-600 transition-colors flex items-center justify-center"
                 disabled={isResetting}
               >
+                <RefreshCw className="w-5 h-5 mr-2" />
                 Reset Application Data
               </button>
 
               <button
                 onClick={handleManualClearInstructions}
-                className="w-full py-2 px-4 bg-gray-200 text-gray-800 rounded hover:bg-gray-300 transition-colors"
+                className="w-full py-3 px-4 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors flex items-center justify-center"
               >
+                <HelpCircle className="w-5 h-5 mr-2" />
                 Show Manual Instructions
               </button>
+
+              <button
+                onClick={() => setShowTechDetails(!showTechDetails)}
+                className="w-full py-3 px-4 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 border border-gray-300 dark:border-gray-600 transition-colors flex items-center justify-center"
+              >
+                <Terminal className="w-5 h-5 mr-2" />
+                {showTechDetails ? "Hide Technical Details" : "Show Technical Details"}
+              </button>
+
+              <Link 
+                to="/"
+                className="block w-full text-center py-3 px-4 bg-indigo-600 dark:bg-indigo-700 text-white rounded-lg hover:bg-indigo-700 dark:hover:bg-indigo-600 transition-colors mt-4"
+              >
+                Return to Home Page
+              </Link>
             </>
           )}
 
           {isResetting && (
-            <div className="flex justify-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-red-600"></div>
+            <div className="flex justify-center py-4">
+              <div className="animate-spin rounded-full h-10 w-10 border-4 border-red-600 dark:border-red-400 border-t-transparent"></div>
             </div>
           )}
         </div>

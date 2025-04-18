@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import ThemeSwitcher from "../theme/ThemeSwitcher";
+import { motion } from "framer-motion";
 
 const Navbar: React.FC = () => {
   const { authState, logout } = useAuth();
@@ -42,20 +43,20 @@ const Navbar: React.FC = () => {
   }, []);
 
   return (
-    <nav className="bg-purple-600 dark:bg-purple-900 text-white shadow-md transition-colors duration-300">
-      <div className="container mx-auto px-4 py-3">
+    <nav className="bg-indigo-600 dark:bg-indigo-900 text-white shadow-lg transition-colors duration-300">
+      <div className="container mx-auto px-4 py-4">
         <div className="flex justify-between items-center">
           <Link to="/" className="text-xl font-bold animate-fade-in flex items-center group">
             <span className="mr-2 group-hover:animate-wave inline-block">✨</span>
-            <span className="hover:text-purple-200 transition-colors">MentorMatch</span>
+            <span className="hover:text-indigo-200 transition-colors">MentorMatch</span>
           </Link>
 
           {/* Mobile menu button */}
-          <div className="flex items-center gap-2 md:hidden">
+          <div className="flex items-center gap-3 md:hidden">
             <ThemeSwitcher />
             <button
               onClick={toggleMobileMenu}
-              className="flex items-center"
+              className="flex items-center p-1 rounded-md hover:bg-indigo-500 dark:hover:bg-indigo-800 transition-colors"
               aria-label="Toggle mobile menu"
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -65,22 +66,24 @@ const Navbar: React.FC = () => {
           </div>
 
           {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center space-x-4">
-            <Link to="/mentors" className="hover:text-purple-200 dark:hover:text-purple-300 transition-colors relative group">
+          <div className="hidden md:flex items-center space-x-6">
+            <Link to="/mentors" className="hover:text-indigo-200 dark:hover:text-indigo-300 transition-colors relative group">
               Find Mentors
-              <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-purple-300 transition-all duration-300 group-hover:w-full"></span>
+              <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-indigo-300 transition-all duration-300 group-hover:w-full"></span>
             </Link>
 
             <ThemeSwitcher />
 
             {authState.isAuthenticated ? (
               <>
-                <Link to="/dashboard" className="hover:text-purple-200 dark:hover:text-purple-300 transition-colors relative group">
+                <Link to="/dashboard" className="hover:text-indigo-200 dark:hover:text-indigo-300 transition-colors relative group">
                   Dashboard
-                  <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-purple-300 transition-all duration-300 group-hover:w-full"></span>
+                  <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-indigo-300 transition-all duration-300 group-hover:w-full"></span>
                 </Link>
                 <div className="flex items-center relative" ref={dropdownRef}>
-                  <div
+                  <motion.div
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.98 }}
                     className="flex items-center cursor-pointer"
                     onClick={toggleDropdown}
                     onKeyDown={(e) => e.key === "Enter" && toggleDropdown()}
@@ -91,11 +94,11 @@ const Navbar: React.FC = () => {
                       <img
                         src={authState.user.profilePicture}
                         alt={authState.user.name}
-                        className="w-8 h-8 rounded-full mr-2 ring-2 ring-white/30"
+                        className="w-9 h-9 rounded-full mr-2 ring-2 ring-white/30 object-cover"
                       />
                     ) : (
-                      <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center mr-2 ring-2 ring-white/30">
-                        {authState.user?.name.charAt(0)}
+                      <div className="w-9 h-9 rounded-full bg-indigo-300 dark:bg-indigo-200 flex items-center justify-center mr-2 ring-2 ring-white/30 text-indigo-800">
+                        {authState.user?.name ? authState.user.name.charAt(0).toUpperCase() : "U"}
                       </div>
                     )}
                     <span className="mr-2">{authState.user?.name}</span>
@@ -114,18 +117,23 @@ const Navbar: React.FC = () => {
                         d="M19 9l-7 7-7-7"
                       />
                     </svg>
-                  </div>
+                  </motion.div>
 
                   {dropdownOpen && (
-                    <div className="absolute right-0 mt-2 top-full w-48 bg-white dark:bg-gray-800 text-gray-800 dark:text-white rounded-md shadow-lg py-1 z-10 animate-fade-in">
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.2 }}
+                      className="absolute right-0 mt-2 top-full w-48 bg-white dark:bg-gray-800 text-gray-800 dark:text-white rounded-xl shadow-lg py-1 z-10"
+                    >
                       <Link
                         to="/settings"
-                        className="flex items-center px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700"
+                        className="flex items-center px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
                         onClick={() => setDropdownOpen(false)}
                       >
                         <svg
                           xmlns="http://www.w3.org/2000/svg"
-                          className="h-5 w-5 mr-2 text-purple-500 dark:text-purple-400"
+                          className="h-5 w-5 mr-2 text-indigo-500 dark:text-indigo-400"
                           fill="none"
                           viewBox="0 0 24 24"
                           stroke="currentColor"
@@ -150,11 +158,11 @@ const Navbar: React.FC = () => {
                           handleLogout();
                           setDropdownOpen(false);
                         }}
-                        className="flex items-center w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700"
+                        className="flex items-center w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
                       >
                         <svg
                           xmlns="http://www.w3.org/2000/svg"
-                          className="h-5 w-5 mr-2 text-purple-500 dark:text-purple-400"
+                          className="h-5 w-5 mr-2 text-indigo-500 dark:text-indigo-400"
                           fill="none"
                           viewBox="0 0 24 24"
                           stroke="currentColor"
@@ -168,22 +176,24 @@ const Navbar: React.FC = () => {
                         </svg>
                         Logout
                       </button>
-                    </div>
+                    </motion.div>
                   )}
                 </div>
               </>
             ) : (
               <div className="space-x-4 flex items-center">
-                <Link to="/login" className="hover:text-purple-200 dark:hover:text-purple-300 transition-colors relative group">
+                <Link to="/login" className="hover:text-indigo-200 dark:hover:text-indigo-300 transition-colors relative group">
                   Login
-                  <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-purple-300 transition-all duration-300 group-hover:w-full"></span>
+                  <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-indigo-300 transition-all duration-300 group-hover:w-full"></span>
                 </Link>
-                <Link
-                  to="/register"
-                  className="bg-white text-purple-600 hover:bg-purple-50 dark:bg-purple-200 dark:text-purple-900 px-4 py-2 rounded-md transition-colors transform hover:scale-105 duration-300 shadow-md"
-                >
-                  Sign Up
-                </Link>
+                <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                  <Link
+                    to="/register"
+                    className="bg-white text-indigo-600 hover:bg-indigo-50 dark:bg-indigo-200 dark:text-indigo-900 px-4 py-2 rounded-lg transition-colors shadow-md font-medium"
+                  >
+                    Sign Up
+                  </Link>
+                </motion.div>
               </div>
             )}
           </div>
@@ -191,10 +201,15 @@ const Navbar: React.FC = () => {
 
         {/* Mobile Menu */}
         {mobileMenuOpen && (
-          <div className="md:hidden pt-4 pb-2 space-y-3 animate-slide-down">
+          <motion.div 
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            transition={{ duration: 0.2 }}
+            className="md:hidden pt-4 pb-2 space-y-3"
+          >
             <Link
               to="/mentors"
-              className="block py-2 hover:text-purple-200 dark:hover:text-purple-300"
+              className="block py-2 hover:text-indigo-200 dark:hover:text-indigo-300 transition-colors"
               onClick={() => setMobileMenuOpen(false)}
             >
               Find Mentors
@@ -204,14 +219,14 @@ const Navbar: React.FC = () => {
               <>
                 <Link
                   to="/dashboard"
-                  className="block py-2 hover:text-purple-200 dark:hover:text-purple-300"
+                  className="block py-2 hover:text-indigo-200 dark:hover:text-indigo-300 transition-colors"
                   onClick={() => setMobileMenuOpen(false)}
                 >
                   Dashboard
                 </Link>
                 <Link
                   to="/settings"
-                  className="block py-2 hover:text-purple-200 dark:hover:text-purple-300"
+                  className="block py-2 hover:text-indigo-200 dark:hover:text-indigo-300 transition-colors"
                   onClick={() => setMobileMenuOpen(false)}
                 >
                   Settings
@@ -221,30 +236,30 @@ const Navbar: React.FC = () => {
                     handleLogout();
                     setMobileMenuOpen(false);
                   }}
-                  className="block py-2 hover:text-purple-200 dark:hover:text-purple-300 w-full text-left"
+                  className="block py-2 hover:text-indigo-200 dark:hover:text-indigo-300 w-full text-left transition-colors"
                 >
                   Logout
                 </button>
               </>
             ) : (
-              <div className="flex flex-col space-y-2">
+              <div className="flex flex-col space-y-3">
                 <Link
                   to="/login"
-                  className="block py-2 hover:text-purple-200 dark:hover:text-purple-300"
+                  className="block py-2 hover:text-indigo-200 dark:hover:text-indigo-300 transition-colors"
                   onClick={() => setMobileMenuOpen(false)}
                 >
                   Login
                 </Link>
                 <Link
                   to="/register"
-                  className="bg-white text-purple-600 hover:bg-purple-50 dark:bg-purple-200 dark:text-purple-900 px-4 py-2 rounded-md text-center"
+                  className="bg-white text-indigo-600 hover:bg-indigo-50 dark:bg-indigo-200 dark:text-indigo-900 px-4 py-2 rounded-lg text-center transition-colors shadow-md"
                   onClick={() => setMobileMenuOpen(false)}
                 >
                   Sign Up
                 </Link>
               </div>
             )}
-          </div>
+          </motion.div>
         )}
       </div>
     </nav>

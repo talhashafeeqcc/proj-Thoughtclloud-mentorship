@@ -74,10 +74,10 @@ const SessionList: React.FC<SessionListProps> = ({
 
   if (!sessions || sessions.length === 0) {
     return (
-      <div className="bg-white rounded-lg shadow-sm p-6 text-center">
-        <p className="text-gray-600">No sessions found.</p>
-        <p className="mt-2">
-          <Link to="/mentors" className="text-blue-500 hover:text-blue-700">
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-8 text-center border border-gray-100 dark:border-gray-700 transition-all duration-300">
+        <p className="text-gray-600 dark:text-gray-300 text-lg">No sessions found.</p>
+        <p className="mt-4">
+          <Link to="/mentors" className="text-indigo-500 hover:text-indigo-600 dark:text-indigo-400 dark:hover:text-indigo-300 font-medium transition-colors duration-200">
             Browse mentors
           </Link>{" "}
           to book a session.
@@ -153,27 +153,30 @@ const SessionList: React.FC<SessionListProps> = ({
     const formattedDate = new Date(session.date).toLocaleDateString();
 
     return (
-      <div key={session.id} className="mb-4">
+      <div key={session.id} className="mb-6">
         <div
-          className={`bg-white rounded-lg shadow-sm p-4 cursor-pointer transition-all ${isSelected ? "ring-2 ring-blue-500" : "hover:shadow-md"
-            }`}
+          className={`bg-white dark:bg-gray-800 rounded-xl shadow-sm p-5 cursor-pointer 
+          transition-all duration-300 border
+          ${isSelected 
+            ? "ring-2 ring-indigo-500 border-indigo-500 dark:ring-indigo-400 dark:border-indigo-400" 
+            : "border-gray-100 dark:border-gray-700 hover:shadow-md hover:border-indigo-200 dark:hover:border-indigo-800"}`}
           onClick={() => handleViewDetails(session.id)}
         >
-          <div className="flex justify-between items-start">
-            <div>
-              <h3 className="font-medium text-lg">
+          <div className="flex flex-col md:flex-row justify-between md:items-start gap-4">
+            <div className="flex-1">
+              <h3 className="font-semibold text-lg text-gray-900 dark:text-white">
                 {session.title || "Mentoring Session"}
               </h3>
-              <div className="text-sm text-gray-600 mb-2">
-                <div className="flex items-center mt-1">
-                  <FaCalendar className="mr-2 text-gray-500" />
+              <div className="text-sm text-gray-600 dark:text-gray-300 mt-2 space-y-2">
+                <div className="flex items-center">
+                  <FaCalendar className="mr-2 text-indigo-500 dark:text-indigo-400" />
                   {formattedDate}
-                  <span className="mx-2">•</span>
-                  <FaClock className="mr-2 text-gray-500" />
+                  <span className="mx-2 text-gray-400">•</span>
+                  <FaClock className="mr-2 text-indigo-500 dark:text-indigo-400" />
                   {session.startTime} - {session.endTime}
                 </div>
-                <div className="flex items-center mt-1">
-                  <FaUser className="mr-2 text-gray-500" />
+                <div className="flex items-center">
+                  <FaUser className="mr-2 text-indigo-500 dark:text-indigo-400" />
                   {isMentee
                     ? `Mentor: ${session.mentorName}`
                     : `Mentee: ${session.menteeName}`}
@@ -181,27 +184,29 @@ const SessionList: React.FC<SessionListProps> = ({
               </div>
             </div>
 
-            <div className="flex flex-col items-end">
-              <div className="flex space-x-2 mb-2">
+            <div className="flex flex-col items-start md:items-end gap-3">
+              <div className="flex flex-wrap gap-2">
                 <span
-                  className={`px-2 py-1 rounded-full text-xs ${isCompleted
-                    ? "bg-green-100 text-green-800"
-                    : isUpcoming
-                      ? "bg-blue-100 text-blue-800"
-                      : "bg-red-100 text-red-800"
-                    }`}
+                  className={`px-3 py-1 rounded-full text-xs font-medium ${
+                    isCompleted
+                      ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
+                      : isUpcoming
+                        ? "bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200"
+                        : "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"
+                  }`}
                 >
                   {session.status.charAt(0).toUpperCase() +
                     session.status.slice(1)}
                 </span>
 
                 <span
-                  className={`px-2 py-1 rounded-full text-xs ${isPaid
-                    ? "bg-green-100 text-green-800"
-                    : isPending
-                      ? "bg-yellow-100 text-yellow-800"
-                      : "bg-gray-100 text-gray-800"
-                    }`}
+                  className={`px-3 py-1 rounded-full text-xs font-medium ${
+                    isPaid
+                      ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
+                      : isPending
+                        ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200"
+                        : "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300"
+                  }`}
                 >
                   {session.paymentStatus.charAt(0).toUpperCase() +
                     session.paymentStatus.slice(1)}
@@ -209,26 +214,26 @@ const SessionList: React.FC<SessionListProps> = ({
               </div>
 
               {/* Actions buttons */}
-              <div className="flex flex-col items-end space-y-2">
+              <div className="flex space-x-3 mt-1">
                 {/* Cancel button for upcoming sessions - show for both mentor and mentee */}
                 {isUpcoming && (
                   <button
                     onClick={(e) => handleCancelClick(e, session.id)}
                     disabled={!!isCancelling}
-                    className="text-sm text-red-500 hover:text-red-700 flex items-center"
+                    className="text-sm text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 flex items-center px-3 py-1 rounded-md border border-red-200 hover:bg-red-50 dark:border-red-800 dark:hover:bg-red-900/30 transition-colors duration-200"
                   >
                     {isCancelling === session.id ? (
                       <>Cancelling...</>
                     ) : (
                       <>
-                        <FaTimesCircle className="mr-1" /> Cancel
+                        <FaTimesCircle className="mr-1.5" /> Cancel
                       </>
                     )}
                   </button>
                 )}
 
                 {/* Review button for completed and paid sessions */}
-                {isCompleted && isPaid && (
+                {isCompleted && isPaid && isMentee && (
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
@@ -236,10 +241,14 @@ const SessionList: React.FC<SessionListProps> = ({
                       console.log("isMentee:", isMentee);
                       handleShowReview(e, session.id);
                     }}
-                    className={`text-sm ${hasReviewed ? 'text-gray-500' : 'text-yellow-500 hover:text-yellow-700'} flex items-center`}
+                    className={`text-sm px-3 py-1 rounded-md border transition-colors duration-200 flex items-center ${
+                      hasReviewed 
+                        ? 'text-gray-500 border-gray-200 dark:text-gray-400 dark:border-gray-700' 
+                        : 'text-yellow-600 border-yellow-200 hover:bg-yellow-50 dark:text-yellow-400 dark:border-yellow-800 dark:hover:bg-yellow-900/30'
+                    }`}
                     disabled={hasReviewed}
                   >
-                    <FaStar className="mr-1" /> {hasReviewed ? "Reviewed" : "Leave a Review"}
+                    <FaStar className="mr-1.5" /> {hasReviewed ? "Reviewed" : "Leave Review"}
                   </button>
                 )}
 
@@ -247,9 +256,9 @@ const SessionList: React.FC<SessionListProps> = ({
                 {isPending && isMentee && (
                   <button
                     onClick={(e) => handleShowPayment(e, session.id)}
-                    className="text-sm text-blue-500 hover:text-blue-700 flex items-center"
+                    className="text-sm text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300 flex items-center px-3 py-1 rounded-md border border-indigo-200 hover:bg-indigo-50 dark:border-indigo-800 dark:hover:bg-indigo-900/30 transition-colors duration-200"
                   >
-                    <FaMoneyCheckAlt className="mr-1" /> Complete Payment
+                    <FaMoneyCheckAlt className="mr-1.5" /> Complete Payment
                   </button>
                 )}
               </div>
@@ -259,7 +268,7 @@ const SessionList: React.FC<SessionListProps> = ({
 
         {/* Expanded view details */}
         {isSelected && !isShowingPayment && !isShowingReview && (
-          <div className="mt-2 bg-gray-50 rounded-lg border p-4">
+          <div className="mt-2 bg-gray-50 dark:bg-gray-900/50 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-inner transition-all duration-300">
             <SessionDetails
               sessionId={session.id}
               currentUserId={currentUserId}
@@ -269,16 +278,18 @@ const SessionList: React.FC<SessionListProps> = ({
 
         {/* Payment form */}
         {isShowingPayment && (
-          <SessionPayment
-            sessionId={session.id}
-            amount={session.paymentAmount}
-            onSuccess={handlePaymentSuccess}
-          />
+          <div className="mt-2 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-md transition-all duration-300">
+            <SessionPayment
+              sessionId={session.id}
+              amount={session.paymentAmount}
+              onSuccess={handlePaymentSuccess}
+            />
+          </div>
         )}
 
         {/* Review form */}
         {isShowingReview && (
-          <div className="mt-2">
+          <div className="mt-2 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-md transition-all duration-300">
             <ReviewForm
               sessionId={session.id}
               mentorId={session.mentorId}
@@ -305,31 +316,34 @@ const SessionList: React.FC<SessionListProps> = ({
         type="danger"
       />
 
-      <div>
+      <div className="space-y-8">
         {upcomingSessions.length > 0 && (
           <div className="mb-6">
-            <h3 className="text-lg font-semibold mb-3 flex items-center">
-              <FaCalendar className="mr-2 text-blue-500" /> Upcoming Sessions
+            <h3 className="text-xl font-semibold mb-4 flex items-center text-gray-900 dark:text-white">
+              <FaCalendar className="mr-2 text-indigo-500 dark:text-indigo-400" /> 
+              Upcoming Sessions
             </h3>
-            <div>{upcomingSessions.map(renderSession)}</div>
+            <div className="space-y-4">{upcomingSessions.map(renderSession)}</div>
           </div>
         )}
 
         {completedSessions.length > 0 && (
           <div className="mb-6">
-            <h3 className="text-lg font-semibold mb-3 flex items-center">
-              <FaCheckCircle className="mr-2 text-green-500" /> Completed Sessions
+            <h3 className="text-xl font-semibold mb-4 flex items-center text-gray-900 dark:text-white">
+              <FaCheckCircle className="mr-2 text-green-500 dark:text-green-400" /> 
+              Completed Sessions
             </h3>
-            <div>{completedSessions.map(renderSession)}</div>
+            <div className="space-y-4">{completedSessions.map(renderSession)}</div>
           </div>
         )}
 
         {cancelledSessions.length > 0 && (
           <div>
-            <h3 className="text-lg font-semibold mb-3 flex items-center">
-              <FaTimesCircle className="mr-2 text-red-500" /> Cancelled Sessions
+            <h3 className="text-xl font-semibold mb-4 flex items-center text-gray-900 dark:text-white">
+              <FaTimesCircle className="mr-2 text-red-500 dark:text-red-400" /> 
+              Cancelled Sessions
             </h3>
-            <div>{cancelledSessions.map(renderSession)}</div>
+            <div className="space-y-4">{cancelledSessions.map(renderSession)}</div>
           </div>
         )}
       </div>
