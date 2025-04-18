@@ -15,4 +15,11 @@ export default defineConfig({
       }
     }
   },
+  define: {
+    // Polyfill for process.env in the browser (for legacy code)
+    'process.env': {
+      NODE_ENV: JSON.stringify(process.env.NODE_ENV),
+      // Add any other process.env variables your app might need
+    }
+  }
 })

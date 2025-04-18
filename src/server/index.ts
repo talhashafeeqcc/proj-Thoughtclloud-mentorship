@@ -19,6 +19,8 @@ import { createConnectAccountHandler } from './api/createConnectAccount.js';
 import { handleStripeWebhook } from './api/stripeWebhook.js';
 import { createMentorStripeAccountHandler } from './api/createMentorStripeAccount.js';
 import { createMentorPayoutHandler } from './api/createMentorPayout.js';
+// Import server-side Firebase configuration
+// import { db, firebaseApp } from './firebase.js';
 
 // Get current file directory with ES modules
 const __filename = fileURLToPath(import.meta.url);

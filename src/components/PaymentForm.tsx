@@ -135,7 +135,7 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
                 </div>
 
                 {/* Test Card Info */}
-                {process.env.NODE_ENV !== 'production' && (
+                {import.meta.env.DEV && (
                     <div className="mt-4 p-3 bg-gray-100 rounded text-xs">
                         <p className="font-semibold mb-1">Test Card Details:</p>
                         <p>Card Number: 4242 4242 4242 4242</p>
