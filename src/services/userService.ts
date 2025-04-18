@@ -40,6 +40,10 @@ interface MentorDocument {
   updatedAt: number;
 }
 
+interface Document<T> {
+  toJSON(): T;
+}
+
 // Simple password comparison function
 // In a real app, you would use bcrypt.compare or similar
 const comparePasswords = (plain: string, hashed: string): boolean => {
@@ -53,7 +57,7 @@ export const getAllUsers = async (): Promise<User[]> => {
   try {
     const db = await getDatabase();
     const userDocs = await db.users.find().exec();
-    const users = userDocs.map((doc) => {
+    const users = userDocs.map((doc: Document<UserDocument>) => {
       const userData = doc.toJSON();
       // Remove password from response
       const { password, ...user } = userData;
@@ -65,6 +69,9 @@ export const getAllUsers = async (): Promise<User[]> => {
     throw new Error("Failed to fetch users");
   }
 };
+
+// Add getUsers as an alias for getAllUsers to maintain backward compatibility
+export const getUsers = getAllUsers;
 
 // Get all mentors with their profiles
 export const getAllMentors = async (): Promise<Mentor[]> => {
@@ -118,6 +125,9 @@ export const getAllMentors = async (): Promise<Mentor[]> => {
     throw new Error("Failed to fetch mentors");
   }
 };
+
+// Add getMentors as an alias for getAllMentors to maintain backward compatibility
+export const getMentors = getAllMentors;
 
 // Get mentor by ID with user data
 export const getMentorById = async (
@@ -176,7 +186,7 @@ export const getMentorById = async (
 };
 
 // Get mentor profile by ID (alias for getMentorById for backward compatibility)
-export const getMentorProfile = async (id: string): Promise<Mentor> {
+export const getMentorProfile = async (id: string): Promise<Mentor> => {
   return getMentorById(id);
 };
 
@@ -237,6 +247,9 @@ export const login = async (
     throw new Error("Login failed");
   }
 };
+
+// Add loginUser as an alias for login to maintain backward compatibility
+export const loginUser = login;
 
 // Create a new user account
 export const register = async (
@@ -330,10 +343,13 @@ export const register = async (
   }
 };
 
+// Add registerUser as an alias for register to maintain backward compatibility
+export const registerUser = register;
+
 // Update user profile
 export const updateUser = async (
   userId: string,
-  updates: Partial<User>
+  updates: Partial<User & { password?: string }>
 ): Promise<User> => {
   try {
     const db = await getDatabase();
@@ -343,8 +359,8 @@ export const updateUser = async (
       throw new Error(`User not found with ID: ${userId}`);
     }
     
-    // Don't allow password updates through this method
-    const { password, id, ...allowedUpdates } = updates;
+    // Don't allow id updates through this method
+    const { id, password, ...allowedUpdates } = updates;
     
     const now = Date.now();
     await userDoc.update({
@@ -370,16 +386,53 @@ export const updateUser = async (
 // Update user profile (alias for updateUser for backward compatibility)
 export const updateProfile = async (
   userId: string,
-  updates: Partial<User>
+  updates: Partial<User & { password?: string }>
 ): Promise<User> => {
   return updateUser(userId, updates);
 };
 
-// Update the ExtendedMentor interface
-interface ExtendedMentor extends Partial<Mentor> {
-  yearsOfExperience?: number;
-  sessionPrice?: number;
-}
+// Create a mentor profile
+export const createMentorProfile = async (
+  userId: string,
+  updates: Partial<Mentor>
+): Promise<Mentor> => {
+  try {
+    const db = await getDatabase();
+    const now = Date.now();
+    
+    // Create a new mentor profile
+    const mentorId = uuidv4();
+    const mentorData = {
+      id: mentorId,
+      userId: userId,
+      title: updates.title || "",
+      expertise: updates.expertise || [],
+      education: updates.education || [],
+      experience: updates.experience || [],
+      certifications: updates.certifications || [],
+      rate: updates.rate || 0,
+      bio: updates.bio || "",
+      portfolio: updates.portfolio || [],
+      workExperience: updates.workExperience || [],
+      sessionPrice: updates.sessionPrice || 0,
+      availability: [],
+      ratings: [],
+      profileComplete: false,
+      paymentConnected: false,
+      stripeAccountId: "",
+      createdAt: now,
+      updatedAt: now,
+    };
+    
+    await db.mentors.insert(mentorData);
+    
+    // Return the newly created mentor profile with user data
+    return getMentorById(mentorId);
+  } catch (error) {
+    console.error("Error creating mentor profile:", error);
+    throw error;
+  }
+};
 
 // Update mentor profile (only profile data, not auth data)
 export const updateMentorProfile = async (
@@ -414,7 +467,7 @@ export const updateMentorProfile = async (
     const mentorData = mentorDoc.toJSON();
     
     // Don't allow updating these fields directly
-    const { id, userId: mentorUserId, ...allowedUpdates } = updates;
+    const { id, ...allowedUpdates } = updates;
     
     const now = Date.now();
     
@@ -451,11 +504,11 @@ export const updateMentorProfile = async (
     
     // Update profile complete status if we have all required fields
     if (
-      mentorFields.title || 
-      mentorFields.expertise || 
-      mentorFields.education || 
-      mentorFields.experience || 
-      mentorFields.rate
+      'title' in mentorFields || 
+      'expertise' in mentorFields || 
+      'education' in mentorFields || 
+      'experience' in mentorFields || 
+      'rate' in mentorFields
     ) {
       const currentData = {
         ...mentorData,
@@ -468,8 +521,8 @@ export const updateMentorProfile = async (
         currentData.expertise.length > 0 &&
         currentData.education &&
         currentData.education.length > 0 &&
-        currentData.experience &&
-        currentData.experience.length > 0 &&
+        ('experience' in currentData) &&
+        (Array.isArray(currentData.experience) ? currentData.experience.length > 0 : !!currentData.experience) &&
         currentData.rate &&
         currentData.rate > 0
       );

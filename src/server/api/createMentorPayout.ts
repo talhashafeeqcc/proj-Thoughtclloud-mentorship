@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
-import stripe from './stripeConfig';
-import { getDocument, COLLECTIONS } from '../../services/firebase';
+import stripe from './stripeConfig.js';
+import { getDocument, COLLECTIONS } from '../../services/firebase/firestore.js';
 
 // Define the interface for a mentor document
 interface MentorDocument {
@@ -8,6 +8,13 @@ interface MentorDocument {
   userId?: string;
   stripeAccountId?: string;
   [key: string]: any;
+}
+
+// Define interface for balance object
+interface BalanceObject {
+  currency: string;
+  amount: number;
+  source_types?: any;
 }
 
 export const createMentorPayoutHandler = async (req: Request, res: Response) => {
@@ -40,7 +47,7 @@ export const createMentorPayoutHandler = async (req: Request, res: Response) => 
     });
 
     // Find available balance in the requested currency
-    const availableBalance = balance.available.find(bal => bal.currency === currency);
+    const availableBalance = balance.available.find((bal: BalanceObject) => bal.currency === currency);
     
     if (!availableBalance || availableBalance.amount < amount) {
       return res.status(400).json({ 

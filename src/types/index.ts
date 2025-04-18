@@ -9,8 +9,12 @@ export interface User {
 
 export interface Mentor extends User {
   role: "mentor";
+  userId?: string; // Reference to the user who is a mentor
   expertise: string[];
   bio: string;
+  title?: string;
+  rate?: number;
+  experience?: string[];
   portfolio: PortfolioItem[];
   certifications: Certification[];
   education: Education[];
@@ -19,6 +23,9 @@ export interface Mentor extends User {
   availability: AvailabilitySlot[];
   ratings: Rating[];
   averageRating?: number;
+  profileComplete?: boolean;
+  paymentConnected?: boolean;
+  stripeAccountId?: string;
 }
 
 export interface Mentee extends User {
@@ -131,7 +138,17 @@ export interface LoginCredentials {
 
 export interface RegisterData extends LoginCredentials {
   name: string;
-  role: "mentor" | "mentee" | "admin";
+  role: "mentor" | "mentee" | "admin" | "both";
+  profilePicture?: string;
+  bio?: string;
+  title?: string;
+  expertise?: string[];
+  education?: Education[];
+  experience?: string[] | string;
+  certifications?: Certification[];
+  rate?: number;
+  interests?: string[];
+  goals?: string[];
 }
 
 // Payment Types

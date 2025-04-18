@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
-import stripe from './stripeConfig';
-import { getDocument, getDocuments, updateDocument, whereEqual, COLLECTIONS } from '../../services/firebase';
+import stripe from './stripeConfig.js';
+import { getDocument, getDocuments, updateDocument, whereEqual, COLLECTIONS } from '../../services/firebase/firestore.js';
 
 // Define the interface for a mentor document
 interface MentorDocument {

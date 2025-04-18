@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { getMentorByUserId } from '../../services/mentorService';
+import { getMentorByUserId, getMentorAvailabilitySlots } from '../../services/mentorService';
 
 interface ProfileCompletion {
     isComplete: boolean;
@@ -71,8 +71,9 @@ const ProfileCompletionBanner: React.FC = () => {
                         missingFields.push('Years of Experience');
                     else completedFields++;
 
-                    // Check availability from mentor data
-                    if (!mentorData.availability || !Array.isArray(mentorData.availability) || mentorData.availability.length === 0)
+                    // Check availability slots from the separate collection
+                    const availabilitySlots = await getMentorAvailabilitySlots(mentorData.id);
+                    if (!availabilitySlots || availabilitySlots.length === 0)
                         missingFields.push('Availability Schedule');
                     else completedFields++;
                     

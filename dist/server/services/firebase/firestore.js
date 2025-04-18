@@ -1,22 +1,5 @@
-import {
-    collection,
-    doc,
-    setDoc,
-    getDoc,
-    getDocs,
-    updateDoc,
-    deleteDoc,
-    query,
-    where,
-    orderBy,
-    limit,
-    DocumentData,
-    QueryConstraint,
-    addDoc,
-    Timestamp
-} from 'firebase/firestore';
+import { collection, doc, setDoc, getDoc, getDocs, updateDoc, deleteDoc, query, where, orderBy, limit, addDoc, Timestamp } from 'firebase/firestore';
 import { db } from './config.js';
-
 // Collections
 export const COLLECTIONS = {
     USERS: 'users',
@@ -27,9 +10,8 @@ export const COLLECTIONS = {
     RATINGS: 'ratings',
     PAYMENTS: 'payments'
 };
-
 // Helper functions for working with Firestore
-export const addDocument = async (collectionName: string, data: any): Promise<string> => {
+export const addDocument = async (collectionName, data) => {
     try {
         const collectionRef = collection(db, collectionName);
         const docRef = await addDoc(collectionRef, {
@@ -38,13 +20,13 @@ export const addDocument = async (collectionName: string, data: any): Promise<st
             updatedAt: Timestamp.now().toMillis()
         });
         return docRef.id;
-    } catch (error) {
+    }
+    catch (error) {
         console.error(`Error adding document to ${collectionName}:`, error);
         throw error;
     }
 };
-
-export const setDocument = async (collectionName: string, id: string, data: any): Promise<void> => {
+export const setDocument = async (collectionName, id, data) => {
     try {
         const docRef = doc(db, collectionName, id);
         await setDoc(docRef, {
@@ -52,84 +34,73 @@ export const setDocument = async (collectionName: string, id: string, data: any)
             id,
             updatedAt: Timestamp.now().toMillis()
         }, { merge: true });
-    } catch (error) {
+    }
+    catch (error) {
         console.error(`Error setting document in ${collectionName}:`, error);
         throw error;
     }
 };
-
-export const getDocument = async <T>(collectionName: string, id: string): Promise<T | null> => {
+export const getDocument = async (collectionName, id) => {
     try {
         const docRef = doc(db, collectionName, id);
         const docSnap = await getDoc(docRef);
-
         if (docSnap.exists()) {
-            return { id: docSnap.id, ...docSnap.data() } as T;
-        } else {
+            return { id: docSnap.id, ...docSnap.data() };
+        }
+        else {
             return null;
         }
-    } catch (error) {
+    }
+    catch (error) {
         console.error(`Error getting document from ${collectionName}:`, error);
         throw error;
     }
 };
-
-export const getDocuments = async <T>(
-    collectionName: string,
-    constraints: QueryConstraint[] = []
-): Promise<T[]> => {
+export const getDocuments = async (collectionName, constraints = []) => {
     try {
         const collectionRef = collection(db, collectionName);
         const q = query(collectionRef, ...constraints);
         const querySnapshot = await getDocs(q);
-
-        const results: T[] = [];
+        const results = [];
         querySnapshot.forEach((doc) => {
-            results.push({ id: doc.id, ...doc.data() } as T);
+            results.push({ id: doc.id, ...doc.data() });
         });
-
         return results;
-    } catch (error) {
+    }
+    catch (error) {
         console.error(`Error getting documents from ${collectionName}:`, error);
         throw error;
     }
 };
-
-export const updateDocument = async (
-    collectionName: string,
-    id: string,
-    data: Partial<DocumentData>
-): Promise<void> => {
+export const updateDocument = async (collectionName, id, data) => {
     try {
         const docRef = doc(db, collectionName, id);
         await updateDoc(docRef, {
             ...data,
             updatedAt: Timestamp.now().toMillis()
         });
-    } catch (error) {
+    }
+    catch (error) {
         console.error(`Error updating document in ${collectionName}:`, error);
         throw error;
     }
 };
-
-export const deleteDocument = async (collectionName: string, id: string): Promise<void> => {
+export const deleteDocument = async (collectionName, id) => {
     try {
         const docRef = doc(db, collectionName, id);
         await deleteDoc(docRef);
-    } catch (error) {
+    }
+    catch (error) {
         console.error(`Error deleting document from ${collectionName}:`, error);
         throw error;
     }
 };
-
 // Query helpers
-export const whereEqual = (field: string, value: any) => where(field, '==', value);
-export const whereIn = (field: string, values: any[]) => where(field, 'in', values);
-export const orderByField = (field: string, direction: 'asc' | 'desc' = 'asc') =>
-    orderBy(field, direction);
-export const limitResults = (n: number) => limit(n);
-
+export const whereEqual = (field, value) => where(field, '==', value);
+export const whereIn = (field, values) => where(field, 'in', values);
+export const orderByField = (field, direction = 'asc') => orderBy(field, direction);
+export const limitResults = (n) => limit(n);
 // Timestamp helpers
-export const timestampToMillis = (timestamp: Timestamp) => timestamp.toMillis();
-export const millisToTimestamp = (millis: number) => Timestamp.fromMillis(millis);
-export const serverTimestamp = () => Timestamp.now().toMillis(); 
+export const timestampToMillis = (timestamp) => timestamp.toMillis();
+export const millisToTimestamp = (millis) => Timestamp.fromMillis(millis);
+export const serverTimestamp = () => Timestamp.now().toMillis();

@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import stripe from './stripeConfig';
+import stripe from './stripeConfig.js';
 
 // Set the webhook signing secret provided by Stripe CLI
 const endpointSecret = process.env.VITE_STRIPE_WEBHOOK_SECRET || 

@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import stripe from './stripeConfig';
+import stripe from './stripeConfig.js';
 
 export const createPaymentIntentHandler = async (req: Request, res: Response) => {
   try {
