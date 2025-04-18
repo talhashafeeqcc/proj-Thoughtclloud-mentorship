@@ -1,6 +1,10 @@
 [build]
-  command = "npm run build"
+  command = "npm run build:frontend"
   publish = "dist"
+
+# Environment variable during build
+[build.environment]
+  VITE_API_URL = "https://your-backend-url.com"
 
 # Handle SPA routing
 [[redirects]]
