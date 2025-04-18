@@ -1,8 +1,12 @@
 import { Session, AvailabilitySlot } from "../types";
 import { getDatabase } from "./database/db";
 import { v4 as uuidv4 } from "uuid";
-import type { RxDocument } from "rxdb";
 import { createGoogleMeetLink } from "./googleMeetService";
+
+// Define a generic Document interface to replace RxDocument
+interface Document<T> {
+  toJSON(): T;
+}
 
 // Helper types for RxDB documents
 interface SessionDocument {
@@ -82,8 +86,7 @@ const shouldMarkSessionCompleted = (session: SessionDocument): boolean => {
 export const getSessions = async (userId: string): Promise<Session[]> => {
   try {
     const db = await getDatabase();
-    console.log("Fetching sessions for user:", userId);
-
+    
     // Variables to store profile IDs
     let mentorId = null;
     let menteeId = null;
@@ -99,7 +102,6 @@ export const getSessions = async (userId: string): Promise<Session[]> => {
 
     if (mentorProfileDocs.length > 0) {
       mentorId = mentorProfileDocs[0].toJSON().id;
-      console.log(`User ${userId} is a mentor with mentor ID: ${mentorId}`);
     }
 
     // Check if the user is a mentee
@@ -113,7 +115,6 @@ export const getSessions = async (userId: string): Promise<Session[]> => {
 
     if (menteeProfileDocs.length > 0) {
       menteeId = menteeProfileDocs[0].toJSON().id;
-      console.log(`User ${userId} is a mentee with mentee ID: ${menteeId}`);
     }
 
     // Build the query conditions
@@ -121,14 +122,10 @@ export const getSessions = async (userId: string): Promise<Session[]> => {
     if (mentorId) conditions.push({ mentorId });
     if (menteeId) conditions.push({ menteeId });
 
-
     // If no conditions, return empty array early
     if (conditions.length === 0) {
-      console.log("No mentor or mentee profile found for user", userId);
       return [];
     }
-
-    console.log("Query conditions:", JSON.stringify(conditions));
 
     // Find sessions where the user is either mentor or mentee
     const sessionDocs = await db.sessions
@@ -139,10 +136,8 @@ export const getSessions = async (userId: string): Promise<Session[]> => {
       })
       .exec();
 
-    console.log(`Found ${sessionDocs.length} sessions for user ${userId}`);
-
     const sessionData = sessionDocs.map(
-      (doc: RxDocument<any>) => doc.toJSON() as SessionDocument
+      (doc: Document<any>) => doc.toJSON() as SessionDocument
     );
 
     // Extract unique user IDs from the sessions
@@ -163,7 +158,7 @@ export const getSessions = async (userId: string): Promise<Session[]> => {
       })
       .exec();
 
-    const userData = userDocs.map((doc: RxDocument<any>) => {
+    const userData = userDocs.map((doc: Document<any>) => {
       const user = doc.toJSON();
       const { password, ...safeUser } = user;
       return safeUser;
@@ -208,7 +203,6 @@ export const getSessions = async (userId: string): Promise<Session[]> => {
       }
     }
 
-    console.log(`Successfully mapped ${mappedSessions.length} sessions for user ${userId}`);
     return mappedSessions;
   } catch (error) {
     console.error("Error fetching sessions:", error);
@@ -220,106 +214,96 @@ export const getSessions = async (userId: string): Promise<Session[]> => {
 export const getSessionById = async (id: string): Promise<Session> => {
   try {
     const db = await getDatabase();
+    
+    // Get the session
     const sessionDoc = await db.sessions.findOne(id).exec();
-
+    
     if (!sessionDoc) {
-      throw new Error(`Session with ID ${id} not found`);
+      throw new Error(`Session not found with ID: ${id}`);
     }
-
+    
     const session = sessionDoc.toJSON() as SessionDocument;
-
-    // Get mentor information - first check if mentor ID is a user ID
-    let mentorDoc = await db.users.findOne(session.mentorId).exec();
-    let mentorName = "Unknown Mentor";
-
-    // If mentor not found in users, try looking in mentors collection
-    if (!mentorDoc) {
-      console.log("Mentor not found directly in users, checking mentors collection");
-
-      // Try to find mentor directly by ID
-      const mentorProfileDoc = await db.mentors
-        .findOne(session.mentorId)
-        .exec();
-
+    
+    // Get mentor data (first try directly by mentorId)
+    let mentorData = null;
+    const mentorDoc = await db.users.findOne(session.mentorId).exec();
+    
+    if (mentorDoc) {
+      const mentorUser = mentorDoc.toJSON();
+      mentorData = {
+        id: mentorUser.id,
+        name: mentorUser.name,
+        email: mentorUser.email,
+        profilePicture: mentorUser.profilePicture || "",
+      };
+    } else {
+      // If mentor not found directly, try to get mentor doc and related user
+      const mentorProfileDoc = await db.mentors.findOne(session.mentorId).exec();
+      
       if (mentorProfileDoc) {
-        // If found, get the associated user
         const mentorProfile = mentorProfileDoc.toJSON();
         const mentorUserDoc = await db.users.findOne(mentorProfile.userId).exec();
-
+        
         if (mentorUserDoc) {
-          mentorDoc = mentorUserDoc;
-          mentorName = mentorUserDoc.toJSON().name;
-        }
-      } else {
-        // Try finding mentor by userId
-        const mentorProfileDocs = await db.mentors
-          .find({
-            selector: {
-              userId: session.mentorId,
-            },
-          })
-          .exec();
-
-        if (mentorProfileDocs.length > 0) {
-          // If found this way, the session.mentorId is actually a userId
-          mentorDoc = await db.users.findOne(session.mentorId).exec();
-          if (mentorDoc) {
-            mentorName = mentorDoc.toJSON().name;
-          }
+          const mentorUser = mentorUserDoc.toJSON();
+          mentorData = {
+            id: mentorUser.id,
+            name: mentorUser.name,
+            email: mentorUser.email,
+            profilePicture: mentorUser.profilePicture || "",
+          };
         }
       }
-    } else {
-      mentorName = mentorDoc.toJSON().name;
     }
-
-    // Get mentee information
+    
+    // Get mentee data
     const menteeDoc = await db.users.findOne(session.menteeId).exec();
-    let menteeName = "Unknown Mentee";
-
+    let menteeData = null;
+    
     if (menteeDoc) {
-      menteeName = menteeDoc.toJSON().name;
+      const menteeUser = menteeDoc.toJSON();
+      menteeData = {
+        id: menteeUser.id,
+        name: menteeUser.name,
+        email: menteeUser.email,
+        profilePicture: menteeUser.profilePicture || "",
+      };
     }
-
-    // Don't throw error if users not found, just use default names
-    // This is more resilient and won't block viewing session details
-
-    // Get the session slot information if needed
-    if (session.availabilityId) {
-      try {
+    
+    // Get availability slot details (if available)
+    let availabilitySlot = null;
+    try {
+      if (session.availabilityId) {
         const availabilityDoc = await db.availability
           .findOne(session.availabilityId)
           .exec();
-
+        
         if (availabilityDoc) {
-          // We could use this data if needed in future
-          console.log(`Found availability for session ${id}`);
+          availabilitySlot = availabilityDoc.toJSON();
         }
-      } catch (err) {
-        console.warn(`Could not load availability details for session ${id}:`, err);
       }
+    } catch (err) {
+      console.warn(`Could not load availability details for session ${id}:`, err);
     }
-
-    // Construct the full session object
-    return {
+    
+    const fullSession: Session = {
       id: session.id,
       mentorId: session.mentorId,
       menteeId: session.menteeId,
-      date: session.date || "",
-      startTime: session.startTime || "",
-      endTime: session.endTime || "",
+      date: session.date,
+      startTime: session.startTime,
+      endTime: session.endTime,
       status: session.status as "scheduled" | "completed" | "cancelled",
-      paymentStatus: session.paymentStatus as
-        | "pending"
-        | "completed"
-        | "refunded",
-      paymentAmount: session.paymentAmount || 0,
+      paymentStatus: session.paymentStatus as "pending" | "completed" | "refunded",
+      paymentAmount: session.paymentAmount,
       notes: session.notes || "",
-      availabilitySlotId: session.availabilityId || "",
-      mentorName: mentorName,
-      menteeName: menteeName,
-      title: session.notes || "Mentoring Session",
+      availabilitySlotId: session.availabilityId,
+      mentorName: mentorData?.name || "Unknown Mentor",
+      menteeName: menteeData?.name || "Unknown Mentee",
       meetingLink: session.meetingLink || "",
-    } as Session;
+    };
+    
+    return fullSession;
   } catch (error) {
     console.error("Error fetching session by ID:", error);
     throw error;
@@ -332,35 +316,12 @@ export const createSession = async (
 ): Promise<Session> => {
   try {
     const db = await getDatabase();
-
-    // Basic validation
-    if (!sessionData.mentorId || !sessionData.menteeId) {
-      throw new Error("Mentor and mentee IDs are required");
-    }
-
-    // First check if there's already a session with this availability slot
-    if (sessionData.availabilitySlotId) {
-      const existingSessions = await db.sessions
-        .find({
-          selector: {
-            availabilityId: sessionData.availabilitySlotId,
-          },
-        })
-        .exec();
-
-      if (existingSessions.length > 0) {
-        console.warn(`Session already exists for availability slot ${sessionData.availabilitySlotId}`);
-        throw new Error("This time slot is already booked");
-      }
-    }
-
-    // Check if the mentor exists in the mentors collection
-    const mentorDoc = await db.mentors.findOne(sessionData.mentorId).exec();
-    let mentorProfileId = sessionData.mentorId;
-
+    
+    // Verify mentor exists
+    let mentorDoc = await db.mentors.findOne(sessionData.mentorId).exec();
+    
     if (!mentorDoc) {
-      console.log("Mentor not found by ID, trying to find by userId");
-      // Try alternative lookup by userId
+      // Try to find mentor by userId (in case mentorId is actually a userId)
       const mentorDocs = await db.mentors
         .find({
           selector: {
@@ -368,148 +329,119 @@ export const createSession = async (
           },
         })
         .exec();
-
+      
       if (mentorDocs.length === 0) {
-        throw new Error(`Mentor with ID ${sessionData.mentorId} not found`);
+        throw new Error(`Mentor not found with ID: ${sessionData.mentorId}`);
       }
-
-      // Use the actual mentor profile ID instead of the userId
-      mentorProfileId = mentorDocs[0].toJSON().id;
+      
+      mentorDoc = mentorDocs[0];
+      const mentorData = mentorDoc.toJSON();
+      sessionData.mentorId = mentorData.id; // Update to use the correct mentorId
     }
-
-    // Check if the mentee exists and get the proper mentee profile ID
-    let menteeProfileId = sessionData.menteeId;
-    let menteeUser = null;
-
-    // First, check if the menteeId is a mentee profile ID
-    const menteeProfileDoc = await db.mentees.findOne(sessionData.menteeId).exec();
-
-    if (menteeProfileDoc) {
-      // If it's a valid mentee profile ID, use it and get the associated user
-      menteeUser = await db.users.findOne(menteeProfileDoc.toJSON().userId).exec();
-      if (!menteeUser) {
-        throw new Error(`User not found for mentee profile ${sessionData.menteeId}`);
-      }
-    } else {
-      // If not found as a profile ID, check if it's a user ID and find the corresponding mentee profile
-      menteeUser = await db.users.findOne(sessionData.menteeId).exec();
-
-      if (!menteeUser) {
-        throw new Error(`Mentee with ID ${sessionData.menteeId} not found`);
-      }
-
-      // Look up the mentee profile for this user
-      const menteeProfileDocs = await db.mentees
-        .find({
-          selector: {
-            userId: sessionData.menteeId,
-          },
-        })
-        .exec();
-
-      if (menteeProfileDocs.length > 0) menteeProfileId = menteeProfileDocs[0].toJSON().id;
-      else {
-        // Throw error instead of creating a new profile
-        throw new Error(`No mentee profile found for user ${sessionData.menteeId}. Please create a mentee profile first.`);
-      }
+    
+    // Verify mentee exists
+    const menteeDoc = await db.mentees.findOne(sessionData.menteeId).exec();
+    if (!menteeDoc) {
+      throw new Error(`Mentee not found with ID: ${sessionData.menteeId}`);
     }
-
-    // Get mentor and mentee names for the session
-    let mentorName = "Unnamed Mentor";
-    if (mentorDoc) {
-      // Get the user document for this mentor to get their name
-      const mentorUserDoc = await db.users.findOne(mentorDoc.toJSON().userId).exec();
-      if (mentorUserDoc) {
-        mentorName = mentorUserDoc.toJSON().name;
-      }
+    
+    // Check if the slot is available and not already booked
+    const isSlotAvailable = await isAvailabilitySlotBookable(
+      sessionData.mentorId,
+      sessionData.date,
+      sessionData.startTime,
+      sessionData.endTime
+    );
+    
+    if (!isSlotAvailable) {
+      throw new Error("This time slot is not available for booking");
     }
-
-    const menteeName = menteeUser ? menteeUser.toJSON().name : "Unnamed Mentee";
-
-    // Check if the availability slot exists and is not booked
-    const availabilityDoc = await db.availability
-      .findOne(sessionData.availabilitySlotId)
-      .exec();
-
-    if (!availabilityDoc) {
-      throw new Error(
-        `Availability slot with ID ${sessionData.availabilitySlotId} not found`
-      );
-    }
-
-    const availability = availabilityDoc.toJSON() as AvailabilityDocument;
-
-    if (availability.isBooked) {
-      throw new Error("This time slot is already booked");
-    }
-
-    // Generate a unique ID
-    const sessionId = uuidv4();
-    const now = Date.now();
-
-    // Generate Google Meet link
-    const sessionTitle = sessionData.notes || "Mentoring Session";
-    const dateStr = sessionData.date;
-    const startDateTime = new Date(`${dateStr}T${sessionData.startTime}`).toISOString();
-    const endDateTime = new Date(`${dateStr}T${sessionData.endTime}`).toISOString();
-
-    // Create Google Meet link
+    
+    // Create a meeting link
     let meetingLink = "";
     try {
-      meetingLink = await createGoogleMeetLink(
-        sessionTitle,
-        startDateTime,
-        endDateTime,
-        sessionData.mentorName || "Mentor",
-        sessionData.menteeName || "Mentee"
-      );
-      console.log("Created Google Meet link:", meetingLink);
+      meetingLink = await createGoogleMeetLink({
+        summary: `Mentoring session with ${sessionData.mentorName || "Mentor"}`,
+        description: sessionData.notes || "Mentoring session",
+        startDateTime: `${sessionData.date}T${sessionData.startTime}:00`,
+        endDateTime: `${sessionData.date}T${sessionData.endTime}:00`,
+        attendees: [], // In a real app, include mentor and mentee emails
+      });
+      
+      if (meetingLink) {
+        console.log("Created Google Meet link:", meetingLink);
+      }
     } catch (error) {
       console.error("Failed to create Google Meet link:", error);
-      // Continue without the meet link if there's an error
-      meetingLink = "";
+      // Continue without a meeting link if creation fails
     }
-
-    // Create the session document
+    
+    // Update the availability slot to mark it as booked
+    const availabilityDocs = await db.availability
+      .find({
+        selector: {
+          mentorId: sessionData.mentorId,
+          date: sessionData.date,
+          startTime: sessionData.startTime,
+          endTime: sessionData.endTime,
+        },
+      })
+      .exec();
+    
+    let availabilityId = sessionData.availabilitySlotId;
+    
+    if (availabilityDocs.length > 0) {
+      const availabilityDoc = availabilityDocs[0];
+      const availabilityData = availabilityDoc.toJSON();
+      availabilityId = availabilityData.id;
+      
+      await availabilityDoc.update({
+        $set: {
+          isBooked: true,
+          updatedAt: Date.now(),
+        },
+      });
+    }
+    
+    // Create the session
+    const now = Date.now();
+    const sessionId = uuidv4();
+    
     const newSession = {
       id: sessionId,
-      mentorId: mentorProfileId,
-      menteeId: menteeProfileId,
+      mentorId: sessionData.mentorId,
+      menteeId: sessionData.menteeId,
       date: sessionData.date,
       startTime: sessionData.startTime,
       endTime: sessionData.endTime,
-      status: sessionData.status,
-      paymentStatus: sessionData.paymentStatus,
+      status: "scheduled",
+      paymentStatus: "pending",
       paymentAmount: sessionData.paymentAmount,
       notes: sessionData.notes || "",
-      meetingLink: meetingLink, // Use the generated Google Meet link
-      availabilityId: sessionData.availabilitySlotId,
+      meetingLink: meetingLink,
+      availabilityId: availabilityId,
       createdAt: now,
       updatedAt: now,
     };
-
-    // Mark the availability slot as booked
-    await availabilityDoc.update({
-      $set: {
-        isBooked: true,
-        updatedAt: now,
-      },
-    });
-
-    // Insert the session
+    
     await db.sessions.insert(newSession);
-
-    // Return the full session object
+    
     return {
-      ...sessionData,
       id: sessionId,
-      mentorId: mentorProfileId,
-      menteeId: menteeProfileId,
-      title: sessionData.notes || "Mentoring Session", // Use notes as title or default
-      mentorName: mentorName,
-      menteeName: menteeName,
-      meetingLink: meetingLink, // Include the meeting link in the response
-    } as Session;
+      mentorId: sessionData.mentorId,
+      menteeId: sessionData.menteeId,
+      date: sessionData.date,
+      startTime: sessionData.startTime,
+      endTime: sessionData.endTime,
+      status: "scheduled",
+      paymentStatus: "pending",
+      paymentAmount: sessionData.paymentAmount,
+      notes: sessionData.notes || "",
+      availabilitySlotId: availabilityId,
+      mentorName: sessionData.mentorName || "Unknown Mentor",
+      menteeName: sessionData.menteeName || "Unknown Mentee",
+      meetingLink: meetingLink,
+    };
   } catch (error) {
     console.error("Error creating session:", error);
     throw error;
@@ -523,54 +455,60 @@ export const updateSession = async (
 ): Promise<Session> => {
   try {
     const db = await getDatabase();
+    
+    // Get existing session
     const sessionDoc = await db.sessions.findOne(id).exec();
-
+    
     if (!sessionDoc) {
-      throw new Error(`Session with ID ${id} not found`);
+      throw new Error(`Session not found with ID: ${id}`);
     }
-
+    
     const session = sessionDoc.toJSON() as SessionDocument;
+    
+    // Update only allowed fields (prevent changing mentorId, menteeId, etc.)
     const now = Date.now();
-
-    // Prepare update object with only database fields
-    const dbUpdates: Partial<SessionDocument> = {
+    const allowedUpdates = {
       status: updates.status,
       paymentStatus: updates.paymentStatus,
-      paymentAmount: updates.paymentAmount,
       notes: updates.notes,
       meetingLink: updates.meetingLink,
       updatedAt: now,
     };
-
+    
     // Filter out undefined values
-    Object.keys(dbUpdates).forEach((key) => {
-      if (dbUpdates[key as keyof typeof dbUpdates] === undefined) {
-        delete dbUpdates[key as keyof typeof dbUpdates];
-      }
-    });
-
-    // Update the session
+    const filteredUpdates = Object.entries(allowedUpdates).reduce(
+      (acc, [key, value]) => {
+        if (value !== undefined) {
+          acc[key] = value;
+        }
+        return acc;
+      },
+      {} as Record<string, any>
+    );
+    
     await sessionDoc.update({
-      $set: dbUpdates,
+      $set: filteredUpdates,
     });
-
-    // Handle change in availability if the status is changed to 'cancelled'
+    
+    // If status is changed to cancelled, update availability slot
     if (updates.status === "cancelled" && session.status !== "cancelled") {
-      const availabilityDoc = await db.availability
-        .findOne(session.availabilityId)
-        .exec();
-
-      if (availabilityDoc) {
-        await availabilityDoc.update({
-          $set: {
-            isBooked: false,
-            updatedAt: now,
-          },
-        });
+      if (session.availabilityId) {
+        const availabilityDoc = await db.availability
+          .findOne(session.availabilityId)
+          .exec();
+        
+        if (availabilityDoc) {
+          await availabilityDoc.update({
+            $set: {
+              isBooked: false,
+              updatedAt: now,
+            },
+          });
+        }
       }
     }
-
-    // Get the updated session
+    
+    // Return updated session
     return getSessionById(id);
   } catch (error) {
     console.error("Error updating session:", error);
@@ -582,15 +520,23 @@ export const updateSession = async (
 export const cancelSession = async (id: string): Promise<void> => {
   try {
     const db = await getDatabase();
+    
+    // Get existing session
     const sessionDoc = await db.sessions.findOne(id).exec();
-
+    
     if (!sessionDoc) {
-      throw new Error(`Session with ID ${id} not found`);
+      throw new Error(`Session not found with ID: ${id}`);
     }
-
+    
     const session = sessionDoc.toJSON() as SessionDocument;
+    
+    // Only allow cancelling scheduled sessions
+    if (session.status !== "scheduled") {
+      throw new Error(`Cannot cancel a session with status: ${session.status}`);
+    }
+    
     const now = Date.now();
-
+    
     // Update session status to cancelled
     await sessionDoc.update({
       $set: {
@@ -598,19 +544,21 @@ export const cancelSession = async (id: string): Promise<void> => {
         updatedAt: now,
       },
     });
-
-    // Free up the availability slot
-    const availabilityDoc = await db.availability
-      .findOne(session.availabilityId)
-      .exec();
-
-    if (availabilityDoc) {
-      await availabilityDoc.update({
-        $set: {
-          isBooked: false,
-          updatedAt: now,
-        },
-      });
+    
+    // Update availability slot to be available again
+    if (session.availabilityId) {
+      const availabilityDoc = await db.availability
+        .findOne(session.availabilityId)
+        .exec();
+      
+      if (availabilityDoc) {
+        await availabilityDoc.update({
+          $set: {
+            isBooked: false,
+            updatedAt: now,
+          },
+        });
+      }
     }
   } catch (error) {
     console.error("Error cancelling session:", error);
@@ -624,14 +572,12 @@ export const getMentorAvailability = async (
 ): Promise<AvailabilitySlot[]> => {
   try {
     const db = await getDatabase();
-    console.log("Fetching availability for mentor:", mentorId);
-
-    // Try to directly find the mentor document by ID first
+    
+    // First try to get the mentor directly by ID
     let mentorDoc = await db.mentors.findOne(mentorId).exec();
-
-    // If not found, try finding it by userId
+    
+    // If not found by direct ID, try to find the mentor by userId
     if (!mentorDoc) {
-      console.log("Mentor not found by ID, trying to find by userId");
       const mentorDocs = await db.mentors
         .find({
           selector: {
@@ -639,39 +585,40 @@ export const getMentorAvailability = async (
           },
         })
         .exec();
-
+      
       if (mentorDocs.length === 0) {
-        console.error("Mentor profile not found for ID or userId:", mentorId);
-        return [];
+        throw new Error(`Mentor profile not found for ID or userId: ${mentorId}`);
       }
-
+      
       mentorDoc = mentorDocs[0];
+      const mentorData = mentorDoc.toJSON();
+      mentorId = mentorData.id; // Use the actual mentor ID
     }
-
-    const mentor = mentorDoc.toJSON();
-    console.log(
-      "Found mentor profile with availability count:",
-      mentor.availability ? mentor.availability.length : 0
-    );
-
-    // Return the availability slots directly from the mentor profile
-    // Ensure we're returning the raw data without any date modifications
-    if (mentor.availability) {
-      // Log each availability slot to help with debugging
-      console.log("Availability slots:");
-      mentor.availability.forEach((slot: any, index: number) => {
-        console.log(`Slot ${index + 1}:`, {
-          id: slot.id,
-          date: slot.date,
-          startTime: slot.startTime,
-          endTime: slot.endTime,
-          isBooked: slot.isBooked,
-        });
-      });
-    }
-
-    // Convert from DeepReadonlyArray to mutable array
-    return toMutableArray<AvailabilitySlot>(mentor.availability);
+    
+    // Get availability slots
+    const availabilityDocs = await db.availability
+      .find({
+        selector: {
+          mentorId: mentorId,
+        },
+      })
+      .exec();
+    
+    // Convert documents to plain objects with array conversion for compatibility
+    const slots: AvailabilitySlot[] = availabilityDocs.map((doc: Document<AvailabilityDocument>, index: number) => {
+      const slot = doc.toJSON() as AvailabilityDocument;
+      
+      return {
+        id: slot.id,
+        mentorId: slot.mentorId,
+        date: slot.date,
+        startTime: slot.startTime,
+        endTime: slot.endTime,
+        isBooked: slot.isBooked,
+      };
+    });
+    
+    return slots;
   } catch (error) {
     console.error("Error fetching mentor availability:", error);
     throw error;
@@ -682,40 +629,101 @@ export const getMentorAvailability = async (
 export const checkAndUpdateSessionStatuses = async (): Promise<void> => {
   try {
     const db = await getDatabase();
-
-    // Get all scheduled sessions with completed payment
-    const scheduledSessions = await db.sessions
+    
+    // Get all scheduled sessions
+    const sessionDocs = await db.sessions
       .find({
         selector: {
           status: "scheduled",
-          paymentStatus: "completed",
         },
       })
       .exec();
-
+    
+    if (sessionDocs.length === 0) {
+      return; // No scheduled sessions to update
+    }
+    
+    // Current time
     const now = Date.now();
-    const currentDate = new Date();
-
-    for (const doc of scheduledSessions) {
+    const nowDate = new Date();
+    
+    for (const doc of sessionDocs) {
       const session = doc.toJSON() as SessionDocument;
-
-      // Check if the session end time has passed
-      const sessionDate = new Date(`${session.date}T${session.endTime}`);
-
-      if (currentDate > sessionDate) {
-        // Mark the session as completed
+      
+      // Check if the session should be marked as completed
+      if (shouldMarkSessionCompleted(session)) {
         await doc.update({
           $set: {
             status: "completed",
             updatedAt: now,
           },
         });
-
-        console.log(`Automatically marked session ${session.id} as completed`);
       }
     }
   } catch (error) {
     console.error("Error checking and updating session statuses:", error);
+    throw error;
+  }
+};
+
+export const isAvailabilitySlotBookable = async (
+  mentorId: string,
+  date: string,
+  startTime: string,
+  endTime: string
+): Promise<boolean> => {
+  try {
+    const db = await getDatabase();
+    
+    // First check if slot exists
+    const availabilityDocs = await db.availability
+      .find({
+        selector: {
+          mentorId,
+          date,
+          startTime,
+          endTime,
+        },
+      })
+      .exec();
+    
+    if (availabilityDocs.length === 0) {
+      return false; // Slot doesn't exist
+    }
+    
+    const availabilitySlot = availabilityDocs[0].toJSON();
+    
+    if (availabilitySlot.isBooked) {
+      // Double-check if there's actually an active session for this slot
+      // This is to fix potential data inconsistencies
+      const existingSessions = await db.sessions
+        .find({
+          selector: {
+            availabilityId: availabilitySlot.id,
+            status: "scheduled", // Only consider active sessions
+          },
+        })
+        .exec();
+      
+      if (existingSessions.length === 0) {
+        // No active sessions found for this slot, even though it's marked as booked
+        // Fix the inconsistency by marking it as not booked
+        await availabilityDocs[0].update({
+          $set: {
+            isBooked: false,
+            updatedAt: Date.now(),
+          },
+        });
+        
+        return true; // Slot is actually available
+      }
+      
+      return false; // Slot is booked and has active sessions
+    }
+    
+    return true; // Slot is available
+  } catch (error) {
+    console.error("Error checking slot availability:", error);
     throw error;
   }
 };

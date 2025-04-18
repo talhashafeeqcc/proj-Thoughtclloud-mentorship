@@ -7,12 +7,13 @@ import {
   whereEqual,
   COLLECTIONS
 } from "./firebase";
-import { updateSession } from "./sessionService";
+import { updateSession, getSessionById } from "./sessionService";
 import type { Payment } from "../types";
 import {
   createPaymentIntent,
   confirmPayment,
-  createRefund
+  createRefund,
+  capturePayment
 } from "./stripe";
 
 // Define interface for Firestore document type
@@ -31,6 +32,14 @@ interface PaymentDocument {
   updatedAt: number;
 }
 
+// Define interface for Mentor document type
+interface MentorDocument {
+  id: string;
+  userId?: string;
+  stripeAccountId?: string;
+  [key: string]: any;
+}
+
 /**
  * Process a payment for a session using Stripe
  */
@@ -40,32 +49,14 @@ export const processPayment = async (
   paymentMethodId?: string
 ): Promise<Payment> => {
   try {
-    // Special handling for temporary session IDs
-    if (sessionId === 'temp-session-id') {
-      console.log('Processing payment for temporary session');
-
-      // Create a simulated payment for demonstration
-      const paymentId = uuidv4();
-      const transactionId = `tx_${Math.random().toString(36).substring(2, 15)}`;
-
-      return {
-        id: paymentId,
-        sessionId: sessionId,
-        amount: amount,
-        status: "completed" as const,
-        date: new Date().toISOString().split("T")[0],
-        transactionId: transactionId,
-      };
-    }
-
-    // Check if session exists
-    const session = await getDocument(COLLECTIONS.SESSIONS, sessionId);
+    // Get the session
+    const session = await getSessionById(sessionId);
     if (!session) {
-      throw new Error(`Session with ID ${sessionId} not found`);
+      throw new Error("Session not found");
     }
 
-    // Check if payment has already been processed
-    const existingPayments = await getDocuments(
+    // Check for existing payments
+    const existingPayments = await getDocuments<PaymentDocument>(
       COLLECTIONS.PAYMENTS,
       [whereEqual('sessionId', sessionId)]
     );
@@ -79,22 +70,27 @@ export const processPayment = async (
 
     const now = Date.now();
     const paymentId = uuidv4();
-    let transactionId = `tx_${Math.random().toString(36).substring(2, 15)}`;
-    let paymentIntentId = "";
+    let transactionId = '';
+    let paymentIntentId = '';
 
-    // In a real app, we would use Stripe here
+    // Real Stripe payment processing
     if (paymentMethodId) {
       try {
-        // Create a payment intent
+        // Get the mentor's Stripe account ID if available
+        const mentor = await getDocument<MentorDocument>(COLLECTIONS.MENTORS, session.mentorId);
+        const mentorStripeAccountId = mentor?.stripeAccountId;
+
+        // Create a payment intent with manual capture (authorization only)
         const paymentIntent = await createPaymentIntent(
           amount * 100, // Stripe uses cents
           'usd',
-          `Payment for session ${sessionId}`
+          `Payment for session ${sessionId}`,
+          mentorStripeAccountId
         );
 
-        // Confirm the payment
+        // Confirm the payment (which will authorize but not capture)
         const confirmation = await confirmPayment(
-          paymentIntent.client_secret,
+          paymentIntent.clientSecret,
           paymentMethodId
         );
 
@@ -102,14 +98,15 @@ export const processPayment = async (
           throw new Error(confirmation.error.message);
         }
 
-        if (confirmation.paymentIntent.status === 'succeeded') {
+        if (confirmation.paymentIntent.status === 'requires_capture') {
           transactionId = confirmation.paymentIntent.id;
           paymentIntentId = confirmation.paymentIntent.id;
         } else {
           throw new Error(`Payment failed with status: ${confirmation.paymentIntent.status}`);
         }
-      } catch (stripeError) {
-        console.error("Stripe payment error:", stripeError);
+      } catch (error) {
+        console.error("Stripe payment error:", error);
+        const stripeError = error as Error;
         throw new Error(`Payment processing failed: ${stripeError.message}`);
       }
     }
@@ -121,7 +118,7 @@ export const processPayment = async (
       mentorId: session.mentorId,
       menteeId: session.menteeId,
       amount: amount,
-      status: "completed" as const,
+      status: "authorized" as const, // Changed from "completed" to "authorized"
       date: new Date().toISOString().split("T")[0],
       transactionId: transactionId,
       paymentIntentId: paymentIntentId,
@@ -137,7 +134,7 @@ export const processPayment = async (
 
     // Update the session payment status
     await updateSession(sessionId, {
-      paymentStatus: "completed",
+      paymentStatus: "authorized" as "pending", // Type assertion to make it compatible
       paymentAmount: amount,
     });
 
@@ -145,12 +142,76 @@ export const processPayment = async (
       id: paymentId,
       sessionId: sessionId,
       amount: amount,
-      status: "completed" as const,
+      status: "authorized" as "pending", // Type assertion to make it compatible
       date: newPayment.date,
       transactionId: transactionId,
     };
   } catch (error) {
     console.error("Failed to process payment:", error);
+    throw error;
+  }
+};
+
+/**
+ * Complete (capture) a payment after a session
+ */
+export const completePayment = async (sessionId: string): Promise<Payment> => {
+  try {
+    // Get the session payment
+    const payment = await getSessionPayment(sessionId);
+    if (!payment) {
+      throw new Error(`No payment found for session ${sessionId}`);
+    }
+
+    // Get the payment document
+    const paymentDoc = await getDocument<PaymentDocument>(COLLECTIONS.PAYMENTS, payment.id);
+    if (!paymentDoc) {
+      throw new Error(`Payment document not found for ID ${payment.id}`);
+    }
+
+    // Check if payment is in the right state
+    if (paymentDoc.status !== "authorized") {
+      throw new Error(`Payment cannot be completed: status is ${paymentDoc.status}`);
+    }
+
+    // Capture the payment through Stripe
+    if (paymentDoc.paymentIntentId) {
+      try {
+        const capturedPayment = await capturePayment(paymentDoc.paymentIntentId);
+        
+        if (capturedPayment.error) {
+          throw new Error(capturedPayment.error.message);
+        }
+      } catch (error) {
+        console.error("Stripe capture error:", error);
+        const stripeError = error as Error;
+        throw new Error(`Payment capture failed: ${stripeError.message}`);
+      }
+    }
+
+    const now = Date.now();
+
+    // Update payment status
+    await updateDocument(COLLECTIONS.PAYMENTS, payment.id, {
+      status: "completed",
+      updatedAt: now,
+    });
+
+    // Update the session payment status
+    await updateSession(sessionId, {
+      paymentStatus: "completed",
+    });
+
+    return {
+      id: payment.id,
+      sessionId: sessionId,
+      amount: payment.amount,
+      status: "completed" as const,
+      date: payment.date,
+      transactionId: payment.transactionId,
+    };
+  } catch (error) {
+    console.error("Failed to complete payment:", error);
     throw error;
   }
 };
@@ -167,20 +228,24 @@ export const refundPayment = async (paymentId: string): Promise<Payment> => {
     }
 
     // Check if payment can be refunded
-    if (payment.status !== "completed") {
-      throw new Error("Only completed payments can be refunded");
+    if (payment.status !== "completed" && payment.status !== "authorized") {
+      throw new Error("Only completed or authorized payments can be refunded");
     }
 
     // Process the refund through Stripe if there's a paymentIntentId
     if (payment.paymentIntentId) {
       try {
-        const refund = await createRefund(payment.paymentIntentId);
+        const refund = await createRefund(
+          payment.paymentIntentId, 
+          'requested_by_customer'
+        );
 
         if (refund.error) {
           throw new Error(refund.error.message);
         }
-      } catch (stripeError) {
-        console.error("Stripe refund error:", stripeError);
+      } catch (error) {
+        console.error("Stripe refund error:", error);
+        const stripeError = error as Error;
         throw new Error(`Refund processing failed: ${stripeError.message}`);
       }
     }

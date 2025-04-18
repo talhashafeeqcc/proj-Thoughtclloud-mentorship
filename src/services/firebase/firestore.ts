@@ -15,7 +15,7 @@ import {
     addDoc,
     Timestamp
 } from 'firebase/firestore';
-import { db } from './config';
+import { db } from './config.js';
 
 // Collections
 export const COLLECTIONS = {

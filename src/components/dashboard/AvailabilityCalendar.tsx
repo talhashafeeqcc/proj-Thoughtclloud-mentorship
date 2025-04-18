@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";      
 import {
   FaCalendarAlt,
   FaClock,
@@ -162,19 +162,22 @@ const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
     return new Date(date.getFullYear(), date.getMonth(), 1).getDay();
   };
 
-  const prevMonth = () => {
-    setSelectedDate(
-      new Date(selectedDate.getFullYear(), selectedDate.getMonth() - 1)
-    );
+  // Using useCallback to memoize these functions to use in keyboard event handlers
+  const prevMonth = useCallback(() => {
+    console.log("Previous month button clicked");
+    const newDate = new Date(selectedDate);
+    newDate.setMonth(newDate.getMonth() - 1);
+    setSelectedDate(newDate);
     resetSelection();
-  };
+  }, [selectedDate]);
 
-  const nextMonth = () => {
-    setSelectedDate(
-      new Date(selectedDate.getFullYear(), selectedDate.getMonth() + 1)
-    );
+  const nextMonth = useCallback(() => {
+    console.log("Next month button clicked");
+    const newDate = new Date(selectedDate);
+    newDate.setMonth(newDate.getMonth() + 1);
+    setSelectedDate(newDate);
     resetSelection();
-  };
+  }, [selectedDate]);
 
   const resetSelection = () => {
     setSelectedDay(null);
@@ -182,6 +185,25 @@ const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
     setSelectedSlotId(null);
     onSlotSelect(null);
   };
+
+  // Add keyboard event listener for arrow navigation
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'ArrowLeft') {
+        prevMonth();
+      } else if (event.key === 'ArrowRight') {
+        nextMonth();
+      }
+    };
+
+    // Add event listener
+    window.addEventListener('keydown', handleKeyDown);
+
+    // Cleanup
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [prevMonth, nextMonth]);
 
   const currentMonthName = selectedDate.toLocaleString("default", {
     month: "long",
@@ -357,21 +379,38 @@ const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
         </h2>
         <div className="flex space-x-2">
           <button
-            onClick={prevMonth}
-            className="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded transition-colors"
+            onClick={() => {
+              console.log("Previous month button clicked");
+              const newDate = new Date(selectedDate);
+              newDate.setMonth(newDate.getMonth() - 1);
+              setSelectedDate(newDate);
+              resetSelection();
+            }}
+            className="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded transition-colors z-10"
+            aria-label="Previous month"
+            title="Previous month"
           >
             {"<"}
           </button>
           <button
-            onClick={nextMonth}
-            className="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded transition-colors"
+            onClick={() => {
+              console.log("Next month button clicked");
+              const newDate = new Date(selectedDate);
+              newDate.setMonth(newDate.getMonth() + 1);
+              setSelectedDate(newDate);
+              resetSelection();
+            }}
+            className="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded transition-colors z-10"
+            aria-label="Next month"
+            title="Next month"
           >
             {">"}
           </button>
           <button
             onClick={handleRefresh}
-            className="px-3 py-1 bg-blue-100 hover:bg-blue-200 rounded transition-colors flex items-center"
+            className="px-3 py-1 bg-blue-100 hover:bg-blue-200 rounded transition-colors flex items-center z-10"
             title="Refresh availability"
+            aria-label="Refresh availability"
           >
             <FaSyncAlt className={loading ? "animate-spin" : ""} />
           </button>

@@ -13,5 +13,6 @@
         "javascriptreact": "javascriptreact",
         "typescriptreact": "typescriptreact"
     },
-    "editor.inlineSuggest.enabled": true
+    "editor.inlineSuggest.enabled": true,
+    "files.autoSave": "afterDelay"
 }

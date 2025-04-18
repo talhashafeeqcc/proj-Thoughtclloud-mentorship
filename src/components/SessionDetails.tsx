@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { Session } from "../types";
-import { getSessionById } from "../services/sessionService";
-import { getSessionPayment } from "../services/paymentService";
+import { getSessionById, updateSession } from "../services/sessionService";
+import { getSessionPayment, refundPayment, completePayment } from "../services/paymentService";
 import { hasSessionRating, getMentorRatings } from "../services/ratingService";
 import ReviewForm from "./ReviewForm";
 import {
@@ -14,7 +14,9 @@ import {
   FaSpinner,
   FaStar,
   FaVideo,
-  FaExternalLinkAlt
+  FaExternalLinkAlt,
+  FaCheckCircle,
+  FaBan
 } from "react-icons/fa";
 
 interface SessionDetailsProps {
@@ -34,6 +36,8 @@ const SessionDetails: React.FC<SessionDetailsProps> = ({
   } | null>(null);
   const [rated, setRated] = useState<boolean | null>(null);
   const [sessionRating, setSessionRating] = useState<any | null>(null);
+  const [processing, setProcessing] = useState<boolean>(false);
+  const [actionMessage, setActionMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
 
   // Define fetchSessionDetails using useCallback
   const fetchSessionDetails = useCallback(async () => {
@@ -96,6 +100,75 @@ const SessionDetails: React.FC<SessionDetailsProps> = ({
       month: 'long',
       day: 'numeric'
     });
+  };
+
+  // Handle completing a session (mentor action)
+  const handleCompleteSession = async () => {
+    if (!session || !session.id) return;
+    
+    setProcessing(true);
+    setActionMessage(null);
+    
+    try {
+      // First update the session status
+      await updateSession(session.id, { status: "completed" });
+      
+      // Then capture the payment
+      await completePayment(session.id);
+      
+      // Show success message
+      setActionMessage({
+        type: 'success',
+        text: 'Session marked as completed. Payment has been released to the mentor.'
+      });
+      
+      // Refresh session data
+      fetchSessionDetails();
+    } catch (error) {
+      console.error("Error completing session:", error);
+      setActionMessage({
+        type: 'error',
+        text: `Failed to complete session: ${error.message}`
+      });
+    } finally {
+      setProcessing(false);
+    }
+  };
+  
+  // Handle cancelling a session
+  const handleCancelSession = async () => {
+    if (!session || !session.id) return;
+    
+    setProcessing(true);
+    setActionMessage(null);
+    
+    try {
+      // First update the session status
+      await updateSession(session.id, { status: "cancelled" });
+      
+      // Find the payment and refund it
+      const payment = await getSessionPayment(session.id);
+      if (payment && payment.id) {
+        await refundPayment(payment.id);
+      }
+      
+      // Show success message
+      setActionMessage({
+        type: 'success',
+        text: 'Session cancelled. Payment has been refunded to the mentee.'
+      });
+      
+      // Refresh session data
+      fetchSessionDetails();
+    } catch (error) {
+      console.error("Error cancelling session:", error);
+      setActionMessage({
+        type: 'error',
+        text: `Failed to cancel session: ${error.message}`
+      });
+    } finally {
+      setProcessing(false);
+    }
   };
 
   if (loading) {
@@ -268,6 +341,56 @@ const SessionDetails: React.FC<SessionDetailsProps> = ({
           )}
         </div>
       </div>
+
+      {/* Action message */}
+      {actionMessage && (
+        <div className={`p-4 mb-4 rounded-md ${actionMessage.type === 'success' ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'}`}>
+          {actionMessage.text}
+        </div>
+      )}
+
+      {/* Session actions - Only show for active sessions */}
+      {session.status === "scheduled" && (
+        <div className="my-6 border-t border-b py-4">
+          <h4 className="font-medium mb-3">Session Actions:</h4>
+          <div className="flex flex-wrap gap-3">
+            {/* Complete Session Button - Only for mentors */}
+            {isMentor && (
+              <button
+                onClick={handleCompleteSession}
+                disabled={processing}
+                className="flex items-center px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {processing ? (
+                  <FaSpinner className="animate-spin mr-2" />
+                ) : (
+                  <FaCheckCircle className="mr-2" />
+                )}
+                Mark as Completed
+              </button>
+            )}
+            
+            {/* Cancel Session Button - For both mentor and mentee */}
+            <button
+              onClick={handleCancelSession}
+              disabled={processing}
+              className="flex items-center px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {processing ? (
+                <FaSpinner className="animate-spin mr-2" />
+              ) : (
+                <FaBan className="mr-2" />
+              )}
+              Cancel Session
+            </button>
+          </div>
+          <p className="text-sm text-gray-500 mt-2">
+            {isMentor 
+              ? "Completing the session will release the payment to your account. Cancelling will refund the mentee."
+              : "Cancelling the session will refund your payment."}
+          </p>
+        </div>
+      )}
 
       {session.notes && (
         <div className="mb-6">
