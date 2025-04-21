@@ -38,79 +38,79 @@ const Footer: React.FC = () => {
               <span className="animate-pulse-slow mr-2">✨</span>
               MentorMatch
             </h3>
-            <p className="text-gray-300 dark:text-gray-400">
+            <p className="text-indigo-100 dark:text-gray-300">
               Connecting mentors and mentees for professional growth and development.
             </p>
           </motion.div>
 
           <motion.div variants={item}>
-            <h4 className="text-lg font-semibold mb-3">Quick Links</h4>
+            <h4 className="text-lg font-semibold mb-3 text-white">Quick Links</h4>
             <ul className="space-y-2">
               <li>
-                <Link to="/" className="text-indigo-200 hover:text-white relative group transition-colors">
+                <Link to="/" className="text-indigo-200 hover:text-white dark:text-indigo-300 dark:hover:text-white relative group transition-colors">
                   Home
-                  <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-indigo-300 transition-all duration-300 group-hover:w-full"></span>
+                  <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-indigo-300 dark:bg-indigo-400 transition-all duration-300 group-hover:w-full"></span>
                 </Link>
               </li>
               <li>
-                <Link to="/mentors" className="text-indigo-200 hover:text-white relative group transition-colors">
+                <Link to="/mentors" className="text-indigo-200 hover:text-white dark:text-indigo-300 dark:hover:text-white relative group transition-colors">
                   Find Mentors
-                  <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-indigo-300 transition-all duration-300 group-hover:w-full"></span>
+                  <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-indigo-300 dark:bg-indigo-400 transition-all duration-300 group-hover:w-full"></span>
                 </Link>
               </li>
               <li>
-                <Link to="/register" className="text-indigo-200 hover:text-white relative group transition-colors">
+                <Link to="/register" className="text-indigo-200 hover:text-white dark:text-indigo-300 dark:hover:text-white relative group transition-colors">
                   Become a Mentor
-                  <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-indigo-300 transition-all duration-300 group-hover:w-full"></span>
+                  <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-indigo-300 dark:bg-indigo-400 transition-all duration-300 group-hover:w-full"></span>
                 </Link>
               </li>
             </ul>
           </motion.div>
 
           <motion.div variants={item}>
-            <h4 className="text-lg font-semibold mb-3">Resources</h4>
+            <h4 className="text-lg font-semibold mb-3 text-white">Resources</h4>
             <ul className="space-y-2">
               <li>
-                <Link to="/blog" className="text-indigo-200 hover:text-white relative group transition-colors">
+                <Link to="/blog" className="text-indigo-200 hover:text-white dark:text-indigo-300 dark:hover:text-white relative group transition-colors">
                   Blog
-                  <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-indigo-300 transition-all duration-300 group-hover:w-full"></span>
+                  <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-indigo-300 dark:bg-indigo-400 transition-all duration-300 group-hover:w-full"></span>
                 </Link>
               </li>
               <li>
-                <Link to="/faq" className="text-indigo-200 hover:text-white relative group transition-colors">
+                <Link to="/faq" className="text-indigo-200 hover:text-white dark:text-indigo-300 dark:hover:text-white relative group transition-colors">
                   FAQ
-                  <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-indigo-300 transition-all duration-300 group-hover:w-full"></span>
+                  <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-indigo-300 dark:bg-indigo-400 transition-all duration-300 group-hover:w-full"></span>
                 </Link>
               </li>
               <li>
-                <Link to="/support" className="text-indigo-200 hover:text-white relative group transition-colors">
+                <Link to="/support" className="text-indigo-200 hover:text-white dark:text-indigo-300 dark:hover:text-white relative group transition-colors">
                   Support
-                  <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-indigo-300 transition-all duration-300 group-hover:w-full"></span>
+                  <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-indigo-300 dark:bg-indigo-400 transition-all duration-300 group-hover:w-full"></span>
                 </Link>
               </li>
             </ul>
           </motion.div>
 
           <motion.div variants={item}>
-            <h4 className="text-lg font-semibold mb-3">Legal</h4>
+            <h4 className="text-lg font-semibold mb-3 text-white">Legal</h4>
             <ul className="space-y-2">
               <li>
-                <Link to="/terms" className="text-indigo-200 hover:text-white relative group transition-colors">
+                <Link to="/terms" className="text-indigo-200 hover:text-white dark:text-indigo-300 dark:hover:text-white relative group transition-colors">
                   Terms of Service
-                  <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-indigo-300 transition-all duration-300 group-hover:w-full"></span>
+                  <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-indigo-300 dark:bg-indigo-400 transition-all duration-300 group-hover:w-full"></span>
                 </Link>
               </li>
               <li>
-                <Link to="/privacy" className="text-indigo-200 hover:text-white relative group transition-colors">
+                <Link to="/privacy" className="text-indigo-200 hover:text-white dark:text-indigo-300 dark:hover:text-white relative group transition-colors">
                   Privacy Policy
-                  <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-indigo-300 transition-all duration-300 group-hover:w-full"></span>
+                  <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-indigo-300 dark:bg-indigo-400 transition-all duration-300 group-hover:w-full"></span>
                 </Link>
               </li>
             </ul>
           </motion.div>
         </motion.div>
 
-        <div className="border-t border-indigo-800 dark:border-gray-700 mt-10 pt-8 text-center text-gray-300 dark:text-gray-400">
+        <div className="border-t border-indigo-800 dark:border-gray-700 mt-10 pt-8 text-center text-indigo-200 dark:text-gray-300">
           <p className="flex items-center justify-center text-sm">
             &copy; {currentYear} MentorMatch. All rights reserved. Made with <Heart className="h-4 w-4 text-red-400 mx-1 fill-red-400" /> by Thoughtcloud
           </p>

@@ -260,8 +260,8 @@ const MentorDashboard: React.FC = () => {
   // Memoize the loading UI to avoid recreating it on each render
   const loadingUI = useMemo(() => (
     <div className="flex justify-center items-center h-64">
-      <div className="inline-block w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-      <div className="ml-3 text-xl">Loading mentor dashboard...</div>
+      <div className="inline-block w-8 h-8 border-4 border-blue-500 dark:border-blue-400 border-t-transparent rounded-full animate-spin"></div>
+      <div className="ml-3 text-xl dark:text-white">Loading mentor dashboard...</div>
     </div>
   ), []);
 
@@ -275,7 +275,7 @@ const MentorDashboard: React.FC = () => {
 
   // Memoize the error UI
   const errorUI = useMemo(() => error && (
-    <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+    <div className="bg-red-100 dark:bg-red-900/20 border border-red-400 dark:border-red-700 text-red-700 dark:text-red-400 px-4 py-3 rounded mb-4">
       <p className="font-bold">Error</p>
       <p>{error}</p>
     </div>
@@ -283,7 +283,7 @@ const MentorDashboard: React.FC = () => {
 
   // Memoize the no profile UI
   const noProfileUI = useMemo(() => (
-    <div className="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded mb-4">
+    <div className="bg-yellow-100 dark:bg-yellow-900/20 border border-yellow-400 dark:border-yellow-700 text-yellow-700 dark:text-yellow-400 px-4 py-3 rounded mb-4">
       <p className="font-bold">Mentor Profile Not Found</p>
       <p>Please complete your mentor profile setup.</p>
     </div>
@@ -316,28 +316,28 @@ const MentorDashboard: React.FC = () => {
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="flex flex-col h-full"
+      className="flex flex-col h-full dark:bg-gray-900 dark:text-white"
     >
       {/* Profile Completion Banner */}
       <ProfileCompletionBanner />
 
       {/* Balance Summary Card */}
-      <div className="bg-white shadow-md rounded-lg p-4 mb-6">
+      <div className="bg-white dark:bg-gray-800 shadow-md rounded-lg p-4 mb-6">
         <div className="flex items-center mb-3">
-          <FaWallet className="text-blue-500 mr-2" />
-          <h3 className="text-lg font-semibold">Your Balance</h3>
+          <FaWallet className="text-blue-500 dark:text-blue-400 mr-2" />
+          <h3 className="text-lg font-semibold dark:text-white">Your Balance</h3>
         </div>
         
         {balanceLoading ? (
           <div className="flex items-center">
             <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mr-2"></div>
-            <span className="text-gray-600">Loading balance...</span>
+            <span className="text-gray-600 dark:text-gray-300">Loading balance...</span>
           </div>
         ) : balance ? (
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-            <div className="bg-blue-50 p-3 rounded-md">
-              <h4 className="text-sm text-gray-600">Available</h4>
-              <p className="text-xl font-semibold">
+            <div className="bg-blue-50 dark:bg-blue-900/30 p-3 rounded-md">
+              <h4 className="text-sm text-gray-600 dark:text-gray-300">Available</h4>
+              <p className="text-xl font-semibold dark:text-white">
                 {balance.available.length > 0 
                   ? formatCurrency(balance.available[0].amount, balance.available[0].currency)
                   : '$0.00'}
@@ -364,9 +364,9 @@ const MentorDashboard: React.FC = () => {
                 </button>
               )}
             </div>
-            <div className="bg-gray-50 p-3 rounded-md">
-              <h4 className="text-sm text-gray-600">Pending</h4>
-              <p className="text-xl font-semibold">
+            <div className="bg-gray-50 dark:bg-gray-700 p-3 rounded-md">
+              <h4 className="text-sm text-gray-600 dark:text-gray-300">Pending</h4>
+              <p className="text-xl font-semibold dark:text-white">
                 {balance.pending.length > 0 
                   ? formatCurrency(balance.pending[0].amount, balance.pending[0].currency)
                   : '$0.00'}
@@ -374,18 +374,18 @@ const MentorDashboard: React.FC = () => {
             </div>
           </div>
         ) : (
-          <p className="text-gray-600">No balance information available. Make sure your account is connected to Stripe.</p>
+          <p className="text-gray-600 dark:text-gray-300">No balance information available. Make sure your account is connected to Stripe.</p>
         )}
       </div>
 
       {/* Tabs */}
-      <div className="border-b border-gray-200 mb-6">
+      <div className="border-b border-gray-200 dark:border-gray-700 mb-6">
         <nav className="-mb-px flex space-x-6">
           <button
             onClick={handleSessionsTab}
             className={`py-2 px-1 border-b-2 font-medium text-sm ${activeTab === "sessions"
-              ? "border-blue-500 text-blue-600"
-              : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+              ? "border-blue-500 text-blue-600 dark:text-blue-400"
+              : "border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600"
               }`}
           >
             <FaList className="inline-block mr-2" /> My Sessions
@@ -393,8 +393,8 @@ const MentorDashboard: React.FC = () => {
           <button
             onClick={handleCalendarTab}
             className={`py-2 px-1 border-b-2 font-medium text-sm ${activeTab === "calendar"
-              ? "border-blue-500 text-blue-600"
-              : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+              ? "border-blue-500 text-blue-600 dark:text-blue-400"
+              : "border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600"
               }`}
           >
             <FaCalendarAlt className="inline-block mr-2" /> View Availability
@@ -402,8 +402,8 @@ const MentorDashboard: React.FC = () => {
           <button
             onClick={handleManageTab}
             className={`py-2 px-1 border-b-2 font-medium text-sm ${activeTab === "manage"
-              ? "border-blue-500 text-blue-600"
-              : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+              ? "border-blue-500 text-blue-600 dark:text-blue-400"
+              : "border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600"
               }`}
           >
             <FaCalendarCheck className="inline-block mr-2" /> Manage
@@ -415,7 +415,7 @@ const MentorDashboard: React.FC = () => {
               onClick={() => setShowDebugTools(!showDebugTools)}
               className={`py-2 px-1 border-b-2 font-medium text-sm ${showDebugTools
                 ? "border-red-500 text-red-600"
-                : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                : "border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600"
                 }`}
             >
               <FaTools className="inline-block mr-2" /> Debug Tools
@@ -426,8 +426,8 @@ const MentorDashboard: React.FC = () => {
 
       {/* Debug Tools Section */}
       {showDebugTools && (
-        <div className="p-4 mb-6 border border-red-300 bg-red-50 rounded-md">
-          <h3 className="text-lg font-semibold text-red-800 mb-2">Debug Tools</h3>
+        <div className="p-4 mb-6 border border-red-300 dark:border-red-700 bg-red-50 dark:bg-red-900/20 rounded-md">
+          <h3 className="text-lg font-semibold text-red-800 dark:text-red-400 mb-2">Debug Tools</h3>
           <div className="grid grid-cols-1 gap-2">
             <button
               onClick={handleDatabaseReset}
@@ -436,7 +436,7 @@ const MentorDashboard: React.FC = () => {
               Reset Database
             </button>
             {debugMessage && (
-              <div className="mt-2 p-2 bg-white border border-red-200 rounded text-sm">
+              <div className="mt-2 p-2 bg-white dark:bg-gray-800 border border-red-200 dark:border-red-700 rounded text-sm dark:text-gray-300">
                 {debugMessage}
               </div>
             )}

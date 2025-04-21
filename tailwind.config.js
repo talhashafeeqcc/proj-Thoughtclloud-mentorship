@@ -93,6 +93,9 @@ export default {
         'glow': '0 0 15px rgba(124, 58, 237, 0.5)',
         'glow-lg': '0 0 25px rgba(124, 58, 237, 0.6)',
         'inner-glow': 'inset 0 0 15px rgba(124, 58, 237, 0.2)',
+        'glow-dark': '0 0 15px rgba(124, 58, 237, 0.3)',
+        'soft-dark': '0 2px 15px -3px rgba(0, 0, 0, 0.2), 0 10px 20px -2px rgba(0, 0, 0, 0.15)',
+        'card-dark': '0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.24)',
       },
       backdropBlur: {
         'xs': '2px',

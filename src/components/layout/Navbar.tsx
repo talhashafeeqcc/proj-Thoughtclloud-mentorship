@@ -56,7 +56,7 @@ const Navbar: React.FC = () => {
             <ThemeSwitcher />
             <button
               onClick={toggleMobileMenu}
-              className="flex items-center p-1 rounded-md hover:bg-indigo-500 dark:hover:bg-indigo-800 transition-colors"
+              className="flex items-center p-1 rounded-md hover:bg-indigo-500 dark:hover:bg-indigo-800/70 transition-colors"
               aria-label="Toggle mobile menu"
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -69,7 +69,7 @@ const Navbar: React.FC = () => {
           <div className="hidden md:flex items-center space-x-6">
             <Link to="/mentors" className="hover:text-indigo-200 dark:hover:text-indigo-300 transition-colors relative group">
               Find Mentors
-              <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-indigo-300 transition-all duration-300 group-hover:w-full"></span>
+              <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-indigo-300 dark:bg-indigo-400 transition-all duration-300 group-hover:w-full"></span>
             </Link>
 
             <ThemeSwitcher />
@@ -78,7 +78,7 @@ const Navbar: React.FC = () => {
               <>
                 <Link to="/dashboard" className="hover:text-indigo-200 dark:hover:text-indigo-300 transition-colors relative group">
                   Dashboard
-                  <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-indigo-300 transition-all duration-300 group-hover:w-full"></span>
+                  <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-indigo-300 dark:bg-indigo-400 transition-all duration-300 group-hover:w-full"></span>
                 </Link>
                 <div className="flex items-center relative" ref={dropdownRef}>
                   <motion.div
@@ -124,11 +124,11 @@ const Navbar: React.FC = () => {
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ duration: 0.2 }}
-                      className="absolute right-0 mt-2 top-full w-48 bg-white dark:bg-gray-800 text-gray-800 dark:text-white rounded-xl shadow-lg py-1 z-10"
+                      className="absolute right-0 mt-2 top-full w-48 bg-white dark:bg-gray-800 text-gray-800 dark:text-white rounded-xl shadow-lg dark:shadow-card-dark py-1 z-10 border border-gray-100 dark:border-gray-700"
                     >
                       <Link
                         to="/settings"
-                        className="flex items-center px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                        className="flex items-center px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700/70 transition-colors"
                         onClick={() => setDropdownOpen(false)}
                       >
                         <svg
@@ -158,7 +158,7 @@ const Navbar: React.FC = () => {
                           handleLogout();
                           setDropdownOpen(false);
                         }}
-                        className="flex items-center w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                        className="flex items-center w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700/70 transition-colors"
                       >
                         <svg
                           xmlns="http://www.w3.org/2000/svg"
@@ -184,12 +184,12 @@ const Navbar: React.FC = () => {
               <div className="space-x-4 flex items-center">
                 <Link to="/login" className="hover:text-indigo-200 dark:hover:text-indigo-300 transition-colors relative group">
                   Login
-                  <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-indigo-300 transition-all duration-300 group-hover:w-full"></span>
+                  <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-indigo-300 dark:bg-indigo-400 transition-all duration-300 group-hover:w-full"></span>
                 </Link>
                 <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
                   <Link
                     to="/register"
-                    className="bg-white text-indigo-600 hover:bg-indigo-50 dark:bg-indigo-200 dark:text-indigo-900 px-4 py-2 rounded-lg transition-colors shadow-md font-medium"
+                    className="bg-white text-indigo-600 hover:bg-indigo-50 dark:bg-indigo-300 dark:text-indigo-900 dark:hover:bg-indigo-200 px-4 py-2 rounded-lg transition-colors shadow-md font-medium"
                   >
                     Sign Up
                   </Link>
@@ -252,7 +252,7 @@ const Navbar: React.FC = () => {
                 </Link>
                 <Link
                   to="/register"
-                  className="bg-white text-indigo-600 hover:bg-indigo-50 dark:bg-indigo-200 dark:text-indigo-900 px-4 py-2 rounded-lg text-center transition-colors shadow-md"
+                  className="bg-white text-indigo-600 hover:bg-indigo-50 dark:bg-indigo-300 dark:text-indigo-900 dark:hover:bg-indigo-200 px-4 py-2 rounded-lg text-center transition-colors shadow-md"
                   onClick={() => setMobileMenuOpen(false)}
                 >
                   Sign Up

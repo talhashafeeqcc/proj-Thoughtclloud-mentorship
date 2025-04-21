@@ -84,7 +84,7 @@ const SessionDetails: React.FC<SessionDetailsProps> = ({
         {[1, 2, 3, 4, 5].map((star) => (
           <FaStar
             key={star}
-            className={`${star <= score ? 'text-yellow-400' : 'text-gray-300'
+            className={`${star <= score ? 'text-yellow-400' : 'text-gray-300 dark:text-gray-600'
               } w-4 h-4`}
           />
         ))}
@@ -173,8 +173,8 @@ const SessionDetails: React.FC<SessionDetailsProps> = ({
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center py-10">
-        <FaSpinner className="animate-spin text-blue-500 text-2xl mr-2" />
+      <div className="flex justify-center items-center py-10 text-gray-800 dark:text-gray-200">
+        <FaSpinner className="animate-spin text-blue-500 dark:text-blue-400 text-2xl mr-2" />
         <span>Loading session details...</span>
       </div>
     );
@@ -182,11 +182,11 @@ const SessionDetails: React.FC<SessionDetailsProps> = ({
 
   if (error) {
     return (
-      <div className="bg-red-100 border-l-4 border-red-500 p-4 mb-4">
+      <div className="bg-red-100 dark:bg-red-900/30 border-l-4 border-red-500 dark:border-red-400 p-4 mb-4">
         <div className="flex">
           <div className="ml-3">
-            <p className="text-red-700 font-medium">Error</p>
-            <p className="text-sm text-red-700">{error}</p>
+            <p className="text-red-700 dark:text-red-300 font-medium">Error</p>
+            <p className="text-sm text-red-700 dark:text-red-300">{error}</p>
           </div>
         </div>
       </div>
@@ -195,11 +195,11 @@ const SessionDetails: React.FC<SessionDetailsProps> = ({
 
   if (!session) {
     return (
-      <div className="bg-yellow-100 border-l-4 border-yellow-500 p-4 mb-4">
+      <div className="bg-yellow-100 dark:bg-yellow-900/30 border-l-4 border-yellow-500 dark:border-yellow-400 p-4 mb-4">
         <div className="flex">
           <div className="ml-3">
-            <p className="text-yellow-700 font-medium">Session not found</p>
-            <p className="text-sm text-yellow-700">
+            <p className="text-yellow-700 dark:text-yellow-300 font-medium">Session not found</p>
+            <p className="text-sm text-yellow-700 dark:text-yellow-300">
               The requested session could not be found.
             </p>
           </div>
@@ -216,21 +216,21 @@ const SessionDetails: React.FC<SessionDetailsProps> = ({
   const formattedDate = new Date(session.date).toLocaleDateString();
 
   return (
-    <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-      <h3 className="text-xl font-semibold mb-4 border-b pb-2">
+    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md dark:shadow-card-dark p-6 mb-6 border border-gray-100 dark:border-gray-700 text-gray-800 dark:text-white">
+      <h3 className="text-xl font-semibold mb-4 border-b border-gray-200 dark:border-gray-700 pb-2">
         {session.title || "Mentoring Session"}
       </h3>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
         <div>
           <div className="flex items-center mb-2">
-            <FaCalendar className="text-gray-500 mr-2" />
+            <FaCalendar className="text-gray-500 dark:text-gray-400 mr-2" />
             <span className="font-medium">Date:</span>
             <span className="ml-2">{formattedDate}</span>
           </div>
 
           <div className="flex items-center mb-2">
-            <FaClock className="text-gray-500 mr-2" />
+            <FaClock className="text-gray-500 dark:text-gray-400 mr-2" />
             <span className="font-medium">Time:</span>
             <span className="ml-2">
               {session.startTime} - {session.endTime}
@@ -239,11 +239,11 @@ const SessionDetails: React.FC<SessionDetailsProps> = ({
 
           {isMentee && (
             <div className="flex items-center mb-2">
-              <FaUser className="text-gray-500 mr-2" />
+              <FaUser className="text-gray-500 dark:text-gray-400 mr-2" />
               <span className="font-medium">Mentor:</span>
               <Link
                 to={`/mentors/${session.mentorId}`}
-                className="ml-2 text-blue-500 hover:text-blue-700"
+                className="ml-2 text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
               >
                 {session.mentorName}
               </Link>
@@ -252,7 +252,7 @@ const SessionDetails: React.FC<SessionDetailsProps> = ({
 
           {isMentor && (
             <div className="flex items-center mb-2">
-              <FaUser className="text-gray-500 mr-2" />
+              <FaUser className="text-gray-500 dark:text-gray-400 mr-2" />
               <span className="font-medium">Mentee:</span>
               <span className="ml-2">{session.menteeName}</span>
             </div>
@@ -261,7 +261,7 @@ const SessionDetails: React.FC<SessionDetailsProps> = ({
 
         <div>
           <div className="flex items-center mb-2">
-            <FaDollarSign className="text-gray-500 mr-2" />
+            <FaDollarSign className="text-gray-500 dark:text-gray-400 mr-2" />
             <span className="font-medium">Price:</span>
             <span className="ml-2">${session.paymentAmount.toFixed(2)}</span>
           </div>
@@ -270,10 +270,10 @@ const SessionDetails: React.FC<SessionDetailsProps> = ({
             <span className="font-medium">Status:</span>
             <span
               className={`ml-2 px-2 py-1 rounded-full text-xs ${session.status === "completed"
-                ? "bg-green-100 text-green-800"
+                ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300"
                 : session.status === "cancelled"
-                  ? "bg-red-100 text-red-800"
-                  : "bg-blue-100 text-blue-800"
+                  ? "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300"
+                  : "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300"
                 }`}
             >
               {session.status.charAt(0).toUpperCase() + session.status.slice(1)}
@@ -284,10 +284,10 @@ const SessionDetails: React.FC<SessionDetailsProps> = ({
             <span className="font-medium">Payment:</span>
             <span
               className={`ml-2 px-2 py-1 rounded-full text-xs ${session.paymentStatus === "completed"
-                ? "bg-green-100 text-green-800"
+                ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300"
                 : session.paymentStatus === "refunded"
-                  ? "bg-yellow-100 text-yellow-800"
-                  : "bg-gray-100 text-gray-800"
+                  ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300"
+                  : "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300"
                 }`}
             >
               {session.paymentStatus.charAt(0).toUpperCase() +
@@ -297,21 +297,21 @@ const SessionDetails: React.FC<SessionDetailsProps> = ({
 
           {paymentInfo && paymentInfo.transactionId && (
             <div className="flex items-center mb-2">
-              <FaCheck className="text-green-500 mr-2" />
+              <FaCheck className="text-green-500 dark:text-green-400 mr-2" />
               <span className="font-medium">Transaction ID:</span>
-              <span className="ml-2 text-xs text-gray-600">
+              <span className="ml-2 text-xs text-gray-600 dark:text-gray-400">
                 {paymentInfo.transactionId}
               </span>
             </div>
           )}
 
           <div>
-            <p className="text-xs text-gray-500">Debug: Has meeting link: {session.meetingLink ? 'Yes' : 'No'}</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400">Debug: Has meeting link: {session.meetingLink ? 'Yes' : 'No'}</p>
           </div>
 
           {session.meetingLink && session.meetingLink.length > 0 ? (
             <div className="flex items-start mb-2">
-              <FaVideo className="text-gray-500 mr-2 mt-1" />
+              <FaVideo className="text-gray-500 dark:text-gray-400 mr-2 mt-1" />
               <div>
                 <span className="font-medium">Meeting Link:</span>
                 <div className="ml-2">
@@ -319,19 +319,19 @@ const SessionDetails: React.FC<SessionDetailsProps> = ({
                     href={session.meetingLink}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-blue-500 hover:text-blue-700 flex items-center"
+                    className="text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 flex items-center"
                   >
                     {session.meetingLink.substring(0, 30)}...
                     <FaExternalLinkAlt className="ml-1 text-xs" />
                   </a>
-                  <p className="text-xs text-gray-500 mt-1">
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                     Click to join the Google Meet session
                   </p>
                 </div>
               </div>
             </div>
           ) : (
-            <div className="flex items-start mb-2 text-gray-500">
+            <div className="flex items-start mb-2 text-gray-500 dark:text-gray-400">
               <FaVideo className="mr-2 mt-1" />
               <div>
                 <span className="font-medium">Meeting Link:</span>
@@ -344,14 +344,14 @@ const SessionDetails: React.FC<SessionDetailsProps> = ({
 
       {/* Action message */}
       {actionMessage && (
-        <div className={`p-4 mb-4 rounded-md ${actionMessage.type === 'success' ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'}`}>
+        <div className={`p-4 mb-4 rounded-md ${actionMessage.type === 'success' ? 'bg-green-50 dark:bg-green-900/20 text-green-800 dark:text-green-300' : 'bg-red-50 dark:bg-red-900/20 text-red-800 dark:text-red-300'}`}>
           {actionMessage.text}
         </div>
       )}
 
       {/* Session actions - Only show for active sessions */}
       {session.status === "scheduled" && (
-        <div className="my-6 border-t border-b py-4">
+        <div className="my-6 border-t border-b border-gray-200 dark:border-gray-700 py-4">
           <h4 className="font-medium mb-3">Session Actions:</h4>
           <div className="flex flex-wrap gap-3">
             {/* Complete Session Button - Only for mentors */}
@@ -359,7 +359,7 @@ const SessionDetails: React.FC<SessionDetailsProps> = ({
               <button
                 onClick={handleCompleteSession}
                 disabled={processing}
-                className="flex items-center px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex items-center px-4 py-2 bg-green-500 hover:bg-green-600 dark:bg-green-600 dark:hover:bg-green-700 text-white rounded hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {processing ? (
                   <FaSpinner className="animate-spin mr-2" />
@@ -374,7 +374,7 @@ const SessionDetails: React.FC<SessionDetailsProps> = ({
             <button
               onClick={handleCancelSession}
               disabled={processing}
-              className="flex items-center px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex items-center px-4 py-2 bg-red-500 hover:bg-red-600 dark:bg-red-600 dark:hover:bg-red-700 text-white rounded hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {processing ? (
                 <FaSpinner className="animate-spin mr-2" />
@@ -384,7 +384,7 @@ const SessionDetails: React.FC<SessionDetailsProps> = ({
               Cancel Session
             </button>
           </div>
-          <p className="text-sm text-gray-500 mt-2">
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
             {isMentor 
               ? "Completing the session will release the payment to your account. Cancelling will refund the mentee."
               : "Cancelling the session will refund your payment."}
@@ -395,7 +395,7 @@ const SessionDetails: React.FC<SessionDetailsProps> = ({
       {session.notes && (
         <div className="mb-6">
           <h4 className="font-medium mb-2">Session Notes:</h4>
-          <p className="text-gray-700 bg-gray-50 p-3 rounded">
+          <p className="text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-700 p-3 rounded">
             {session.notes}
           </p>
         </div>
@@ -403,13 +403,13 @@ const SessionDetails: React.FC<SessionDetailsProps> = ({
 
       {/* Display the session rating if it exists */}
       {rated && sessionRating && (
-        <div className="mt-6 border-t pt-4">
+        <div className="mt-6 border-t border-gray-200 dark:border-gray-700 pt-4">
           <div className="flex items-center mb-4">
             <FaStar className="text-yellow-400 mr-2" />
             <h4 className="text-lg font-medium">Session Review</h4>
           </div>
 
-          <div className="bg-gray-50 p-4 rounded-lg">
+          <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
             <div className="flex justify-between items-start">
               <div>
                 {renderStars(sessionRating.score)}
@@ -417,13 +417,13 @@ const SessionDetails: React.FC<SessionDetailsProps> = ({
                   {isMentor ? "Mentee's Rating:" : "Your Rating:"}
                 </p>
               </div>
-              <div className="text-gray-500 text-sm">
+              <div className="text-gray-500 dark:text-gray-400 text-sm">
                 {formatDate(sessionRating.date)}
               </div>
             </div>
             {sessionRating.review && (
               <div className="mt-3">
-                <p className="text-gray-700">{sessionRating.review}</p>
+                <p className="text-gray-700 dark:text-gray-300">{sessionRating.review}</p>
               </div>
             )}
           </div>
@@ -431,7 +431,7 @@ const SessionDetails: React.FC<SessionDetailsProps> = ({
       )}
 
       {isMentee && isCompleted && isPaid && !rated && (
-        <div className="mt-6 border-t pt-4">
+        <div className="mt-6 border-t border-gray-200 dark:border-gray-700 pt-4">
           <div className="flex items-center mb-4">
             <FaStar className="text-yellow-400 mr-2" />
             <h4 className="text-lg font-medium">Session Review</h4>
@@ -449,8 +449,8 @@ const SessionDetails: React.FC<SessionDetailsProps> = ({
       )}
 
       {rated === false && !isMentee && (
-        <div className="mt-6 border-t pt-4">
-          <p className="text-gray-600 italic">This session has not been rated yet.</p>
+        <div className="mt-6 border-t border-gray-200 dark:border-gray-700 pt-4">
+          <p className="text-gray-600 dark:text-gray-400 italic">This session has not been rated yet.</p>
         </div>
       )}
     </div>

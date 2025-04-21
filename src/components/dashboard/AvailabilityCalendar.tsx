@@ -217,7 +217,7 @@ const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
   // Add empty cells for days before the first day of the month
   for (let i = 0; i < startDay; i++) {
     calendarDays.push(
-      <div key={`empty-${i}`} className="p-2 border text-gray-300"></div>
+      <div key={`empty-${i}`} className="p-2 border border-gray-200 dark:border-gray-700 text-gray-300 dark:text-gray-700"></div>
     );
   }
 
@@ -331,23 +331,24 @@ const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
     calendarDays.push(
       <div
         key={`day-${day}`}
-        className={`p-2 border hover:bg-gray-100 cursor-pointer relative
-          ${hasAvailableSlots ? "bg-green-100 hover:bg-green-200" : ""}
-          ${hasBookedSlots ? "bg-purple-100 hover:bg-purple-200" : ""}
-          ${hasAvailableSlots && hasBookedSlots ? "bg-gradient-to-r from-green-100 to-purple-100" : ""}
-          ${isSelectedDay ? "bg-blue-200 hover:bg-blue-300 font-semibold" : ""}
-          ${isToday ? "border-2 border-blue-500" : ""}
+        className={`p-2 border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer relative
+          ${hasAvailableSlots ? "bg-green-100 dark:bg-green-900/30 hover:bg-green-200 dark:hover:bg-green-900/50" : ""}
+          ${hasBookedSlots ? "bg-purple-100 dark:bg-purple-900/30 hover:bg-purple-200 dark:hover:bg-purple-900/50" : ""}
+          ${hasAvailableSlots && hasBookedSlots ? "bg-gradient-to-r from-green-100 to-purple-100 dark:from-green-900/30 dark:to-purple-900/30" : ""}
+          ${isSelectedDay ? "bg-blue-200 dark:bg-blue-800 hover:bg-blue-300 dark:hover:bg-blue-700 font-semibold" : ""}
+          ${isToday ? "border-2 border-blue-500 dark:border-blue-400" : ""}
           ${isPastDay ? "opacity-50" : ""}
+          text-gray-800 dark:text-gray-200
         `}
         onClick={() => handleDayClick(day, formattedDate)}
       >
         {day}
         <div className="flex justify-center mt-1 space-x-1">
           {hasAvailableSlots && (
-            <div className="h-1 w-1 bg-green-500 rounded-full"></div>
+            <div className="h-1 w-1 bg-green-500 dark:bg-green-400 rounded-full"></div>
           )}
           {hasBookedSlots && (
-            <div className="h-1 w-1 bg-purple-500 rounded-full"></div>
+            <div className="h-1 w-1 bg-purple-500 dark:bg-purple-400 rounded-full"></div>
           )}
         </div>
       </div>
@@ -365,18 +366,18 @@ const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
 
   if (loading && availabilitySlots.length === 0) {
     return (
-      <div className="bg-white rounded-lg shadow-md p-6 flex flex-col items-center justify-center h-64">
-        <FaSpinner className="animate-spin text-blue-500 text-2xl mb-2" />
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md dark:shadow-card-dark p-6 flex flex-col items-center justify-center h-64 border border-gray-100 dark:border-gray-700 text-gray-800 dark:text-white">
+        <FaSpinner className="animate-spin text-blue-500 dark:text-blue-400 text-2xl mb-2" />
         <p>Loading availability calendar...</p>
       </div>
     );
   }
 
   return (
-    <div className="bg-white rounded-lg shadow-md p-4">
+    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md dark:shadow-card-dark p-4 border border-gray-100 dark:border-gray-700 text-gray-800 dark:text-white">
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-xl font-semibold flex items-center">
-          <FaCalendarAlt className="mr-2 text-blue-500" /> {currentMonthName}{" "}
+          <FaCalendarAlt className="mr-2 text-blue-500 dark:text-blue-400" /> {currentMonthName}{" "}
           {currentYear}
         </h2>
         <div className="flex space-x-2">
@@ -388,7 +389,7 @@ const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
               setSelectedDate(newDate);
               resetSelection();
             }}
-            className="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded transition-colors z-10"
+            className="px-3 py-1 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 rounded transition-colors z-10"
             aria-label="Previous month"
             title="Previous month"
           >
@@ -402,7 +403,7 @@ const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
               setSelectedDate(newDate);
               resetSelection();
             }}
-            className="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded transition-colors z-10"
+            className="px-3 py-1 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 rounded transition-colors z-10"
             aria-label="Next month"
             title="Next month"
           >
@@ -410,7 +411,7 @@ const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
           </button>
           <button
             onClick={handleRefresh}
-            className="px-3 py-1 bg-blue-100 hover:bg-blue-200 rounded transition-colors flex items-center z-10"
+            className="px-3 py-1 bg-blue-100 dark:bg-blue-900/50 hover:bg-blue-200 dark:hover:bg-blue-800 rounded transition-colors flex items-center z-10"
             title="Refresh availability"
             aria-label="Refresh availability"
           >
@@ -420,7 +421,7 @@ const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
       </div>
 
       {error && (
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4 flex items-center">
+        <div className="bg-red-100 dark:bg-red-900/30 border border-red-400 dark:border-red-500 text-red-700 dark:text-red-300 px-4 py-3 rounded mb-4 flex items-center">
           <FaExclamationTriangle className="mr-2" />
           <span>{error}</span>
         </div>
@@ -428,7 +429,7 @@ const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
 
       <div className="grid grid-cols-7 gap-0.5 text-center">
         {dayNames.map((day) => (
-          <div key={day} className="p-2 font-semibold text-gray-700 bg-gray-50">
+          <div key={day} className="p-2 font-semibold text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-700">
             {day}
           </div>
         ))}
@@ -439,7 +440,7 @@ const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
       {selectedDaySlots.length > 0 && (
         <div className="mt-4">
           <h3 className="text-lg font-semibold mb-2 flex items-center">
-            <FaClock className="mr-2 text-blue-500" />
+            <FaClock className="mr-2 text-blue-500 dark:text-blue-400" />
             Slots for{" "}
             {new Date(selectedDaySlots[0].date).toLocaleDateString()}
           </h3>
@@ -450,10 +451,10 @@ const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
                 className={`p-3 rounded transition-all flex items-center justify-center
                   ${
                     slot.isBooked
-                      ? "bg-purple-100 text-purple-800 cursor-not-allowed"
+                      ? "bg-purple-100 dark:bg-purple-900/40 text-purple-800 dark:text-purple-200 cursor-not-allowed"
                       : selectedSlotId === slot.id
-                      ? "bg-blue-500 text-white font-medium shadow-md cursor-pointer"
-                      : "bg-gray-100 hover:bg-gray-200 text-gray-800 cursor-pointer"
+                      ? "bg-blue-500 dark:bg-blue-600 text-white font-medium shadow-md cursor-pointer"
+                      : "bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 cursor-pointer"
                   }`}
                 onClick={() => !slot.isBooked && handleSlotClick(slot)}
               >
@@ -466,8 +467,8 @@ const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
         </div>
       )}
       {selectedDaySlots.length === 0 && selectedDay && (
-        <div className="mt-4 p-4 bg-gray-100 rounded-md text-gray-600 flex items-center justify-center">
-          <FaExclamationTriangle className="mr-2 text-yellow-500" />
+        <div className="mt-4 p-4 bg-gray-100 dark:bg-gray-700 rounded-md text-gray-600 dark:text-gray-300 flex items-center justify-center">
+          <FaExclamationTriangle className="mr-2 text-yellow-500 dark:text-yellow-400" />
           No slots available for{" "}
           {new Date(
             selectedDate.getFullYear(),
@@ -479,16 +480,16 @@ const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
 
       {/* Debug Section - Only visible in development mode */}
       {window.location.hostname === 'localhost' && (
-        <div className="mt-4 border-t pt-4">
+        <div className="mt-4 border-t border-gray-200 dark:border-gray-700 pt-4">
           <button 
-            className="text-sm text-gray-500 hover:text-gray-700 underline"
+            className="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 underline"
             onClick={() => setShowDebug(!showDebug)}
           >
             {showDebug ? "Hide Debug Info" : "Show Debug Info"}
           </button>
           
           {showDebug && (
-            <div className="mt-2 p-3 bg-gray-100 rounded text-xs font-mono overflow-auto max-h-60">
+            <div className="mt-2 p-3 bg-gray-100 dark:bg-gray-700 rounded text-xs font-mono overflow-auto max-h-60 text-gray-800 dark:text-gray-300">
               <div>
                 <strong>MentorId:</strong> {mentorId}
               </div>
@@ -508,7 +509,7 @@ const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
                 <strong>All Available Slots (Raw Data):</strong>
                 <ul className="mt-1 space-y-1">
                   {availabilitySlots.map(slot => (
-                    <li key={slot.id} className="p-1 hover:bg-blue-50">
+                    <li key={slot.id} className="p-1 hover:bg-blue-50 dark:hover:bg-blue-900/20">
                       {slot.date} | {slot.startTime}-{slot.endTime} | ID: {slot.id.substring(0, 8)}...
                     </li>
                   ))}

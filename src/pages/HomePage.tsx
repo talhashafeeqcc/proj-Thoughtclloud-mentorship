@@ -71,7 +71,7 @@ const HomePage: React.FC = () => {
           >
             <Link
               to="/mentors"
-              className="bg-white text-indigo-700 hover:bg-indigo-50 dark:bg-white/90 dark:hover:bg-white px-8 py-4 rounded-lg font-medium text-lg shadow-xl transform transition-all hover:scale-105 hover:shadow-2xl focus:ring-4 focus:ring-indigo-200 focus:ring-opacity-50 focus:outline-none"
+              className="bg-white text-indigo-700 hover:bg-indigo-50 dark:bg-white/95 dark:hover:bg-white px-8 py-4 rounded-lg font-medium text-lg shadow-xl transform transition-all hover:scale-105 hover:shadow-2xl focus:ring-4 focus:ring-indigo-200 focus:ring-opacity-50 focus:outline-none"
             >
               Find a Mentor
             </Link>
@@ -121,7 +121,7 @@ const HomePage: React.FC = () => {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.5, delay: index * 0.1 }}
-              className="relative p-8 bg-white dark:bg-gray-800 rounded-2xl shadow-soft hover:shadow-xl transition-all duration-300"
+              className="relative p-8 bg-white dark:bg-gray-800 rounded-2xl shadow-soft dark:shadow-soft-dark hover:shadow-xl dark:hover:shadow-card-dark transition-all duration-300 border border-gray-100 dark:border-gray-700"
             >
               <div className="absolute -top-5 left-5 bg-gradient-to-r from-indigo-600 to-purple-600 dark:from-indigo-500 dark:to-purple-500 w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-lg">
                 {item.step}
@@ -173,7 +173,7 @@ const HomePage: React.FC = () => {
                   whileInView={{ opacity: 1, scale: 1 }}
                   viewport={{ once: true }}
                   transition={{ duration: 0.4, delay: index * 0.1 }}
-                  className="bg-white/10 backdrop-blur-sm p-6 rounded-xl text-white hover:bg-white/15 transition-all duration-300"
+                  className="bg-white/10 backdrop-blur-sm p-6 rounded-xl text-white hover:bg-white/15 transition-all duration-300 border border-white/5"
                 >
                   <div className="text-3xl mb-4">{item.icon}</div>
                   <h3 className="text-xl font-semibold mb-3">{item.title}</h3>
@@ -191,7 +191,7 @@ const HomePage: React.FC = () => {
             >
             <Link
               to="/mentors"
-                className="bg-white text-indigo-700 hover:bg-indigo-50 px-8 py-3 rounded-lg font-medium shadow-lg inline-block transform transition-all hover:scale-105 focus:ring-4 focus:ring-white focus:ring-opacity-30 focus:outline-none"
+                className="bg-white text-indigo-700 hover:bg-indigo-50 dark:bg-white/95 dark:hover:bg-white px-8 py-3 rounded-lg font-medium shadow-lg inline-block transform transition-all hover:scale-105 focus:ring-4 focus:ring-white focus:ring-opacity-30 focus:outline-none"
             >
               Start Your Journey
             </Link>
@@ -230,7 +230,7 @@ const HomePage: React.FC = () => {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ duration: 0.5, delay: index * 0.1 }}
-                className="bg-white dark:bg-gray-800 rounded-xl shadow-soft hover:shadow-xl overflow-hidden transition-all duration-300 border border-gray-100 dark:border-gray-700"
+                className="bg-white dark:bg-gray-800 rounded-xl shadow-soft dark:shadow-soft-dark hover:shadow-xl dark:hover:shadow-card-dark transition-all duration-300 border border-gray-100 dark:border-gray-700"
               >
                 <div className="relative h-48 overflow-hidden">
                 <img
@@ -245,14 +245,14 @@ const HomePage: React.FC = () => {
                   <p className="text-gray-600 dark:text-gray-300 mb-4 text-sm line-clamp-2">{mentor.bio}</p>
                   <div className="flex flex-wrap gap-2 mb-6">
                     {mentor.expertise?.slice(0, 3).map((skill, index) => (
-                      <span key={index} className="bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300 text-xs px-2.5 py-1 rounded-full font-medium">
+                      <span key={index} className="bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300 text-xs px-2.5 py-1 rounded-full font-medium">
                         {skill}
                       </span>
                     ))}
                   </div>
                   <Link
                     to={`/mentors/${mentor.id}`}
-                    className="block text-center bg-indigo-600 hover:bg-indigo-700 text-white py-2.5 rounded-lg font-medium transition-all duration-300 hover:shadow-lg"
+                    className="block text-center bg-indigo-600 hover:bg-indigo-700 text-white dark:bg-indigo-600 dark:hover:bg-indigo-700 py-2.5 rounded-lg font-medium transition-all duration-300 hover:shadow-lg focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:ring-opacity-50"
                   >
                     View Profile
                   </Link>
@@ -270,7 +270,7 @@ const HomePage: React.FC = () => {
         >
           <Link
             to="/mentors"
-            className="inline-block bg-indigo-600 hover:bg-indigo-700 text-white px-8 py-3 rounded-lg shadow-lg font-medium transition-all duration-300 hover:shadow-xl"
+            className="inline-block bg-indigo-600 hover:bg-indigo-700 text-white dark:bg-indigo-600 dark:hover:bg-indigo-700 px-8 py-3 rounded-lg shadow-lg font-medium transition-all duration-300 hover:shadow-xl focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:ring-opacity-50"
           >
             View All Mentors
           </Link>
@@ -310,13 +310,13 @@ const HomePage: React.FC = () => {
               whileInView={{ opacity: 1, x: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.5, delay: index * 0.1 }}
-              className="bg-white dark:bg-gray-800 p-8 rounded-xl shadow-soft border border-gray-100 dark:border-gray-700 hover:shadow-lg transition-all duration-300"
+              className="bg-white dark:bg-gray-800 p-8 rounded-xl shadow-soft dark:shadow-soft-dark border border-gray-100 dark:border-gray-700 hover:shadow-lg dark:hover:shadow-card-dark transition-all duration-300"
             >
               <div className="flex items-center gap-4 mb-6">
                 <img
                   src={testimonial.image}
                   alt={testimonial.name}
-                  className="w-14 h-14 rounded-full object-cover ring-2 ring-indigo-300"
+                  className="w-14 h-14 rounded-full object-cover ring-2 ring-indigo-300 dark:ring-indigo-500"
               />
               <div>
                   <h4 className="font-semibold text-gray-800 dark:text-white text-lg">{testimonial.name}</h4>
@@ -345,7 +345,7 @@ const HomePage: React.FC = () => {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.5 }}
-          className="max-w-5xl mx-auto bg-gradient-to-r from-indigo-600 to-purple-700 dark:from-indigo-700 dark:to-purple-800 rounded-2xl shadow-xl overflow-hidden"
+          className="max-w-5xl mx-auto bg-gradient-to-r from-indigo-600 to-purple-700 dark:from-indigo-700 dark:to-purple-800 rounded-2xl shadow-xl overflow-hidden border border-indigo-500/20 dark:border-indigo-600/20"
         >
           <div className="px-6 py-12 md:p-12 text-center text-white">
             <h2 className="text-3xl md:text-4xl font-bold mb-6">Ready to Transform Your Career?</h2>
@@ -355,13 +355,13 @@ const HomePage: React.FC = () => {
           <div className="flex flex-col sm:flex-row justify-center gap-4">
             <Link
               to="/register"
-                className="bg-white text-indigo-700 hover:bg-indigo-50 px-8 py-3 rounded-lg font-medium shadow-lg transition-all hover:shadow-xl"
+                className="bg-white text-indigo-700 hover:bg-indigo-50 dark:bg-white/95 dark:hover:bg-white px-8 py-3 rounded-lg font-medium shadow-lg transition-all hover:shadow-xl"
             >
               Sign Up Now
             </Link>
             <Link
               to="/mentors"
-                className="bg-transparent hover:bg-white/10 text-white border border-white px-8 py-3 rounded-lg font-medium transition-all"
+                className="bg-transparent hover:bg-white/10 text-white border border-white/80 px-8 py-3 rounded-lg font-medium transition-all hover:border-white"
             >
                 Explore Mentors
             </Link>

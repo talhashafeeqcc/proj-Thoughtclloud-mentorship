@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { v4 as uuidv4 } from "uuid";
-import { FaCalendarPlus, FaTrash } from "react-icons/fa";
+import { FaCalendarPlus, FaTrash, FaCalendarAlt } from "react-icons/fa";
 import { AvailabilitySlot } from "../../types";
 import {
   getMentorById,
@@ -219,31 +219,34 @@ const AvailabilityManager: React.FC<AvailabilityManagerProps> = ({
         type="warning"
       />
 
-      <div className="bg-white rounded-lg shadow-md p-6">
-        <h2 className="text-xl font-semibold mb-4 flex items-center">
-          <FaCalendarPlus className="mr-2" /> Manage Your Availability
+      <div className="space-y-6 p-4 sm:p-6 bg-white dark:bg-gray-900 rounded-lg">
+        <h2 className="text-xl font-semibold dark:text-white flex items-center">
+          <FaCalendarPlus className="mr-2 text-blue-500 dark:text-blue-400" /> Manage Your Availability
         </h2>
 
+        {/* Error message */}
         {error && (
-          <div className="mb-4 p-3 bg-red-100 text-red-800 rounded">{error}</div>
-        )}
-
-        {successMessage && (
-          <div className="mb-4 p-3 bg-green-100 text-green-800 rounded">
-            {successMessage}
+          <div className="bg-red-100 dark:bg-red-900/20 border-l-4 border-red-500 dark:border-red-400 text-red-700 dark:text-red-400 p-4 rounded">
+            <p>{error}</p>
           </div>
         )}
 
-        {/* Add new slot form */}
-        <form
-          onSubmit={handleAddSlot}
-          className="mb-6 p-4 border rounded bg-gray-50"
-        >
-          <h3 className="text-lg font-medium mb-3">Add New Availability Slot</h3>
+        {/* Success message */}
+        {successMessage && (
+          <div className="bg-green-100 dark:bg-green-900/20 border-l-4 border-green-500 dark:border-green-400 text-green-700 dark:text-green-400 p-4 rounded">
+            <p>{successMessage}</p>
+          </div>
+        )}
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {/* Form for adding slots */}
+        <form onSubmit={handleAddSlot} className="bg-white dark:bg-gray-800 shadow-md rounded-lg p-5 border border-gray-100 dark:border-gray-700">
+          <h3 className="text-lg font-medium mb-4 dark:text-white">Add Availability Slot</h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
             <div>
-              <label htmlFor="date" className="block mb-1 text-sm font-medium">
+              <label
+                htmlFor="date"
+                className="block mb-2 text-sm font-medium dark:text-gray-300"
+              >
                 Date
               </label>
               <input
@@ -252,7 +255,7 @@ const AvailabilityManager: React.FC<AvailabilityManagerProps> = ({
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
                 min={new Date().toISOString().split("T")[0]} // Don't allow past dates
-                className="w-full p-2 border rounded"
+                className="w-full p-2.5 border border-gray-300 rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:ring-blue-500 focus:border-blue-500 dark:focus:ring-blue-400 dark:focus:border-blue-400"
                 required
               />
             </div>
@@ -260,7 +263,7 @@ const AvailabilityManager: React.FC<AvailabilityManagerProps> = ({
             <div>
               <label
                 htmlFor="startTime"
-                className="block mb-1 text-sm font-medium"
+                className="block mb-2 text-sm font-medium dark:text-gray-300"
               >
                 Start Time
               </label>
@@ -269,13 +272,13 @@ const AvailabilityManager: React.FC<AvailabilityManagerProps> = ({
                 id="startTime"
                 value={startTime}
                 onChange={(e) => setStartTime(e.target.value)}
-                className="w-full p-2 border rounded"
+                className="w-full p-2.5 border border-gray-300 rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:ring-blue-500 focus:border-blue-500 dark:focus:ring-blue-400 dark:focus:border-blue-400"
                 required
               />
             </div>
 
             <div>
-              <label htmlFor="endTime" className="block mb-1 text-sm font-medium">
+              <label htmlFor="endTime" className="block mb-2 text-sm font-medium dark:text-gray-300">
                 End Time
               </label>
               <input
@@ -283,55 +286,78 @@ const AvailabilityManager: React.FC<AvailabilityManagerProps> = ({
                 id="endTime"
                 value={endTime}
                 onChange={(e) => setEndTime(e.target.value)}
-                className="w-full p-2 border rounded"
+                className="w-full p-2.5 border border-gray-300 rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:ring-blue-500 focus:border-blue-500 dark:focus:ring-blue-400 dark:focus:border-blue-400"
                 required
               />
             </div>
           </div>
 
-          <div className="mt-4">
+          <div className="mt-5">
             <button
               type="submit"
               disabled={isSubmitting}
-              className={`px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 ${isSubmitting ? "opacity-50 cursor-not-allowed" : ""
+              className={`px-4 py-2.5 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 ${isSubmitting ? "opacity-50 cursor-not-allowed" : ""
                 }`}
             >
-              {isSubmitting ? "Adding..." : "Add Slot"}
+              {isSubmitting ? (
+                <span className="flex items-center">
+                  <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Adding...
+                </span>
+              ) : (
+                "Add Slot"
+              )}
             </button>
           </div>
         </form>
 
         {/* Display existing slots */}
-        <div>
-          <h3 className="text-lg font-medium mb-3">Your Available Slots</h3>
+        <div className="mt-8">
+          <h3 className="text-lg font-medium mb-4 dark:text-white flex items-center">
+            <FaCalendarAlt className="mr-2 text-blue-500 dark:text-blue-400" /> Your Available Slots
+          </h3>
 
           {loading ? (
-            <p>Loading availability slots...</p>
+            <div className="flex items-center p-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-100 dark:border-gray-700">
+              <div className="w-5 h-5 border-2 border-blue-500 dark:border-blue-400 border-t-transparent rounded-full animate-spin mr-3"></div>
+              <p className="dark:text-gray-300">Loading availability slots...</p>
+            </div>
           ) : availabilitySlots.length === 0 ? (
-            <p className="text-gray-500">No availability slots added yet.</p>
+            <div className="p-6 bg-white dark:bg-gray-800 rounded-lg border border-gray-100 dark:border-gray-700 text-center">
+              <p className="text-gray-500 dark:text-gray-400">No availability slots added yet.</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">Add your first slot using the form above.</p>
+            </div>
           ) : (
-            <div className="space-y-4">
+            <div className="space-y-5">
               {sortedDates.map((date) => (
-                <div key={date} className="border rounded p-3">
-                  <h4 className="font-medium mb-2">
-                    {new Date(date).toLocaleDateString(undefined, {
-                      weekday: "long",
-                      year: "numeric",
-                      month: "long",
-                      day: "numeric",
-                    })}
-                  </h4>
+                <div key={date} className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden shadow-sm">
+                  <div className="bg-gray-50 dark:bg-gray-700/50 px-4 py-3 border-b border-gray-200 dark:border-gray-700">
+                    <h4 className="font-medium dark:text-white">
+                      {new Date(date).toLocaleDateString(undefined, {
+                        weekday: "long",
+                        year: "numeric",
+                        month: "long",
+                        day: "numeric",
+                      })}
+                    </h4>
+                  </div>
 
-                  <div className="divide-y">
+                  <div className="divide-y dark:divide-gray-700">
                     {groupedSlots[date].map((slot) => (
                       <div
                         key={slot.id}
-                        className="py-2 flex justify-between items-center"
+                        className="py-3 px-4 flex justify-between items-center hover:bg-gray-50 dark:hover:bg-gray-750"
                       >
-                        <span>
+                        <span className="dark:text-gray-300 flex items-center">
+                          <span className="w-6 h-6 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center mr-3">
+                            <FaCalendarAlt className="text-blue-500 dark:text-blue-400 text-xs" />
+                          </span>
                           {slot.startTime} - {slot.endTime}
                           {slot.isBooked && (
-                            <span className="ml-2 text-xs px-2 py-1 bg-yellow-100 text-yellow-800 rounded">
+                            <span className="ml-3 text-xs px-2.5 py-1 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-400 rounded-full font-medium">
                               Booked
                             </span>
                           )}
@@ -340,12 +366,12 @@ const AvailabilityManager: React.FC<AvailabilityManagerProps> = ({
                         {!slot.isBooked && (
                           <button
                             onClick={() => handleRemoveClick(slot.id)}
-                            className="text-red-500 hover:text-red-700"
+                            className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 p-2 rounded-full hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
                             title="Delete slot"
                             disabled={removingSlotId === slot.id}
                           >
                             {removingSlotId === slot.id ? (
-                              <span className="text-xs px-2 py-1 bg-gray-100 text-gray-600 rounded-full animate-pulse">
+                              <span className="text-xs px-2.5 py-1 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 rounded-full animate-pulse">
                                 Removing...
                               </span>
                             ) : (
