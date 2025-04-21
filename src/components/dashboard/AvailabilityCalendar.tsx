@@ -163,7 +163,6 @@ const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
 
   // Using useCallback to memoize these functions to use in keyboard event handlers
   const prevMonth = useCallback(() => {
-    console.log("Previous month button clicked");
     const newDate = new Date(selectedDate);
     newDate.setMonth(newDate.getMonth() - 1);
     setSelectedDate(newDate);
@@ -171,7 +170,6 @@ const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
   }, [selectedDate]);
 
   const nextMonth = useCallback(() => {
-    console.log("Next month button clicked");
     const newDate = new Date(selectedDate);
     newDate.setMonth(newDate.getMonth() + 1);
     setSelectedDate(newDate);
@@ -251,14 +249,11 @@ const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
     
     if (allSlotsForDay.length > 0) {
       setSelectedDaySlots(allSlotsForDay);
-    } else {
-      console.log("No slots found for day:", formattedDate);
     }
   };
 
   const handleSlotClick = (slot: AvailabilitySlot) => {
     if (disabled || readOnly) {
-      console.log("Calendar is in disabled/readonly mode, ignoring slot click");
       return;
     }
     
@@ -382,13 +377,7 @@ const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
         </h2>
         <div className="flex space-x-2">
           <button
-            onClick={() => {
-              console.log("Previous month button clicked");
-              const newDate = new Date(selectedDate);
-              newDate.setMonth(newDate.getMonth() - 1);
-              setSelectedDate(newDate);
-              resetSelection();
-            }}
+            onClick={prevMonth}
             className="px-3 py-1 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 rounded transition-colors z-10"
             aria-label="Previous month"
             title="Previous month"
@@ -396,13 +385,7 @@ const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
             {"<"}
           </button>
           <button
-            onClick={() => {
-              console.log("Next month button clicked");
-              const newDate = new Date(selectedDate);
-              newDate.setMonth(newDate.getMonth() + 1);
-              setSelectedDate(newDate);
-              resetSelection();
-            }}
+            onClick={nextMonth}
             className="px-3 py-1 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 rounded transition-colors z-10"
             aria-label="Next month"
             title="Next month"

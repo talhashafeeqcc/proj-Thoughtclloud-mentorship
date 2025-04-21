@@ -110,7 +110,6 @@ const MentorDashboard: React.FC = () => {
 
   // Handler for when availability changes (add/edit/delete)
   const handleAvailabilityChange = useCallback(() => {
-    console.log("Availability changed, refreshing data");
     setAvailabilityVersion(prev => prev + 1); // Increment to force calendar refresh
   }, []);
 
@@ -130,8 +129,6 @@ const MentorDashboard: React.FC = () => {
     }
 
     try {
-      console.log("Booking confirmed with mentor:", mentorProfile.name);
-      
       // For a self-booking demo, we'll just simulate the booking process
       // In a real app, this would call a booking service
       
@@ -191,7 +188,6 @@ const MentorDashboard: React.FC = () => {
       isFetchingMentorRef.current = true;
 
       try {
-        console.log("Fetching mentor data for:", authState.user.id);
         const mentorData = await getMentorByUserId(authState.user.id);
 
         // Only update state if component is still mounted
@@ -268,7 +264,6 @@ const MentorDashboard: React.FC = () => {
   // Force refresh sessions when component mounts or mentorId changes
   useEffect(() => {
     if (authState.user?.id) {
-      console.log("MentorDashboard: Refreshing sessions on mount or mentorId change");
       fetchUserSessions(true); // Force refresh
     }
   }, [authState.user?.id, mentorId, fetchUserSessions]);

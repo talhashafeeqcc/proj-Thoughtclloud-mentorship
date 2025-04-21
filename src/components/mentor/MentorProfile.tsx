@@ -9,13 +9,6 @@ interface MentorProfileProps {
 const MentorProfile: React.FC<MentorProfileProps> = ({ mentor }) => {
   const [showAllReviews, setShowAllReviews] = useState(false);
 
-  // Add debugging logs
-  useEffect(() => {
-    console.log('MentorProfile component mounted with mentor:', mentor);
-    console.log('Ratings available:', mentor.ratings);
-    console.log('Average rating:', mentor.averageRating);
-  }, [mentor]);
-
   // Calculate average rating, use the provided averageRating or calculate it
   const averageRating = mentor.averageRating !== undefined
     ? mentor.averageRating
@@ -27,8 +20,6 @@ const MentorProfile: React.FC<MentorProfileProps> = ({ mentor }) => {
   const sortedRatings = mentor.ratings && Array.isArray(mentor.ratings)
     ? [...mentor.ratings].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
     : [];
-
-  console.log('Sorted ratings:', sortedRatings);
 
   // Show only first 3 reviews unless "show all" is clicked
   const displayedRatings = showAllReviews ? sortedRatings : sortedRatings.slice(0, 3);

@@ -177,7 +177,6 @@ const ProfileSettings: React.FC = () => {
             if (!roleData) {
               throw new Error("Failed to create mentor profile");
             }
-            console.log("Created default mentor profile:", roleData);
           }
         } catch (error) {
           console.error("Error getting/creating mentor profile:", error);
@@ -192,7 +191,7 @@ const ProfileSettings: React.FC = () => {
         try {
           roleData = await getMenteeByUserId(userData.id);
           if (!roleData) {
-            console.log("Mentee profile not found, will create a default one");
+            // Mentee profile not found, will create a default one
 
             // Use updateMenteeProfile to create a default profile
             const defaultMenteeData = {
@@ -206,7 +205,6 @@ const ProfileSettings: React.FC = () => {
             if (!roleData) {
               throw new Error("Failed to create mentee profile");
             }
-            console.log("Created default mentee profile:", roleData);
           }
         } catch (error) {
           console.error("Error getting/creating mentee profile:", error);
@@ -216,15 +214,12 @@ const ProfileSettings: React.FC = () => {
         }
       }
 
-      console.log("Fetched/created role data:", roleData);
-
       // Combine user and role data
       const combinedData = {
         ...userData,
         ...roleData,
       };
 
-      console.log("Combined profile data:", combinedData);
       setFormData(combinedData);
       setInitialData(combinedData);
     };
@@ -256,8 +251,6 @@ const ProfileSettings: React.FC = () => {
     field: "expertise" | "interests" | "goals",
     value: string
   ) => {
-    console.log(`handleSelectChange - Field: ${field}, Value: ${value}`); // Log input
-    console.log("handleSelectChange - Before update:", formData); // Log before
     setFormData((prev) => {
       const currentArray = Array.isArray(prev[field]) ? [...prev[field]!] : [];
       const index = currentArray.indexOf(value);
@@ -268,12 +261,10 @@ const ProfileSettings: React.FC = () => {
         currentArray.splice(index, 1);
       }
 
-      const newState = {
+      return {
         ...prev,
         [field]: currentArray,
       };
-      console.log("handleSelectChange - After update:", newState); // Log after
-      return newState;
     });
     // Clear validation error when field is changed
     if (errors[field]) {
@@ -288,15 +279,12 @@ const ProfileSettings: React.FC = () => {
     e: React.ChangeEvent<HTMLInputElement>
   ) => {
     const { name, value } = e.target;
-    console.log(`handleNumberChange - Field: ${name}, Value: ${value}`); // Log input
     const numValue = value === "" ? "" : Number(value);
 
-    console.log("handleNumberChange - Before update:", formData); // Log before
-    setFormData((prev) => {
-      const newState = { ...prev, [name]: numValue };
-      console.log("handleNumberChange - After update:", newState); // Log after
-      return newState;
-    });
+    setFormData((prev) => ({
+      ...prev,
+      [name]: numValue
+    }));
 
     // Clear validation error when field is changed
     if (errors[name as keyof ValidationErrors]) {

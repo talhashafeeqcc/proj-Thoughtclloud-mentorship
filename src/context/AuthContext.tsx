@@ -137,15 +137,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     dispatch({ type: "LOGIN_START" });
     
     try {
-      console.log("Attempting login for email:", email);
-      
       // Query Firestore directly for the user
       const usersRef = collection(db, "users");
       const q = query(usersRef, where("email", "==", email));
       const querySnapshot = await getDocs(q);
-      
-      // For debugging
-      console.log("Firestore query results:", querySnapshot.size, "documents found");
       
       if (querySnapshot.empty) {
         throw new Error("Invalid email or password");
@@ -154,9 +149,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Get the user document
       const userDoc = querySnapshot.docs[0];
       const userData = userDoc.data();
-      
-      // Debug password comparison
-      console.log("Checking password match (without showing actual values)");
       
       // Validate password (direct comparison)
       if (userData.password !== password) {

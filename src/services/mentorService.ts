@@ -496,7 +496,6 @@ export const createMentorPayout = async (mentorId: string, amount: number, curre
 export const getMentorAvailabilitySlots = async (mentorId: string): Promise<AvailabilitySlot[]> => {
   try {
     const db = await getDatabase();
-    console.log("Fetching availability slots for mentor:", mentorId);
 
     // Query availability collection
     const availabilityDocs = await db.availability
@@ -527,7 +526,6 @@ export const getMentorAvailabilitySlots = async (mentorId: string): Promise<Avai
       } as AvailabilitySlot;
     });
 
-    console.log(`Found ${slots.length} availability slots for mentor ${mentorId}`);
     return slots;
   } catch (error) {
     console.error("Error fetching mentor availability slots:", error);
@@ -566,9 +564,6 @@ export const addAvailabilitySlot = async (slot: AvailabilitySlot): Promise<Avail
       }
     }
 
-    console.log("Original date input:", slot.date);
-    console.log("Formatted date to store:", formattedDate);
-
     // Create the slot with proper date handling
     const newSlot = {
       id: slot.id || uuidv4(),
@@ -580,8 +575,6 @@ export const addAvailabilitySlot = async (slot: AvailabilitySlot): Promise<Avail
       createdAt: Date.now(),
       updatedAt: Date.now(),
     };
-
-    console.log("Adding new availability slot with date:", newSlot.date);
 
     // Insert the slot into the availability collection
     const insertedDoc = await db.availability.insert(newSlot);
@@ -597,7 +590,6 @@ export const addAvailabilitySlot = async (slot: AvailabilitySlot): Promise<Avail
 export const deleteAvailabilitySlot = async (slotId: string): Promise<void> => {
   try {
     const db = await getDatabase();
-    console.log("Deleting availability slot:", slotId);
 
     // Find the slot
     const slotDoc = await db.availability.findOne(slotId).exec();
@@ -618,8 +610,6 @@ export const deleteAvailabilitySlot = async (slotId: string): Promise<void> => {
     else {
       await deleteDocument(COLLECTIONS.AVAILABILITY, slotId);
     }
-
-    console.log("Successfully deleted availability slot:", slotId);
   } catch (error) {
     console.error("Error deleting availability slot:", error);
     throw error;

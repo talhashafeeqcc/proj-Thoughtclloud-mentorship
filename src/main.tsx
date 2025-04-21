@@ -11,12 +11,6 @@ import "./index.css";
 // Import firebase configuration - initialization happens automatically upon import
 import { firebaseApp, db } from "./services/firebase";
 
-// Log Firebase initialization status
-console.log(
-  "Main entry point: Firebase initialized with app:",
-  firebaseApp.name
-);
-
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <BrowserRouter>

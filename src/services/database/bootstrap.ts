@@ -6,12 +6,9 @@ import { getDatabase } from './db';
  */
 export const retryBootstrap = async (): Promise<boolean> => {
     try {
-        console.log("Retrying database bootstrap...");
-
         // Reset the database connection by getting a fresh instance
         await getDatabase();
 
-        console.log("Database bootstrap successful");
         return true;
     } catch (error) {
         console.error("Database bootstrap failed:", error);

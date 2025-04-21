@@ -40,7 +40,6 @@ const validateFirebaseConfig = (config: any) => {
     throw new Error(`Firebase configuration is missing required fields: ${missingFields.join(', ')}`);
   }
   
-  console.log("Firebase configuration validated successfully");
   return config;
 };
 
@@ -54,15 +53,12 @@ try {
   
   // Initialize Firebase
   firebaseApp = initializeApp(firebaseConfig);
-  console.log("Firebase app initialized successfully");
   
   // Initialize Firestore
   db = getFirestore(firebaseApp);
-  console.log("Firestore initialized successfully");
   
   // Initialize Auth
   auth = getAuth(firebaseApp);
-  console.log("Firebase Auth initialized successfully");
 
   // Check if we should use emulators for local development
   const useEmulators = getEnvVar('VITE_USE_FIREBASE_EMULATORS', 'false') === 'true';
@@ -71,7 +67,6 @@ try {
     // Connect to emulators when in development
     connectFirestoreEmulator(db, 'localhost', 8080);
     connectAuthEmulator(auth, 'http://localhost:9099');
-    console.log("Connected to Firebase emulators");
   }
 } catch (error) {
   console.error("Error initializing Firebase:", error);

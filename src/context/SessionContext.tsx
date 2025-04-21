@@ -201,7 +201,6 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({
     // Skip this check if forceRefresh is true
     const now = Date.now();
     if (!forceRefresh && now - lastFetchTimeRef.current < 3000) {
-      console.log("Skipping fetch sessions due to cool-down period");
       return;
     }
 
@@ -214,9 +213,7 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({
     }
 
     try {
-      console.log("Fetching sessions for user:", userId);
       const sessions = await getSessions(userId);
-      console.log(`Fetched ${sessions.length} sessions for user ${userId}`);
 
       if (mountedRef.current) {
         dispatch({ type: "FETCH_SESSIONS_SUCCESS", payload: sessions });
@@ -294,7 +291,6 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({
     // Refresh sessions every 30 seconds to ensure data is fresh
     const intervalId = setInterval(() => {
       if (user && mountedRef.current && !isFetchingRef.current) {
-        console.log("Periodic refresh of sessions");
         doFetchSessions(user.id, true);
       }
     }, 30000); // 30 seconds

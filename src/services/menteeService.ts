@@ -347,8 +347,6 @@ export const updateMenteeProfile = async (
       updatedAt: now,
     };
 
-    console.log("Updating mentee data:", menteeUpdates);
-
     // Update the mentee document
     await updateDocument(COLLECTIONS.MENTEES, mentee.id, menteeUpdates);
 
@@ -366,8 +364,6 @@ export const updateMenteeProfile = async (
               : user.profilePicture,
           updatedAt: now,
         };
-
-        console.log("Updating user data:", userUpdates);
 
         await updateDocument(COLLECTIONS.USERS, userId, userUpdates);
       }

@@ -77,7 +77,6 @@ export const getUsers = getAllUsers;
 export const getAllMentors = async (): Promise<Mentor[]> => {
   try {
     const db = await getDatabase();
-    console.log("Fetching all mentors");
 
     const mentorProfiles = await db.mentors.find().exec();
     const userProfiles = await db.users

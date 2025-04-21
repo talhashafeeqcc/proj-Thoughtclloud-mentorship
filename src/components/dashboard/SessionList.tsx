@@ -144,19 +144,9 @@ const SessionList: React.FC<SessionListProps> = ({
     const isShowingPayment = showPaymentFor === session.id;
     const isShowingReview = showReviewFor === session.id;
 
-    // Debug current user ID and session
-    console.log("Current User ID:", currentUserId);
-    console.log("Session:", session);
-    console.log("Mentor ID:", session.mentorId);
-    console.log("Mentee ID:", session.menteeId);
-
     // Use role information to determine if user is mentor/mentee
-    // This might be more reliable than comparing IDs directly
     const isMentor = session.mentorId === currentUserId;
     const isMentee = session.menteeId === currentUserId;
-
-    console.log("Is Mentor:", isMentor);
-    console.log("Is Mentee:", isMentee);
 
     const hasReviewed = sessionReviewStatus[session.id];
 

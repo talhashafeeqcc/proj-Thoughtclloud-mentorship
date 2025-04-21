@@ -127,8 +127,6 @@ export const processPayment = async (
       updatedAt: now,
     };
 
-    console.log("Creating payment record:", newPayment);
-
     // Insert the payment
     await setDocument(COLLECTIONS.PAYMENTS, paymentId, newPayment);
 

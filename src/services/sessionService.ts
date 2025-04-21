@@ -385,7 +385,7 @@ export const createSession = async (
       });
       
       if (meetingLink) {
-        console.log("Created Google Meet link:", meetingLink);
+        // Meeting link created successfully
       }
     } catch (error) {
       console.error("Failed to create Google Meet link:", error);

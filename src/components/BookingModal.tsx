@@ -43,7 +43,6 @@ const BookingModal: React.FC<BookingModalProps> = ({
     try {
       // Call onConfirm and wait for the session ID
       const newSessionId = await onConfirm();
-      console.log("Session created with ID:", newSessionId);
       
       // Close the modal
       onClose();

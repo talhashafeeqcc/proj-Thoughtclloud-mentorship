@@ -41,19 +41,14 @@ const AvailabilityManager: React.FC<AvailabilityManagerProps> = ({
       setLoading(true);
       setError(null);
       try {
-        console.log("Fetching availability for mentorId:", mentorId);
-
         // First verify the mentor exists
         const currentProfile = await getMentorById(mentorId);
         if (!currentProfile) {
           throw new Error("Failed to fetch mentor profile");
         }
 
-        console.log("Mentor profile found:", currentProfile.id);
-
         // Now get availability slots from separate collection
         const slots = await getMentorAvailabilitySlots(mentorId);
-        console.log("Found availability slots:", slots.length);
         setAvailabilitySlots(slots);
       } catch (err: any) {
         console.error("Error fetching availability:", err);
@@ -123,11 +118,6 @@ const AvailabilityManager: React.FC<AvailabilityManagerProps> = ({
         isBooked: false,
         mentorId,
       };
-
-      console.log("Adding new slot with date format:", date);
-      // Log the raw value, safely handling the type
-      const dateInput = document.getElementById('date') as HTMLInputElement | null;
-      console.log("Date input raw value:", dateInput?.value);
 
       // Add the new slot directly to the availability collection
       const addedSlot = await addAvailabilitySlot(newSlot);

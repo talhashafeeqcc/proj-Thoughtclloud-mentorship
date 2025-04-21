@@ -95,9 +95,7 @@ const MentorProfilePage: React.FC = () => {
         // Status and payment status are set by the bookSession function
       };
 
-      console.log("Booking session with data:", sessionData);
       const session = await bookSession(sessionData);
-      console.log("Session booked successfully with ID:", session.id);
 
       // Refresh the calendar after successful booking
       setCalendarVersion(prev => prev + 1);
@@ -106,23 +104,12 @@ const MentorProfilePage: React.FC = () => {
       return session.id;
     } catch (error) {
       console.error("Error during booking:", error);
-      let errorMessage = "An unknown error occurred during booking";
-      
       if (error instanceof Error) {
-        // Format common error messages to be more user-friendly
-        if (error.message.includes("Mentee not found")) {
-          errorMessage = "Unable to find your mentee profile. Please ensure your account is properly set up.";
-        } else if (error.message.includes("User with ID") && error.message.includes("is not a mentee")) {
-          errorMessage = "Your account does not have mentee privileges. Please contact support.";
-        } else if (error.message.includes("This time slot is not available")) {
-          errorMessage = "This time slot is no longer available. Please select another time.";
-        } else {
-          errorMessage = error.message;
-        }
+        setBookingError(error.message);
+      } else {
+        setBookingError("An unknown error occurred during booking");
       }
-      
-      setBookingError(errorMessage);
-      return Promise.reject(error);
+      throw error;
     } finally {
       setLoading(false);
     }

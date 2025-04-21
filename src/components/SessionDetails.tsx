@@ -44,8 +44,6 @@ const SessionDetails: React.FC<SessionDetailsProps> = ({
     try {
       setLoading(true);
       const sessionData = await getSessionById(sessionId);
-      console.log("Fetched session data:", sessionData);
-      console.log("Meeting link:", sessionData.meetingLink);
       setSession(sessionData);
 
       // Check if session has been rated
@@ -58,7 +56,6 @@ const SessionDetails: React.FC<SessionDetailsProps> = ({
         const rating = mentorRatings.find(r => r.sessionId === sessionId);
         if (rating) {
           setSessionRating(rating);
-          console.log("Found rating for session:", rating);
         }
       }
 

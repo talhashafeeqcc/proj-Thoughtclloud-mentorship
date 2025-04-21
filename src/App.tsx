@@ -56,8 +56,6 @@ function App() {
     // Initialize Firebase
     try {
       if (firebaseApp) {
-        console.log("Firebase initialized successfully");
-
         // Short timeout to allow Firebase to connect
         setTimeout(() => {
           if (isMounted.current) {
@@ -78,7 +76,6 @@ function App() {
     // If initialization takes too long, show error
     const timeoutId = setTimeout(() => {
       if (isMounted.current && initializing) {
-        console.warn("Firebase initialization timed out");
         setFirebaseError(true);
         setInitializing(false);
       }
