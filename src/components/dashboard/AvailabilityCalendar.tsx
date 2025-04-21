@@ -27,13 +27,22 @@ interface AvailabilityCalendarProps {
   mentorId: string;
   onSlotSelect: (slot: AvailabilitySlot | null) => void;
   versionKey?: number; // Optional prop to force re-fetch when it changes
+  disabled?: boolean; // Add disabled prop to control interactivity
+  readOnly?: boolean; // Add readOnly prop to handle view-only mode
+  version?: number; // Alternative version prop (for backward compatibility)
 }
 
 const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
   mentorId,
   onSlotSelect,
   versionKey = 0, // Default to 0 if not provided
+  disabled = false,
+  readOnly = false,
+  version,
 }) => {
+  // Use version or versionKey, whichever is provided
+  const effectiveVersionKey = version !== undefined ? version : versionKey;
+  
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [availabilitySlots, setAvailabilitySlots] = useState<
     AvailabilitySlot[]
@@ -57,10 +66,8 @@ const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
       setLoading(true);
       setError(null);
       try {
-        console.log("Fetching availability for calendar, mentorId:", mentorId, "versionKey:", versionKey);
         
         if (!mentorId) {
-          console.error("Cannot fetch availability: mentorId is empty");
           setError("Mentor ID is missing");
           setLoading(false);
           return;
@@ -69,7 +76,6 @@ const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
         // Use the dedicated function for fetching availability slots
         const slots = await getMentorAvailabilitySlots(mentorId);
         
-        console.log("Retrieved slots:", slots);
         
         if (!Array.isArray(slots)) {
           console.error("Received invalid slots data:", slots);
@@ -79,7 +85,6 @@ const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
         }
         
         if (slots.length === 0) {
-          console.log("No availability slots found for mentor:", mentorId);
           setAvailabilitySlots([]);
           setBookedSlots([]);
           return;
@@ -91,7 +96,6 @@ const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
           date: normalizeDateFormat(slot.date)
         }));
 
-        console.log("All availability slots (normalized):", normalizedSlots.length);
 
         // Separate available and booked slots
         const booked = normalizedSlots.filter(slot => slot.isBooked);
@@ -134,12 +138,7 @@ const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
           }
         });
 
-        console.log(
-          "Filtered available slots for current month:",
-          filteredAvailableSlots.length,
-          "Booked slots:",
-          filteredBookedSlots.length
-        );
+      
         
         setAvailabilitySlots(filteredAvailableSlots);
         setBookedSlots(filteredBookedSlots);
@@ -152,7 +151,7 @@ const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
     };
 
     fetchAvailability();
-  }, [mentorId, selectedDate, sessions, versionKey]); // Add versionKey as a dependency to trigger re-fetch
+  }, [mentorId, selectedDate, sessions, effectiveVersionKey]); // Add effectiveVersionKey as a dependency to trigger re-fetch
 
   const daysInMonth = (date: Date) => {
     return new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
@@ -231,14 +230,12 @@ const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
     setSelectedSlotId(null);
     onSlotSelect(null);
 
-    console.log("Handling day click for date:", formattedDate);
     
     // Find slots with matching date, accounting for different date formats
     const slotsForDay = availabilitySlots.filter((slot) => {
       // Normalize slot date by removing any time component
       const slotDateStr = slot.date.includes('T') ? slot.date.split('T')[0] : slot.date;
       const match = slotDateStr === formattedDate;
-      console.log(`Comparing slot date: ${slotDateStr} with formatted date: ${formattedDate}, match: ${match}`);
       return match;
     });
     
@@ -253,7 +250,6 @@ const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
     const allSlotsForDay = [...slotsForDay, ...bookedSlotsForDay];
     
     if (allSlotsForDay.length > 0) {
-      console.log("All slots for selected day:", formattedDate, allSlotsForDay);
       setSelectedDaySlots(allSlotsForDay);
     } else {
       console.log("No slots found for day:", formattedDate);
@@ -261,8 +257,19 @@ const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
   };
 
   const handleSlotClick = (slot: AvailabilitySlot) => {
+    if (disabled || readOnly) {
+      console.log("Calendar is in disabled/readonly mode, ignoring slot click");
+      return;
+    }
+    
     setSelectedSlotId(slot.id);
-    onSlotSelect(slot); // Pass the selected slot to the parent component
+    
+    // Make sure onSlotSelect is a function before calling it
+    if (typeof onSlotSelect === 'function') {
+      onSlotSelect(slot); // Pass the selected slot to the parent component
+    } else {
+      console.warn("onSlotSelect is not a function or is undefined");
+    }
   };
 
   // Format time to be more readable
@@ -294,7 +301,6 @@ const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
     const dayStr = String(day).padStart(2, '0');
     const formattedDate = `${year}-${month}-${dayStr}`;
     
-    console.log(`Calendar day ${day}: formatted as ${formattedDate}`);
 
     // Check if there are available or booked slots for this day
     const hasAvailableSlots = availabilitySlots.some(
@@ -302,9 +308,6 @@ const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
         // Normalize slot date format for comparison
         const slotDateStr = slot.date.includes('T') ? slot.date.split('T')[0] : slot.date;
         const match = slotDateStr === formattedDate;
-        if (match) {
-          console.log(`Match found for day ${day}: slot date ${slotDateStr} = formatted date ${formattedDate}`);
-        }
         return match;
       }
     );
@@ -353,7 +356,6 @@ const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
 
   // Add a manual refresh function
   const handleRefresh = () => {
-    console.log("Manual refresh triggered");
     // Just changing versionKey in parent component would trigger refresh
     // but we can also force a refetch here directly
     setLoading(true);
@@ -491,7 +493,7 @@ const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
                 <strong>MentorId:</strong> {mentorId}
               </div>
               <div>
-                <strong>Version Key:</strong> {versionKey}
+                <strong>Version Key:</strong> {effectiveVersionKey}
               </div>
               <div>
                 <strong>Current Month/Year:</strong> {currentMonthName} {currentYear}

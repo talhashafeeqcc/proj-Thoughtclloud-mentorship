@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from "react"
 import AvailabilityCalendar from "./AvailabilityCalendar";
 import AvailabilityManager from "./AvailabilityManager";
 import { useAuth } from "../../context/AuthContext";
-import { FaCalendarAlt, FaCalendarCheck, FaList, FaTools, FaWallet } from "react-icons/fa";
+import { FaCalendarAlt, FaCalendarCheck, FaList, FaTools, FaWallet, FaMoneyBillWave, FaHourglassHalf } from "react-icons/fa";
 import SessionList from "./SessionList";
 import { clearDatabase } from "../../services/database/db";
 // import { seedDatabase } from "../../services/database/seedData";
@@ -11,6 +11,9 @@ import ProfileCompletionBanner from "./ProfileCompletionBanner";
 import { useSession } from "../../context/SessionContext";
 import { getMentorByUserId, createMentorPayout } from "../../services/mentorService";
 import { getMentorBalance } from "../../services/stripe";
+import { motion } from "framer-motion";
+import { MentorProfile, AvailabilitySlot } from "../../types";
+import BookingModal from "../../components/BookingModal";
 
 // Interface for the balance data structure
 interface MentorBalance {
@@ -57,6 +60,13 @@ const MentorDashboard: React.FC = () => {
   // State for storing mentor balance
   const [balance, setBalance] = useState<MentorBalance | null>(null);
   const [balanceLoading, setBalanceLoading] = useState(false);
+  // Add state for mentorProfile
+  const [mentorProfile, setMentorProfile] = useState<MentorProfile | null>(null);
+
+  // State for booking modal
+  const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
+  const [selectedSlot, setSelectedSlot] = useState<AvailabilitySlot | null>(null);
+  const [bookingError, setBookingError] = useState<string | null>(null);
 
   // Ref to track component mounted state and fetching state
   const mountedRef = useRef(true);
@@ -75,9 +85,11 @@ const MentorDashboard: React.FC = () => {
   const handleManageTab = useCallback(() => handleTabChange("manage"), [handleTabChange]);
 
   // Define this callback at the component level to ensure consistent hooks order
-  const onSlotSelect = useCallback(() => {
-    // Empty callback - just here to maintain hooks order
-    console.log("Slot selected (placeholder)");
+  const onSlotSelect = useCallback((slot: AvailabilitySlot | null) => {
+    if (slot) {
+      setSelectedSlot(slot);
+      setIsBookingModalOpen(true);
+    }
   }, []);
 
   // Handle session cancellation and refresh calendar
@@ -101,6 +113,42 @@ const MentorDashboard: React.FC = () => {
     console.log("Availability changed, refreshing data");
     setAvailabilityVersion(prev => prev + 1); // Increment to force calendar refresh
   }, []);
+
+  // Handle booking modal close
+  const handleCloseBookingModal = useCallback(() => {
+    setIsBookingModalOpen(false);
+    setSelectedSlot(null);
+    setBookingError(null);
+  }, []);
+
+  // Handle booking confirmation
+  const handleConfirmBooking = useCallback(async () => {
+    if (!selectedSlot || !mentorProfile) {
+      console.error("Missing slot or mentor data for booking");
+      setBookingError("Unable to complete booking: Missing mentor data");
+      return Promise.reject("Missing mentor data");
+    }
+
+    try {
+      console.log("Booking confirmed with mentor:", mentorProfile.name);
+      
+      // For a self-booking demo, we'll just simulate the booking process
+      // In a real app, this would call a booking service
+      
+      // Increment availability version to force calendar refresh
+      setAvailabilityVersion(prev => prev + 1);
+      
+      // Close the modal
+      handleCloseBookingModal();
+      
+      // Return a session ID
+      return "session-" + Date.now();
+    } catch (error) {
+      console.error("Error during booking confirmation:", error);
+      setBookingError("Failed to complete booking. Please try again.");
+      return Promise.reject(error);
+    }
+  }, [selectedSlot, mentorProfile, handleCloseBookingModal]);
 
   // Debug tools state
   const [showDebugTools, setShowDebugTools] = useState(false);
@@ -149,6 +197,26 @@ const MentorDashboard: React.FC = () => {
         // Only update state if component is still mounted
         if (mountedRef.current && mentorData) {
           setMentorId(mentorData.id || "");
+          // Convert MentorDocument to MentorProfile
+          setMentorProfile({
+            id: mentorData.id || "",
+            role: "mentor", // Set default role
+            email: authState.user?.email || "",
+            name: mentorData.name || authState.user?.name || "",
+            // Copy other properties that might be available
+            bio: mentorData.bio || "",
+            expertise: mentorData.expertise || [],
+            sessionPrice: mentorData.sessionPrice || 0,
+            // Optional properties
+            portfolio: mentorData.portfolio || [],
+            certifications: mentorData.certifications || [],
+            education: mentorData.education || [],
+            workExperience: mentorData.workExperience || [],
+            availability: mentorData.availability || [],
+            ratings: mentorData.ratings || [],
+            averageRating: mentorData.averageRating || 0,
+            profilePicture: mentorData.profileImageUrl || mentorData.profilePicture || "",
+          });
           
           // Fetch mentor balance after getting mentor ID
           if (mentorData.id) {
@@ -245,7 +313,11 @@ const MentorDashboard: React.FC = () => {
 
   // Render the dashboard content
   return (
-    <div>
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      className="flex flex-col h-full"
+    >
       {/* Profile Completion Banner */}
       <ProfileCompletionBanner />
 
@@ -397,7 +469,16 @@ const MentorDashboard: React.FC = () => {
           />
         )}
       </div>
-    </div>
+
+      {/* Booking Modal */}
+      <BookingModal
+        isOpen={isBookingModalOpen}
+        onClose={handleCloseBookingModal}
+        onConfirm={handleConfirmBooking}
+        slot={selectedSlot}
+        mentor={mentorProfile}
+      />
+    </motion.div>
   );
 };
 

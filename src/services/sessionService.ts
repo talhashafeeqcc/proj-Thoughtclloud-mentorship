@@ -340,9 +340,25 @@ export const createSession = async (
     }
     
     // Verify mentee exists
-    const menteeDoc = await db.mentees.findOne(sessionData.menteeId).exec();
+    let menteeDoc = await db.mentees.findOne(sessionData.menteeId).exec();
+    
     if (!menteeDoc) {
-      throw new Error(`Mentee not found with ID: ${sessionData.menteeId}`);
+      // Try to find mentee by userId (in case menteeId is actually a userId)
+      const menteeDocs = await db.mentees
+        .find({
+          selector: {
+            userId: sessionData.menteeId,
+          },
+        })
+        .exec();
+      
+      if (menteeDocs.length === 0) {
+        throw new Error(`Mentee not found with ID: ${sessionData.menteeId}`);
+      }
+      
+      menteeDoc = menteeDocs[0];
+      const menteeData = menteeDoc.toJSON();
+      sessionData.menteeId = menteeData.id; // Update to use the correct menteeId
     }
     
     // Check if the slot is available and not already booked

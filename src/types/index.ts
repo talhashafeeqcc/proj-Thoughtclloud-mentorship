@@ -175,6 +175,7 @@ export interface MentorProfile extends User {
   education?: Education[];
   workExperience?: WorkExperience[];
   sessionPrice: number;
+  sessionDuration?: number;
   availability?: AvailabilitySlot[];
   ratings?: Rating[];
   averageRating?: number;

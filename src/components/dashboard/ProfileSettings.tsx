@@ -15,6 +15,19 @@ import PortfolioManager from '../profile/PortfolioManager';
 import EducationManager from '../profile/EducationManager';
 import CertificationManager from '../profile/CertificationManager';
 import WorkExperienceManager from '../profile/WorkExperienceManager';
+import { motion, AnimatePresence } from "framer-motion";
+import { 
+  FaUser, 
+  FaBriefcase, 
+  FaGraduationCap, 
+  FaCertificate, 
+  FaFolder, 
+  FaSave, 
+  FaExclamationTriangle,
+  FaCheckCircle,
+  FaTimesCircle,
+  FaSpinner
+} from "react-icons/fa";
 
 // Create a more specific combined type with all possible fields
 interface FormDataFields {
@@ -57,6 +70,30 @@ interface ValidationErrors {
   currentPosition?: string;
 }
 
+// Animation variants
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: { 
+    opacity: 1,
+    transition: { 
+      staggerChildren: 0.1
+    }
+  }
+};
+
+const itemVariants = {
+  hidden: { y: 20, opacity: 0 },
+  visible: { 
+    y: 0, 
+    opacity: 1,
+    transition: { 
+      type: "spring", 
+      stiffness: 300,
+      damping: 24
+    }
+  }
+};
+
 const ProfileSettings: React.FC = () => {
   const { authState, updateUser: updateAuthUser } = useAuth();
   const [formData, setFormData] = useState<FormDataFields>({});
@@ -67,6 +104,7 @@ const ProfileSettings: React.FC = () => {
   } | null>(null);
   const [initialData, setInitialData] = useState<FormDataFields>({});
   const [errors, setErrors] = useState<ValidationErrors>({});
+  const [activeSection, setActiveSection] = useState<string>("basic");
 
   useEffect(() => {
     const fetchProfileData = async () => {
@@ -542,102 +580,208 @@ const ProfileSettings: React.FC = () => {
 
   const isDisabled = loading || !hasUnsavedChanges();
 
-  return (
-    <div className="bg-white shadow-md rounded-lg overflow-hidden relative">
-      <div className="p-6">
-        <h2 className="text-xl font-semibold mb-4">Profile Settings</h2>
+  // Define the navigation tabs based on user role
+  const getTabs = () => {
+    const commonTabs = [
+      { id: "basic", label: "Basic Information", icon: <FaUser className="mr-2" /> }
+    ];
 
-        {message && (
-          <div
-            className={`${message.type === "success" ? "bg-green-100 border-green-400 text-green-700" : "bg-red-100 border-red-400 text-red-700"} px-4 py-3 rounded border mb-4 animate-fadeIn`}
+    if (authState.user?.role === "mentor") {
+      return [
+        ...commonTabs,
+        { id: "mentor", label: "Mentor Profile", icon: <FaBriefcase className="mr-2" /> },
+        { id: "portfolio", label: "Portfolio", icon: <FaFolder className="mr-2" /> },
+        { id: "education", label: "Education", icon: <FaGraduationCap className="mr-2" /> },
+        { id: "certifications", label: "Certifications", icon: <FaCertificate className="mr-2" /> },
+        { id: "experience", label: "Work Experience", icon: <FaBriefcase className="mr-2" /> }
+      ];
+    } else if (authState.user?.role === "mentee") {
+      return [
+        ...commonTabs,
+        { id: "mentee", label: "Mentee Profile", icon: <FaUser className="mr-2" /> }
+      ];
+    }
+    
+    return commonTabs;
+  };
+
+  const tabs = getTabs();
+
+  return (
+    <motion.div 
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.4 }}
+      className="bg-white dark:bg-gray-800 shadow-md rounded-lg overflow-hidden relative"
+    >
+      {loading && (
+        <div className="absolute inset-0 bg-gray-800/50 dark:bg-gray-900/70 flex items-center justify-center z-50">
+          <motion.div 
+            initial={{ scale: 0.8 }}
+            animate={{ scale: 1, rotate: 360 }}
+            transition={{ duration: 0.5, loop: Infinity, ease: "linear" }}
+            className="text-indigo-500 dark:text-indigo-400 text-3xl"
           >
-            <p>{message.text}</p>
+            <FaSpinner />
+          </motion.div>
+        </div>
+      )}
+
+      <div className="p-6 dark:text-white">
+        <h2 className="text-2xl font-semibold mb-4 flex items-center text-gray-800 dark:text-white">
+          <FaUser className="mr-2 text-indigo-600 dark:text-indigo-400" /> 
+          Profile Settings
+        </h2>
+
+        <AnimatePresence mode="wait">
+          {message && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.3 }}
+              className={`${
+                message.type === "success" 
+                  ? "bg-green-100 dark:bg-green-900/30 border-green-400 dark:border-green-700 text-green-700 dark:text-green-300" 
+                  : "bg-red-100 dark:bg-red-900/30 border-red-400 dark:border-red-700 text-red-700 dark:text-red-300"
+              } px-4 py-3 rounded border mb-4 flex items-start`}
+            >
+              {message.type === "success" ? (
+                <FaCheckCircle className="mt-0.5 mr-2 flex-shrink-0 text-green-500 dark:text-green-400" />
+              ) : (
+                <FaTimesCircle className="mt-0.5 mr-2 flex-shrink-0 text-red-500 dark:text-red-400" />
+              )}
+              <p>{message.text}</p>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Navigation tabs */}
+        <div className="mb-6 overflow-x-auto">
+          <div className="flex space-x-2 border-b border-gray-200 dark:border-gray-700 pb-2">
+            {tabs.map((tab) => (
+              <motion.button
+                key={tab.id}
+                whileHover={{ y: -2 }}
+                whileTap={{ scale: 0.97 }}
+                onClick={() => setActiveSection(tab.id)}
+                className={`px-4 py-2 rounded-t-lg font-medium text-sm flex items-center whitespace-nowrap
+                  ${activeSection === tab.id
+                    ? "bg-indigo-600 text-white"
+                    : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
+                  } transition-colors`}
+              >
+                {tab.icon}
+                {tab.label}
+              </motion.button>
+            ))}
           </div>
-        )}
+        </div>
 
         <div className="space-y-6">
-          <div className="p-5 border border-gray-200 rounded-lg">
-            <h3 className="text-lg font-medium mb-4 text-gray-800 border-b pb-2">Basic Information</h3>
+          <AnimatePresence mode="wait">
+            {activeSection === "basic" && (
+              <motion.div
+                key="basic"
+                variants={containerVariants}
+                initial="hidden"
+                animate="visible"
+                exit="hidden"
+                className="p-5 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800"
+              >
+                <h3 className="text-lg font-medium mb-4 text-gray-800 dark:text-white border-b pb-2 border-gray-200 dark:border-gray-700">
+                  Basic Information
+                </h3>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label htmlFor="name" className="block text-gray-700 text-sm font-bold mb-2">
-                  Name
-                </label>
-                <input
-                  type="text"
-                  id="name"
-                  name="name"
-                  value={formData.name || ""}
-                  onChange={handleChange}
-                  className={`shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline ${errors.name ? "border-red-500" : ""}`}
-                />
-                {errors.name && (
-                  <p className="text-red-500 text-xs italic mt-1">{errors.name}</p>
-                )}
-              </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <motion.div variants={itemVariants}>
+                    <label htmlFor="name" className="block text-gray-700 dark:text-gray-300 text-sm font-medium mb-2">
+                      Name
+                    </label>
+                    <input
+                      type="text"
+                      id="name"
+                      name="name"
+                      value={formData.name || ""}
+                      onChange={handleChange}
+                      className={`w-full px-3 py-2 bg-white dark:bg-gray-700 border rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 text-gray-700 dark:text-gray-200 transition-colors
+                        ${errors.name ? "border-red-500 dark:border-red-400" : "border-gray-300 dark:border-gray-600"}`}
+                    />
+                    {errors.name && (
+                      <p className="text-red-500 dark:text-red-400 text-xs italic mt-1">{errors.name}</p>
+                    )}
+                  </motion.div>
 
-              <div>
-                <label htmlFor="email" className="block text-gray-700 text-sm font-bold mb-2">
-                  Email
-                </label>
-                <input
-                  type="email"
-                  id="email"
-                  name="email"
-                  value={formData.email || ""}
-                  onChange={handleChange}
-                  className={`shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline ${errors.email ? "border-red-500" : ""}`}
-                />
-                {errors.email && (
-                  <p className="text-red-500 text-xs italic mt-1">{errors.email}</p>
-                )}
-              </div>
-            </div>
+                  <motion.div variants={itemVariants}>
+                    <label htmlFor="email" className="block text-gray-700 dark:text-gray-300 text-sm font-medium mb-2">
+                      Email
+                    </label>
+                    <input
+                      type="email"
+                      id="email"
+                      name="email"
+                      value={formData.email || ""}
+                      onChange={handleChange}
+                      className={`w-full px-3 py-2 bg-white dark:bg-gray-700 border rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 text-gray-700 dark:text-gray-200 transition-colors
+                        ${errors.email ? "border-red-500 dark:border-red-400" : "border-gray-300 dark:border-gray-600"}`}
+                    />
+                    {errors.email && (
+                      <p className="text-red-500 dark:text-red-400 text-xs italic mt-1">{errors.email}</p>
+                    )}
+                  </motion.div>
+                </div>
 
-            <div className="mt-4">
-              <label htmlFor="profilePicture" className="block text-gray-700 text-sm font-bold mb-2">
-                Profile Picture URL
-              </label>
-              <input
-                type="text"
-                id="profilePicture"
-                name="profilePicture"
-                value={formData.profilePicture || ""}
-                onChange={handleChange}
-                className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-              />
-              <p className="text-xs text-gray-500 mt-1">
-                Enter a URL to an image (e.g. https://example.com/image.jpg)
-              </p>
-            </div>
+                <motion.div variants={itemVariants} className="mt-4">
+                  <label htmlFor="profilePicture" className="block text-gray-700 dark:text-gray-300 text-sm font-medium mb-2">
+                    Profile Picture URL
+                  </label>
+                  <input
+                    type="text"
+                    id="profilePicture"
+                    name="profilePicture"
+                    value={formData.profilePicture || ""}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 text-gray-700 dark:text-gray-200 transition-colors"
+                  />
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    Enter a URL to an image (e.g. https://example.com/image.jpg)
+                  </p>
+                </motion.div>
 
-            <div className="mt-4">
-              <label htmlFor="role" className="block text-gray-700 text-sm font-bold mb-2">
-                Role
-              </label>
-              <input
-                type="text"
-                id="role"
-                name="role"
-                value={formData.role || ""}
-                disabled
-                className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-500 bg-gray-100 leading-tight"
-              />
-              <p className="text-xs text-gray-500 mt-1">
-                Role cannot be changed
-              </p>
-            </div>
-          </div>
+                <motion.div variants={itemVariants} className="mt-4">
+                  <label htmlFor="role" className="block text-gray-700 dark:text-gray-300 text-sm font-medium mb-2">
+                    Role
+                  </label>
+                  <input
+                    type="text"
+                    id="role"
+                    name="role"
+                    value={formData.role || ""}
+                    disabled
+                    className="w-full px-3 py-2 bg-gray-100 dark:bg-gray-600 border border-gray-300 dark:border-gray-700 rounded-md text-gray-500 dark:text-gray-400"
+                  />
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    Role cannot be changed
+                  </p>
+                </motion.div>
+              </motion.div>
+            )}
 
-          {/* Role-specific sections */}
-          {authState.user?.role === "mentor" ? (
-            <div className="space-y-6">
-              <div className="p-5 border border-gray-200 rounded-lg">
-                <h3 className="text-lg font-medium mb-4 text-gray-800 border-b pb-2">Mentor Profile</h3>
+            {activeSection === "mentor" && authState.user?.role === "mentor" && (
+              <motion.div
+                key="mentor"
+                variants={containerVariants}
+                initial="hidden"
+                animate="visible"
+                exit="hidden"
+                className="p-5 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800"
+              >
+                <h3 className="text-lg font-medium mb-4 text-gray-800 dark:text-white border-b pb-2 border-gray-200 dark:border-gray-700">
+                  Mentor Profile
+                </h3>
 
-                <div>
-                  <label htmlFor="bio" className="block text-gray-700 text-sm font-bold mb-2">
+                <motion.div variants={itemVariants}>
+                  <label htmlFor="bio" className="block text-gray-700 dark:text-gray-300 text-sm font-medium mb-2">
                     Bio
                   </label>
                   <textarea
@@ -646,20 +790,21 @@ const ProfileSettings: React.FC = () => {
                     value={formData.bio || ""}
                     onChange={handleChange}
                     rows={4}
-                    className={`shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline ${errors.bio ? "border-red-500" : ""}`}
+                    className={`w-full px-3 py-2 bg-white dark:bg-gray-700 border rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 text-gray-700 dark:text-gray-200 transition-colors resize-none
+                      ${errors.bio ? "border-red-500 dark:border-red-400" : "border-gray-300 dark:border-gray-600"}`}
                   />
                   {errors.bio && (
-                    <p className="text-red-500 text-xs italic mt-1">{errors.bio}</p>
+                    <p className="text-red-500 dark:text-red-400 text-xs italic mt-1">{errors.bio}</p>
                   )}
-                </div>
+                </motion.div>
 
-                <div className="mt-4">
-                  <label className="block text-gray-700 text-sm font-bold mb-2">
+                <motion.div variants={itemVariants} className="mt-4">
+                  <label className="block text-gray-700 dark:text-gray-300 text-sm font-medium mb-2">
                     Expertise
                   </label>
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
                     {expertiseOptions.map((option) => (
-                      <label key={option} className="flex items-center">
+                      <label key={option} className="flex items-center space-x-2 text-gray-700 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400 cursor-pointer group transition-colors">
                         <input
                           type="checkbox"
                           name="expertise"
@@ -668,20 +813,20 @@ const ProfileSettings: React.FC = () => {
                           onChange={(e) =>
                             handleSelectChange(e.target.name as "expertise", e.target.value)
                           }
-                          className="mr-2"
+                          className="form-checkbox h-4 w-4 text-indigo-600 dark:text-indigo-400 transition duration-150 ease-in-out rounded focus:ring-2 focus:ring-indigo-500"
                         />
-                        {option}
+                        <span className="group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">{option}</span>
                       </label>
                     ))}
                   </div>
                   {errors.expertise && (
-                    <p className="text-red-500 text-xs italic mt-1">{errors.expertise}</p>
+                    <p className="text-red-500 dark:text-red-400 text-xs italic mt-1">{errors.expertise}</p>
                   )}
-                </div>
+                </motion.div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-                  <div>
-                    <label htmlFor="sessionPrice" className="block text-gray-700 text-sm font-bold mb-2">
+                  <motion.div variants={itemVariants}>
+                    <label htmlFor="sessionPrice" className="block text-gray-700 dark:text-gray-300 text-sm font-medium mb-2">
                       Session Price (USD)
                     </label>
                     <input
@@ -690,15 +835,16 @@ const ProfileSettings: React.FC = () => {
                       name="sessionPrice"
                       value={formData.sessionPrice || ""}
                       onChange={handleNumberChange}
-                      className={`shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline ${errors.sessionPrice ? "border-red-500" : ""}`}
+                      className={`w-full px-3 py-2 bg-white dark:bg-gray-700 border rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 text-gray-700 dark:text-gray-200 transition-colors
+                        ${errors.sessionPrice ? "border-red-500 dark:border-red-400" : "border-gray-300 dark:border-gray-600"}`}
                     />
                     {errors.sessionPrice && (
-                      <p className="text-red-500 text-xs italic mt-1">{errors.sessionPrice}</p>
+                      <p className="text-red-500 dark:text-red-400 text-xs italic mt-1">{errors.sessionPrice}</p>
                     )}
-                  </div>
+                  </motion.div>
 
-                  <div>
-                    <label htmlFor="yearsOfExperience" className="block text-gray-700 text-sm font-bold mb-2">
+                  <motion.div variants={itemVariants}>
+                    <label htmlFor="yearsOfExperience" className="block text-gray-700 dark:text-gray-300 text-sm font-medium mb-2">
                       Years of Experience
                     </label>
                     <input
@@ -707,178 +853,230 @@ const ProfileSettings: React.FC = () => {
                       name="yearsOfExperience"
                       value={formData.yearsOfExperience || ""}
                       onChange={handleNumberChange}
-                      className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                      className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 text-gray-700 dark:text-gray-200 transition-colors"
                     />
-                  </div>
+                  </motion.div>
                 </div>
-              </div>
+              </motion.div>
+            )}
 
-              <div className="p-5 border border-gray-200 rounded-lg">
-                <h3 className="text-lg font-medium mb-4 text-gray-800 border-b pb-2">Portfolio</h3>
+            {activeSection === "portfolio" && authState.user?.role === "mentor" && (
+              <motion.div
+                key="portfolio"
+                variants={containerVariants}
+                initial="hidden"
+                animate="visible"
+                exit="hidden"
+                className="p-5 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800"
+              >
+                <h3 className="text-lg font-medium mb-4 text-gray-800 dark:text-white border-b pb-2 border-gray-200 dark:border-gray-700">
+                  Portfolio
+                </h3>
                 <PortfolioManager
                   portfolioItems={formData.portfolio || []}
                   onChange={handlePortfolioChange}
                 />
-              </div>
+              </motion.div>
+            )}
 
-              <div className="p-5 border border-gray-200 rounded-lg">
-                <h3 className="text-lg font-medium mb-4 text-gray-800 border-b pb-2">Education</h3>
+            {activeSection === "education" && authState.user?.role === "mentor" && (
+              <motion.div
+                key="education"
+                variants={containerVariants}
+                initial="hidden"
+                animate="visible"
+                exit="hidden"
+                className="p-5 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800"
+              >
+                <h3 className="text-lg font-medium mb-4 text-gray-800 dark:text-white border-b pb-2 border-gray-200 dark:border-gray-700">
+                  Education
+                </h3>
                 <EducationManager
                   educationItems={formData.education || []}
                   onChange={handleEducationChange}
                 />
-              </div>
+              </motion.div>
+            )}
 
-              <div className="p-5 border border-gray-200 rounded-lg">
-                <h3 className="text-lg font-medium mb-4 text-gray-800 border-b pb-2">Certifications</h3>
+            {activeSection === "certifications" && authState.user?.role === "mentor" && (
+              <motion.div
+                key="certifications"
+                variants={containerVariants}
+                initial="hidden"
+                animate="visible"
+                exit="hidden"
+                className="p-5 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800"
+              >
+                <h3 className="text-lg font-medium mb-4 text-gray-800 dark:text-white border-b pb-2 border-gray-200 dark:border-gray-700">
+                  Certifications
+                </h3>
                 <CertificationManager
                   certificationItems={formData.certifications || []}
                   onChange={handleCertificationsChange}
                 />
-              </div>
+              </motion.div>
+            )}
 
-              <div className="p-5 border border-gray-200 rounded-lg">
-                <h3 className="text-lg font-medium mb-4 text-gray-800 border-b pb-2">Work Experience</h3>
+            {activeSection === "experience" && authState.user?.role === "mentor" && (
+              <motion.div
+                key="experience"
+                variants={containerVariants}
+                initial="hidden"
+                animate="visible"
+                exit="hidden"
+                className="p-5 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800"
+              >
+                <h3 className="text-lg font-medium mb-4 text-gray-800 dark:text-white border-b pb-2 border-gray-200 dark:border-gray-700">
+                  Work Experience
+                </h3>
                 <WorkExperienceManager
                   workExperienceItems={formData.workExperience || []}
                   onChange={handleWorkExperienceChange}
                 />
-              </div>
-            </div>
-          ) : authState.user?.role === "admin" ? (
-            <div className="p-5 border border-gray-200 rounded-lg">
-              <div className="bg-blue-50 p-4 rounded-md mb-4">
-                <p className="text-blue-800">
-                  As an admin, you have access to site management features.
-                  Your profile settings are limited to basic information.
-                </p>
-              </div>
-              <div>
-                <p className="text-gray-600 mb-2">
-                  Role: <span className="font-medium">Administrator</span>
-                </p>
-              </div>
-            </div>
-          ) : (
-            <div className="p-5 border border-gray-200 rounded-lg">
-              <h3 className="text-lg font-medium mb-4 text-gray-800 border-b pb-2">Mentee Profile</h3>
+              </motion.div>
+            )}
 
-              <div>
-                <label className="block text-gray-700 text-sm font-bold mb-2">
-                  Interests
-                </label>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                  {interestOptions.map((option) => (
-                    <label key={option} className="flex items-center">
-                      <input
-                        type="checkbox"
-                        name="interests"
-                        value={option}
-                        checked={hasValue("interests", option)}
-                        onChange={(e) =>
-                          handleSelectChange(e.target.name as "interests", e.target.value)
-                        }
-                        className="mr-2"
-                      />
-                      {option}
-                    </label>
-                  ))}
-                </div>
-                {errors.interests && (
-                  <p className="text-red-500 text-xs italic mt-1">{errors.interests}</p>
-                )}
-              </div>
+            {activeSection === "mentee" && authState.user?.role === "mentee" && (
+              <motion.div
+                key="mentee"
+                variants={containerVariants}
+                initial="hidden"
+                animate="visible"
+                exit="hidden"
+                className="p-5 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800"
+              >
+                <h3 className="text-lg font-medium mb-4 text-gray-800 dark:text-white border-b pb-2 border-gray-200 dark:border-gray-700">
+                  Mentee Profile
+                </h3>
 
-              <div className="mt-4">
-                <label htmlFor="bio" className="block text-gray-700 text-sm font-bold mb-2">
-                  Bio
-                </label>
-                <textarea
-                  id="bio"
-                  name="bio"
-                  value={formData.bio || ""}
-                  onChange={handleChange}
-                  rows={4}
-                  className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-                />
-              </div>
+                <motion.div variants={itemVariants}>
+                  <label className="block text-gray-700 dark:text-gray-300 text-sm font-medium mb-2">
+                    Interests
+                  </label>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                    {interestOptions.map((option) => (
+                      <label key={option} className="flex items-center space-x-2 text-gray-700 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400 cursor-pointer group transition-colors">
+                        <input
+                          type="checkbox"
+                          name="interests"
+                          value={option}
+                          checked={hasValue("interests", option)}
+                          onChange={(e) =>
+                            handleSelectChange(e.target.name as "interests", e.target.value)
+                          }
+                          className="form-checkbox h-4 w-4 text-indigo-600 dark:text-indigo-400 transition duration-150 ease-in-out rounded focus:ring-2 focus:ring-indigo-500"
+                        />
+                        <span className="group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">{option}</span>
+                      </label>
+                    ))}
+                  </div>
+                  {errors.interests && (
+                    <p className="text-red-500 dark:text-red-400 text-xs italic mt-1">{errors.interests}</p>
+                  )}
+                </motion.div>
 
-              <div className="mt-4">
-                <label className="block text-gray-700 text-sm font-bold mb-2">
-                  Goals
-                </label>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                  {goalOptions.map((option) => (
-                    <label key={option} className="flex items-center">
-                      <input
-                        type="checkbox"
-                        name="goals"
-                        value={option}
-                        checked={hasValue("goals", option)}
-                        onChange={(e) =>
-                          handleSelectChange(e.target.name as "goals", e.target.value)
-                        }
-                        className="mr-2"
-                      />
-                      {option}
-                    </label>
-                  ))}
-                </div>
-                {errors.goals && (
-                  <p className="text-red-500 text-xs italic mt-1">{errors.goals}</p>
-                )}
-              </div>
+                <motion.div variants={itemVariants} className="mt-4">
+                  <label htmlFor="bio" className="block text-gray-700 dark:text-gray-300 text-sm font-medium mb-2">
+                    Bio
+                  </label>
+                  <textarea
+                    id="bio"
+                    name="bio"
+                    value={formData.bio || ""}
+                    onChange={handleChange}
+                    rows={4}
+                    className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 text-gray-700 dark:text-gray-200 transition-colors resize-none"
+                  />
+                </motion.div>
 
-              <div className="mt-4">
-                <label htmlFor="currentPosition" className="block text-gray-700 text-sm font-bold mb-2">
-                  Current Position
-                </label>
-                <input
-                  type="text"
-                  id="currentPosition"
-                  name="currentPosition"
-                  value={formData.currentPosition || ""}
-                  onChange={handleChange}
-                  className={`shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline ${errors.currentPosition ? "border-red-500" : ""}`}
-                />
-                {errors.currentPosition && (
-                  <p className="text-red-500 text-xs italic mt-1">{errors.currentPosition}</p>
-                )}
-              </div>
-            </div>
-          )}
+                <motion.div variants={itemVariants} className="mt-4">
+                  <label className="block text-gray-700 dark:text-gray-300 text-sm font-medium mb-2">
+                    Goals
+                  </label>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                    {goalOptions.map((option) => (
+                      <label key={option} className="flex items-center space-x-2 text-gray-700 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400 cursor-pointer group transition-colors">
+                        <input
+                          type="checkbox"
+                          name="goals"
+                          value={option}
+                          checked={hasValue("goals", option)}
+                          onChange={(e) =>
+                            handleSelectChange(e.target.name as "goals", e.target.value)
+                          }
+                          className="form-checkbox h-4 w-4 text-indigo-600 dark:text-indigo-400 transition duration-150 ease-in-out rounded focus:ring-2 focus:ring-indigo-500"
+                        />
+                        <span className="group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">{option}</span>
+                      </label>
+                    ))}
+                  </div>
+                  {errors.goals && (
+                    <p className="text-red-500 dark:text-red-400 text-xs italic mt-1">{errors.goals}</p>
+                  )}
+                </motion.div>
+
+                <motion.div variants={itemVariants} className="mt-4">
+                  <label htmlFor="currentPosition" className="block text-gray-700 dark:text-gray-300 text-sm font-medium mb-2">
+                    Current Position
+                  </label>
+                  <input
+                    type="text"
+                    id="currentPosition"
+                    name="currentPosition"
+                    value={formData.currentPosition || ""}
+                    onChange={handleChange}
+                    className={`w-full px-3 py-2 bg-white dark:bg-gray-700 border rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 text-gray-700 dark:text-gray-200 transition-colors
+                      ${errors.currentPosition ? "border-red-500 dark:border-red-400" : "border-gray-300 dark:border-gray-600"}`}
+                  />
+                  {errors.currentPosition && (
+                    <p className="text-red-500 dark:text-red-400 text-xs italic mt-1">{errors.currentPosition}</p>
+                  )}
+                </motion.div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
 
-        {/* Keep only the enhanced bottom button with animations */}
+        {/* Save button with animation */}
         <div className="flex justify-between items-center mt-6">
-          <button
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
             type="button"
             onClick={(e) => handleSubmit(e as unknown as React.FormEvent)}
             disabled={isDisabled}
-            className={`bg-blue-500 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition-all duration-300 ${isDisabled ? "opacity-50 cursor-not-allowed" : "hover:bg-blue-700"
+            className={`flex items-center px-6 py-2 rounded-md text-white font-medium shadow-sm transition-all 
+              ${isDisabled 
+                ? "bg-gray-400 dark:bg-gray-600 cursor-not-allowed opacity-60" 
+                : "bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-600 dark:hover:bg-indigo-700"
               }`}
           >
             {loading ? (
-              <div className="flex items-center">
-                <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
+              <>
+                <FaSpinner className="animate-spin mr-2" />
                 Saving...
-              </div>
+              </>
             ) : (
-              "Save Changes"
+              <>
+                <FaSave className="mr-2" />
+                Save Changes
+              </>
             )}
-          </button>
+          </motion.button>
 
           {hasUnsavedChanges() && (
-            <div className="text-sm text-amber-600 animate-pulse">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="flex items-center text-amber-600 dark:text-amber-400 text-sm font-medium"
+            >
+              <FaExclamationTriangle className="mr-2" />
               You have unsaved changes
-            </div>
+            </motion.div>
           )}
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 };
 

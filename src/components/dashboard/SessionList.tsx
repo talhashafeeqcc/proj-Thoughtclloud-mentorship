@@ -8,6 +8,8 @@ import {
   FaCheckCircle,
   FaTimesCircle,
   FaMoneyCheckAlt,
+  FaInfoCircle,
+  FaArrowRight,
 } from "react-icons/fa";
 import { Link } from "react-router-dom";
 import SessionDetails from "../SessionDetails";
@@ -16,6 +18,7 @@ import { useSession } from "../../context/SessionContext";
 import ReviewForm from "../ReviewForm";
 import { hasSessionRating } from "../../services/ratingService";
 import ConfirmationModal from '../shared/ConfirmationModal';
+import { motion, AnimatePresence } from "framer-motion";
 
 interface SessionListProps {
   sessions: Session[];
@@ -31,8 +34,9 @@ const SessionList: React.FC<SessionListProps> = ({
   const { fetchUserSessions } = useSession();
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
   const [showPaymentFor, setShowPaymentFor] = useState<string | null>(null);
-  const [isCancelling, setIsCancelling] = useState<string | null>(null);
   const [showReviewFor, setShowReviewFor] = useState<string | null>(null);
+  const [showDetailsFor, setShowDetailsFor] = useState<string | null>(null);
+  const [isCancelling, setIsCancelling] = useState(false);
   const [sessionReviewStatus, setSessionReviewStatus] = useState<Record<string, boolean>>({});
   const [showCancelModal, setShowCancelModal] = useState<string | null>(null);
 
@@ -74,7 +78,12 @@ const SessionList: React.FC<SessionListProps> = ({
 
   if (!sessions || sessions.length === 0) {
     return (
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-8 text-center border border-gray-100 dark:border-gray-700 transition-all duration-300">
+      <motion.div 
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3 }}
+        className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-8 text-center border border-gray-100 dark:border-gray-700 transition-all duration-300"
+      >
         <p className="text-gray-600 dark:text-gray-300 text-lg">No sessions found.</p>
         <p className="mt-4">
           <Link to="/mentors" className="text-indigo-500 hover:text-indigo-600 dark:text-indigo-400 dark:hover:text-indigo-300 font-medium transition-colors duration-200">
@@ -82,7 +91,7 @@ const SessionList: React.FC<SessionListProps> = ({
           </Link>{" "}
           to book a session.
         </p>
-      </div>
+      </motion.div>
     );
   }
 
@@ -93,15 +102,16 @@ const SessionList: React.FC<SessionListProps> = ({
 
   const confirmCancelSession = async () => {
     if (!showCancelModal) return;
-
-    setIsCancelling(showCancelModal);
+    
     try {
+      setIsCancelling(true);
       await onCancelSession(showCancelModal);
+      console.log("Session cancelled successfully");
+      setShowCancelModal(null);
     } catch (error) {
       console.error("Error cancelling session:", error);
     } finally {
-      setIsCancelling(null);
-      setShowCancelModal(null);
+      setIsCancelling(false);
     }
   };
 
@@ -124,7 +134,7 @@ const SessionList: React.FC<SessionListProps> = ({
     (session) => session.status === "cancelled"
   );
 
-  const renderSession = (session: Session) => {
+  const renderSession = (session: Session, index: number) => {
     const isUpcoming = session.status === "scheduled";
     const isCompleted = session.status === "completed";
     const isPaid = session.paymentStatus === "completed";
@@ -153,8 +163,15 @@ const SessionList: React.FC<SessionListProps> = ({
     const formattedDate = new Date(session.date).toLocaleDateString();
 
     return (
-      <div key={session.id} className="mb-6">
-        <div
+      <motion.div 
+        key={session.id} 
+        initial={{ opacity: 0, y: 15 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, delay: index * 0.05 }}
+        className="mb-6"
+      >
+        <motion.div
+          whileHover={{ y: -2, boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)" }}
           className={`bg-white dark:bg-gray-800 rounded-xl shadow-sm p-5 cursor-pointer 
           transition-all duration-300 border
           ${isSelected 
@@ -171,7 +188,7 @@ const SessionList: React.FC<SessionListProps> = ({
                 <div className="flex items-center">
                   <FaCalendar className="mr-2 text-indigo-500 dark:text-indigo-400" />
                   {formattedDate}
-                  <span className="mx-2 text-gray-400">•</span>
+                  <span className="mx-2 text-gray-400 dark:text-gray-500">•</span>
                   <FaClock className="mr-2 text-indigo-500 dark:text-indigo-400" />
                   {session.startTime} - {session.endTime}
                 </div>
@@ -189,165 +206,211 @@ const SessionList: React.FC<SessionListProps> = ({
                 <span
                   className={`px-3 py-1 rounded-full text-xs font-medium ${
                     isCompleted
-                      ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
+                      ? "bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300"
                       : isUpcoming
-                        ? "bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200"
-                        : "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"
+                        ? "bg-indigo-100 text-indigo-800 dark:bg-indigo-900/40 dark:text-indigo-300"
+                        : "bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300"
                   }`}
                 >
                   {session.status.charAt(0).toUpperCase() +
                     session.status.slice(1)}
                 </span>
 
-                <span
-                  className={`px-3 py-1 rounded-full text-xs font-medium ${
-                    isPaid
-                      ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
-                      : isPending
-                        ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200"
-                        : "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300"
-                  }`}
-                >
-                  {session.paymentStatus.charAt(0).toUpperCase() +
-                    session.paymentStatus.slice(1)}
-                </span>
+                {isPaid && (
+                  <span className="bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300 px-3 py-1 rounded-full text-xs font-medium">
+                    Paid
+                  </span>
+                )}
+
+                {isPending && (
+                  <span className="bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300 px-3 py-1 rounded-full text-xs font-medium">
+                    Payment Pending
+                  </span>
+                )}
               </div>
 
-              {/* Actions buttons */}
-              <div className="flex space-x-3 mt-1">
-                {/* Cancel button for upcoming sessions - show for both mentor and mentee */}
-                {isUpcoming && (
-                  <button
-                    onClick={(e) => handleCancelClick(e, session.id)}
-                    disabled={!!isCancelling}
-                    className="text-sm text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 flex items-center px-3 py-1 rounded-md border border-red-200 hover:bg-red-50 dark:border-red-800 dark:hover:bg-red-900/30 transition-colors duration-200"
-                  >
-                    {isCancelling === session.id ? (
-                      <>Cancelling...</>
-                    ) : (
-                      <>
-                        <FaTimesCircle className="mr-1.5" /> Cancel
-                      </>
-                    )}
-                  </button>
-                )}
-
-                {/* Review button for completed and paid sessions */}
-                {isCompleted && isPaid && isMentee && (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      console.log("Review button clicked for session", session.id);
-                      console.log("isMentee:", isMentee);
-                      handleShowReview(e, session.id);
-                    }}
-                    className={`text-sm px-3 py-1 rounded-md border transition-colors duration-200 flex items-center ${
-                      hasReviewed 
-                        ? 'text-gray-500 border-gray-200 dark:text-gray-400 dark:border-gray-700' 
-                        : 'text-yellow-600 border-yellow-200 hover:bg-yellow-50 dark:text-yellow-400 dark:border-yellow-800 dark:hover:bg-yellow-900/30'
-                    }`}
-                    disabled={hasReviewed}
-                  >
-                    <FaStar className="mr-1.5" /> {hasReviewed ? "Reviewed" : "Leave Review"}
-                  </button>
-                )}
-
-                {/* Payment button for pending payments */}
-                {isPending && isMentee && (
-                  <button
+              <div className="flex flex-wrap gap-2 mt-1">
+                {isUpcoming && !isPaid && isMentee && (
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
                     onClick={(e) => handleShowPayment(e, session.id)}
-                    className="text-sm text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300 flex items-center px-3 py-1 rounded-md border border-indigo-200 hover:bg-indigo-50 dark:border-indigo-800 dark:hover:bg-indigo-900/30 transition-colors duration-200"
+                    className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs px-3 py-1.5 rounded-md flex items-center transition-colors"
                   >
-                    <FaMoneyCheckAlt className="mr-1.5" /> Complete Payment
-                  </button>
+                    <FaMoneyCheckAlt className="mr-1.5" /> Pay Now
+                  </motion.button>
                 )}
+
+                {isUpcoming && !isCancelling && (
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={(e) => handleCancelClick(e, session.id)}
+                    className="bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 text-xs px-3 py-1.5 rounded-md flex items-center transition-colors"
+                  >
+                    <FaTimesCircle className="mr-1.5" /> Cancel
+                  </motion.button>
+                )}
+
+                {isCompleted && isMentee && !hasReviewed && (
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={(e) => handleShowReview(e, session.id)}
+                    className="bg-yellow-500 hover:bg-yellow-600 text-white text-xs px-3 py-1.5 rounded-md flex items-center transition-colors"
+                  >
+                    <FaStar className="mr-1.5" /> Leave Review
+                  </motion.button>
+                )}
+
+                {isCompleted && hasReviewed && (
+                  <span className="bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300 px-3 py-1.5 rounded-md text-xs flex items-center">
+                    <FaCheckCircle className="mr-1.5" /> Reviewed
+                  </span>
+                )}
+
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  className="bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 text-xs px-3 py-1.5 rounded-md flex items-center transition-colors"
+                >
+                  <FaInfoCircle className="mr-1.5" /> 
+                  {isSelected ? "Hide Details" : "View Details"}
+                </motion.button>
               </div>
             </div>
           </div>
-        </div>
+        </motion.div>
 
-        {/* Expanded view details */}
-        {isSelected && !isShowingPayment && !isShowingReview && (
-          <div className="mt-2 bg-gray-50 dark:bg-gray-900/50 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-inner transition-all duration-300">
-            <SessionDetails
-              sessionId={session.id}
-              currentUserId={currentUserId}
-            />
-          </div>
-        )}
+        <AnimatePresence>
+          {isSelected && !isShowingPayment && !isShowingReview && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.3 }}
+              className="overflow-hidden"
+            >
+              <div className="bg-gray-50 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-700 rounded-lg p-4 mt-2">
+                <SessionDetails
+                  sessionId={session.id}
+                  currentUserId={currentUserId}
+                />
+              </div>
+            </motion.div>
+          )}
+          
+          {isShowingPayment && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.3 }}
+              className="overflow-hidden"
+            >
+              <div className="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-lg p-4 mt-2 shadow-md">
+                <SessionPayment
+                  sessionId={session.id}
+                  amount={session.paymentAmount}
+                  onSuccess={handlePaymentSuccess}
+                  onCancel={() => setShowPaymentFor(null)}
+                />
+              </div>
+            </motion.div>
+          )}
 
-        {/* Payment form */}
-        {isShowingPayment && (
-          <div className="mt-2 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-md transition-all duration-300">
-            <SessionPayment
-              sessionId={session.id}
-              amount={session.paymentAmount}
-              onSuccess={handlePaymentSuccess}
-            />
-          </div>
-        )}
-
-        {/* Review form */}
-        {isShowingReview && (
-          <div className="mt-2 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-md transition-all duration-300">
-            <ReviewForm
-              sessionId={session.id}
-              mentorId={session.mentorId}
-              menteeId={session.menteeId}
-              onReviewSubmitted={() => handleReviewSubmitted(session.id)}
-            />
-          </div>
-        )}
-      </div>
+          {isShowingReview && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.3 }}
+              className="overflow-hidden"
+            >
+              <div className="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-lg p-4 mt-2 shadow-md">
+                <ReviewForm
+                  sessionId={session.id}
+                  mentorId={session.mentorId}
+                  menteeId={currentUserId}
+                  onReviewSubmitted={() => handleReviewSubmitted(session.id)}
+                />
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </motion.div>
     );
   };
 
   return (
-    <>
-      {/* Confirmation Modal */}
-      <ConfirmationModal
-        isOpen={!!showCancelModal}
-        title="Cancel Session"
-        message="Are you sure you want to cancel this session? This action cannot be undone."
-        confirmText="Yes, Cancel Session"
-        cancelText="No, Keep Session"
-        onConfirm={confirmCancelSession}
-        onCancel={() => setShowCancelModal(null)}
-        type="danger"
-      />
-
-      <div className="space-y-8">
-        {upcomingSessions.length > 0 && (
-          <div className="mb-6">
-            <h3 className="text-xl font-semibold mb-4 flex items-center text-gray-900 dark:text-white">
-              <FaCalendar className="mr-2 text-indigo-500 dark:text-indigo-400" /> 
-              Upcoming Sessions
-            </h3>
-            <div className="space-y-4">{upcomingSessions.map(renderSession)}</div>
-          </div>
-        )}
-
-        {completedSessions.length > 0 && (
-          <div className="mb-6">
-            <h3 className="text-xl font-semibold mb-4 flex items-center text-gray-900 dark:text-white">
-              <FaCheckCircle className="mr-2 text-green-500 dark:text-green-400" /> 
-              Completed Sessions
-            </h3>
-            <div className="space-y-4">{completedSessions.map(renderSession)}</div>
-          </div>
-        )}
-
-        {cancelledSessions.length > 0 && (
+    <div>
+      {/* Upcoming Sessions Section */}
+      {upcomingSessions.length > 0 && (
+        <motion.div 
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3 }}
+          className="mb-8"
+        >
+          <h3 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white flex items-center">
+            <FaCalendar className="mr-2 text-indigo-500 dark:text-indigo-400" />
+            Upcoming Sessions ({upcomingSessions.length})
+          </h3>
           <div>
-            <h3 className="text-xl font-semibold mb-4 flex items-center text-gray-900 dark:text-white">
-              <FaTimesCircle className="mr-2 text-red-500 dark:text-red-400" /> 
-              Cancelled Sessions
-            </h3>
-            <div className="space-y-4">{cancelledSessions.map(renderSession)}</div>
+            {upcomingSessions.map((session, index) => renderSession(session, index))}
           </div>
-        )}
-      </div>
-    </>
+        </motion.div>
+      )}
+
+      {/* Completed Sessions Section */}
+      {completedSessions.length > 0 && (
+        <motion.div 
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3, delay: 0.1 }}
+          className="mb-8"
+        >
+          <h3 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white flex items-center">
+            <FaCheckCircle className="mr-2 text-green-500 dark:text-green-400" />
+            Completed Sessions ({completedSessions.length})
+          </h3>
+          <div>
+            {completedSessions.map((session, index) => renderSession(session, index))}
+          </div>
+        </motion.div>
+      )}
+
+      {/* Cancelled Sessions Section */}
+      {cancelledSessions.length > 0 && (
+        <motion.div 
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3, delay: 0.2 }}
+        >
+          <h3 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white flex items-center">
+            <FaTimesCircle className="mr-2 text-red-500 dark:text-red-400" />
+            Cancelled Sessions ({cancelledSessions.length})
+          </h3>
+          <div>
+            {cancelledSessions.map((session, index) => renderSession(session, index))}
+          </div>
+        </motion.div>
+      )}
+
+      {/* Confirmation Modal */}
+      {showCancelModal && (
+        <ConfirmationModal
+          title="Cancel Session"
+          message="Are you sure you want to cancel this session? This action cannot be undone."
+          confirmText="Yes, Cancel Session"
+          cancelText="No, Keep Session"
+          isOpen={!!showCancelModal}
+          onConfirm={confirmCancelSession}
+          onCancel={() => setShowCancelModal(null)}
+          isLoading={isCancelling}
+        />
+      )}
+    </div>
   );
 };
 

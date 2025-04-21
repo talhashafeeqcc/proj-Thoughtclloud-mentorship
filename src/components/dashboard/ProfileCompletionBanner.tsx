@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { getMentorByUserId, getMentorAvailabilitySlots } from '../../services/mentorService';
+import { motion } from 'framer-motion';
+import { FaUserEdit, FaCalendarAlt, FaClipboardList } from 'react-icons/fa';
 
 interface ProfileCompletion {
     isComplete: boolean;
@@ -142,40 +144,61 @@ const ProfileCompletionBanner: React.FC = () => {
     }
 
     return (
-        <div className="bg-gradient-to-r from-amber-50 to-amber-100 border-l-4 border-amber-500 p-4 mb-6 rounded-md shadow-sm">
-            <div className="flex justify-between items-center">
-                <div>
-                    <h3 className="text-lg font-medium text-amber-800">Complete Your Profile</h3>
-                    <p className="text-amber-700 mt-1">
+        <motion.div 
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4 }}
+            className="bg-gradient-to-r from-amber-50 to-amber-100 dark:from-amber-900/30 dark:to-amber-800/30 border-l-4 border-amber-500 p-5 mb-6 rounded-md shadow-sm"
+        >
+            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
+                <div className="flex-1">
+                    <h3 className="text-lg font-medium text-amber-800 dark:text-amber-300 flex items-center gap-2">
+                        <FaUserEdit className="text-amber-600 dark:text-amber-400" />
+                        Complete Your Profile
+                    </h3>
+                    <p className="text-amber-700 dark:text-amber-400 mt-1">
                         Your profile is {profileStatus.completionPercentage}% complete.
                         {profileStatus.missingFields.length > 0 &&
                             ` Please add the following information: ${profileStatus.missingFields.join(', ')}.`}
                     </p>
-                    <div className="mt-2">
-                        <div className="w-full bg-amber-200 rounded-full h-2.5">
-                            <div
-                                className="bg-amber-600 h-2.5 rounded-full"
-                                style={{ width: `${profileStatus.completionPercentage}%` }}
-                            ></div>
-                        </div>
+                    <div className="mt-3">
+                        <motion.div 
+                            className="w-full bg-amber-200 dark:bg-amber-800/50 rounded-full h-2.5 overflow-hidden"
+                        >
+                            <motion.div
+                                initial={{ width: "0%" }}
+                                animate={{ width: `${profileStatus.completionPercentage}%` }}
+                                transition={{ duration: 0.8, ease: "easeOut" }}
+                                className="bg-amber-600 dark:bg-amber-500 h-2.5 rounded-full"
+                            ></motion.div>
+                        </motion.div>
                     </div>
                 </div>
-                <Link
-                    to="/settings"
-                    className="bg-amber-600 hover:bg-amber-700 text-white font-bold py-2 px-4 rounded text-sm transition-colors"
-                >
-                    Complete Now
-                </Link>
+                <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                    <Link
+                        to="/settings"
+                        className="inline-flex items-center bg-amber-600 hover:bg-amber-700 dark:bg-amber-600 dark:hover:bg-amber-700 text-white font-medium py-2 px-4 rounded-lg text-sm transition-colors shadow-sm"
+                    >
+                        <FaClipboardList className="mr-2" />
+                        Complete Now
+                    </Link>
+                </motion.div>
             </div>
             {authState.user?.role === 'mentor' && profileStatus.missingFields.includes('Availability Schedule') && (
-                <div className="mt-3 text-sm text-amber-800">
+                <motion.div 
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 0.3, duration: 0.4 }}
+                    className="mt-3 text-sm text-amber-800 dark:text-amber-300 flex items-start gap-2 bg-amber-100/50 dark:bg-amber-900/30 p-3 rounded-md"
+                >
+                    <FaCalendarAlt className="text-amber-600 dark:text-amber-400 mt-0.5 flex-shrink-0" />
                     <p>
                         <span className="font-semibold">Note:</span> Setting up your availability schedule is essential
                         before mentees can book sessions with you.
                     </p>
-                </div>
+                </motion.div>
             )}
-        </div>
+        </motion.div>
     );
 };
 

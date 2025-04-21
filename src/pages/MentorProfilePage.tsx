@@ -81,6 +81,8 @@ const MentorProfilePage: React.FC = () => {
     try {
       // Creating a loading state variable to indicate booking is in progress
       setLoading(true);
+      setBookingError(null);
+
       const sessionData = {
         mentorId: mentor.id,
         menteeId: authState.user.id,
@@ -93,6 +95,7 @@ const MentorProfilePage: React.FC = () => {
         // Status and payment status are set by the bookSession function
       };
 
+      console.log("Booking session with data:", sessionData);
       const session = await bookSession(sessionData);
       console.log("Session booked successfully with ID:", session.id);
 
@@ -103,11 +106,22 @@ const MentorProfilePage: React.FC = () => {
       return session.id;
     } catch (error) {
       console.error("Error during booking:", error);
+      let errorMessage = "An unknown error occurred during booking";
+      
       if (error instanceof Error) {
-        setBookingError(error.message);
-      } else {
-        setBookingError("An unknown error occurred during booking");
+        // Format common error messages to be more user-friendly
+        if (error.message.includes("Mentee not found")) {
+          errorMessage = "Unable to find your mentee profile. Please ensure your account is properly set up.";
+        } else if (error.message.includes("User with ID") && error.message.includes("is not a mentee")) {
+          errorMessage = "Your account does not have mentee privileges. Please contact support.";
+        } else if (error.message.includes("This time slot is not available")) {
+          errorMessage = "This time slot is no longer available. Please select another time.";
+        } else {
+          errorMessage = error.message;
+        }
       }
+      
+      setBookingError(errorMessage);
       return Promise.reject(error);
     } finally {
       setLoading(false);
@@ -282,7 +296,7 @@ const MentorProfilePage: React.FC = () => {
 
             <AvailabilityCalendar
               mentorId={mentor.id}
-              onSlotSelect={canBook ? handleSlotSelect : undefined}
+              onSlotSelect={canBook ? handleSlotSelect : () => {}}
               disabled={!canBook}
               readOnly={!canBook}
               version={calendarVersion}

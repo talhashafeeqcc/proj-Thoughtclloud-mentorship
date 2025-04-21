@@ -48,9 +48,9 @@ const HomePage: React.FC = () => {
             initial={{ y: 20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ duration: 0.7 }}
-            className="text-4xl md:text-6xl font-extrabold mb-6 tracking-tight"
+            className="text-4xl md:text-6xl font-extrabold mb-6 tracking-tight text-white"
           >
-            Find Your Perfect <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-200 to-indigo-100">Mentor</span>
+            Find Your Perfect <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-300 to-indigo-200">Mentor</span>
           </motion.h1>
           
           <motion.p 
