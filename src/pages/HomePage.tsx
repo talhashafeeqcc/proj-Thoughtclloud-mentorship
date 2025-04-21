@@ -176,7 +176,7 @@ const HomePage: React.FC = () => {
                   className="bg-white/10 backdrop-blur-sm p-6 rounded-xl text-white hover:bg-white/15 transition-all duration-300 border border-white/5"
                 >
                   <div className="text-3xl mb-4">{item.icon}</div>
-                  <h3 className="text-xl font-semibold mb-3">{item.title}</h3>
+                  <h3 className="text-xl font-semibold mb-3 text-white">{item.title}</h3>
                   <p className="text-white/90 text-sm leading-relaxed">{item.desc}</p>
                 </motion.div>
               ))}
@@ -348,7 +348,7 @@ const HomePage: React.FC = () => {
           className="max-w-5xl mx-auto bg-gradient-to-r from-indigo-600 to-purple-700 dark:from-indigo-700 dark:to-purple-800 rounded-2xl shadow-xl overflow-hidden border border-indigo-500/20 dark:border-indigo-600/20"
         >
           <div className="px-6 py-12 md:p-12 text-center text-white">
-            <h2 className="text-3xl md:text-4xl font-bold mb-6">Ready to Transform Your Career?</h2>
+            <h2 className="text-3xl md:text-4xl font-bold mb-6 text-white">Ready to Transform Your Career?</h2>
             <p className="text-lg mb-8 max-w-2xl mx-auto">
               Join our community today and connect with mentors who can help you achieve your professional goals.
           </p>
