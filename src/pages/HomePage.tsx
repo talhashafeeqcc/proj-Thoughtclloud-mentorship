@@ -34,55 +34,244 @@ const HomePage: React.FC = () => {
       <motion.section 
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        transition={{ duration: 0.5 }}
-        className="relative py-20 md:py-28 px-4 bg-gradient-to-r from-indigo-600 to-purple-700 dark:from-indigo-800 dark:to-purple-900 text-white shadow-lg rounded-b-lg overflow-hidden"
+        transition={{ duration: 0.8 }}
+        className="relative py-4 md:py-24 px-4 bg-gradient-to-br from-indigo-700 via-purple-700 to-purple-800 dark:from-indigo-900 dark:via-purple-900 dark:to-purple-950 text-white shadow-xl overflow-hidden"
       >
         {/* Animated background elements */}
         <div className="absolute inset-0 overflow-hidden">
-          <div className="absolute top-1/4 left-1/4 w-64 h-64 bg-white opacity-5 rounded-full blur-3xl"></div>
-          <div className="absolute bottom-1/3 right-1/4 w-80 h-80 bg-purple-300 opacity-5 rounded-full blur-3xl"></div>
-        </div>
-
-        <div className="max-w-5xl mx-auto relative z-10">
-          <motion.h1 
-            initial={{ y: 20, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            transition={{ duration: 0.7 }}
-            className="text-4xl md:text-6xl font-extrabold mb-6 tracking-tight text-white"
-          >
-            Find Your Perfect <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-300 to-indigo-200">Mentor</span>
-          </motion.h1>
-          
-          <motion.p 
-            initial={{ y: 20, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            transition={{ duration: 0.7, delay: 0.2 }}
-            className="text-xl md:text-2xl mb-10 max-w-3xl mx-auto font-light leading-relaxed"
-          >
-            Connect with experienced professionals who can guide you through your
-            career journey
-          </motion.p>
+          {/* Animated circles */}
+          <motion.div 
+            animate={{ 
+              scale: [1, 1.2, 1],
+              opacity: [0.05, 0.08, 0.05],
+            }}
+            transition={{ 
+              duration: 8,
+              repeat: Infinity,
+              ease: "easeInOut" 
+            }}
+            className="absolute top-1/4 -left-20 w-96 h-96 bg-purple-300 dark:bg-purple-400 rounded-full blur-3xl"
+          ></motion.div>
           
           <motion.div 
-            initial={{ y: 20, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            transition={{ duration: 0.7, delay: 0.4 }}
-            className="flex flex-col sm:flex-row justify-center gap-5"
-          >
-            <Link
-              to="/mentors"
-              className="bg-white text-indigo-700 hover:bg-indigo-50 dark:bg-white/95 dark:hover:bg-white px-8 py-4 rounded-lg font-medium text-lg shadow-xl transform transition-all hover:scale-105 hover:shadow-2xl focus:ring-4 focus:ring-indigo-200 focus:ring-opacity-50 focus:outline-none"
-            >
-              Find a Mentor
-            </Link>
-            <Link
-              to="/register"
-              className="bg-indigo-800 hover:bg-indigo-900 text-white dark:bg-indigo-700 dark:hover:bg-indigo-800 px-8 py-4 rounded-lg font-medium text-lg shadow-xl transform transition-all hover:scale-105 hover:shadow-2xl focus:ring-4 focus:ring-white focus:ring-opacity-30 focus:outline-none border border-indigo-500"
-            >
-              Become a Mentor
-            </Link>
-          </motion.div>
+            animate={{ 
+              scale: [1, 1.3, 1],
+              opacity: [0.07, 0.1, 0.07],
+              x: [0, 20, 0]
+            }}
+            transition={{ 
+              duration: 10,
+              repeat: Infinity,
+              ease: "easeInOut",
+              delay: 1
+            }}
+            className="absolute bottom-1/4 -right-20 w-[30rem] h-[30rem] bg-indigo-400 dark:bg-indigo-500 rounded-full blur-3xl"
+          ></motion.div>
+          
+          {/* Geometric shapes */}
+          <motion.div 
+            animate={{ 
+              rotate: [0, 10, 0],
+              y: [0, -15, 0]
+            }}
+            transition={{ 
+              duration: 15, 
+              repeat: Infinity,
+              ease: "easeInOut"
+            }}
+            className="absolute top-32 right-1/4 w-32 h-32 border-4 border-white/10 rounded-xl"
+          ></motion.div>
+          
+          <motion.div 
+            animate={{ 
+              rotate: [0, -5, 0],
+              x: [0, 10, 0]
+            }}
+            transition={{ 
+              duration: 12, 
+              repeat: Infinity,
+              ease: "easeInOut",
+              delay: 2
+            }}
+            className="absolute bottom-20 left-1/3 w-20 h-20 border-4 border-white/10 rounded-full"
+          ></motion.div>
+          
+          {/* Floating particles */}
+          <div className="absolute inset-0">
+            {[...Array(20)].map((_, i) => (
+              <motion.div
+                key={i}
+                initial={{ 
+                  x: Math.random() * 100 + "%", 
+                  y: Math.random() * 100 + "%",
+                  scale: Math.random() * 0.5 + 0.5,
+                  opacity: Math.random() * 0.3 + 0.1
+                }}
+                animate={{ 
+                  y: [0, "-20px", 0, "20px", 0],
+                  opacity: [
+                    Math.random() * 0.2 + 0.1,
+                    Math.random() * 0.2 + 0.3,
+                    Math.random() * 0.2 + 0.1,
+                    Math.random() * 0.2 + 0.3,
+                    Math.random() * 0.2 + 0.1
+                  ]
+                }}
+                transition={{ 
+                  duration: Math.random() * 10 + 15,
+                  repeat: Infinity,
+                  ease: "easeInOut"
+                }}
+                className="absolute w-2 h-2 bg-white rounded-full"
+              ></motion.div>
+            ))}
+          </div>
         </div>
+
+        {/* Content container */}
+        <div className="max-w-6xl mx-auto relative z-10">
+          <div className="grid md:grid-cols-5 gap-10 items-center">
+            {/* Left side content */}
+            <div className="md:col-span-3 text-center md:text-left">
+              <motion.div
+                initial={{ opacity: 0, y: 30 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.7 }}
+                className="mb-2 inline-block px-3 py-1 text-sm bg-white/10 backdrop-blur-sm rounded-full border border-white/20"
+              >
+                <span className="mr-1 text-purple-200">✨</span> Connect with industry experts
+              </motion.div>
+            
+              <motion.h1 
+                initial={{ y: 20, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ duration: 0.7, delay: 0.1 }}
+                className="text-4xl md:text-6xl font-extrabold tracking-tight text-white mb-6"
+              >
+                Find Your Perfect <br />
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-200 to-indigo-200 dark:from-purple-300 dark:to-indigo-300">
+                  Mentor
+                </span>
+                <span className="text-white/40 ml-1 animate-pulse">_</span>
+              </motion.h1>
+              
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.7, delay: 0.2 }}
+              >
+                <p className="text-xl md:text-2xl mb-2 max-w-2xl font-light leading-relaxed text-indigo-100 dark:text-indigo-200">
+                  Connect with experienced professionals who can guide you through your
+                  career journey
+                </p>
+                
+                {/* Eye-catching quote */}
+                <div className="my-6 border-l-4 border-purple-400 pl-4 py-1 max-w-xl">
+                  <p className="text-lg italic text-purple-100 dark:text-purple-200">
+                    "The right mentor can help you avoid years of trial and error, shortening your path to success."
+                  </p>
+                </div>
+              </motion.div>
+              
+              <motion.div 
+                initial={{ y: 20, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ duration: 0.7, delay: 0.4 }}
+                className="flex flex-col sm:flex-row sm:items-center gap-5 mt-8"
+              >
+                <Link
+                  to="/mentors"
+                  className="group bg-white text-indigo-700 hover:bg-indigo-50 dark:bg-white/95 dark:hover:bg-white px-8 py-4 rounded-xl font-medium text-lg shadow-xl transform transition-all hover:scale-105 hover:shadow-2xl focus:ring-4 focus:ring-indigo-200 focus:ring-opacity-50 focus:outline-none relative overflow-hidden"
+                >
+                  <span className="relative z-10">Find a Mentor</span>
+                  <span className="absolute top-0 -right-10 w-20 h-20 bg-indigo-100 dark:bg-indigo-200 rotate-45 transform -translate-y-8 translate-x-2 group-hover:translate-x-1 group-hover:-translate-y-7 transition-transform duration-500"></span>
+                </Link>
+                <Link
+                  to="/register"
+                  className="group bg-purple-700 hover:bg-purple-800 text-white dark:bg-purple-800 dark:hover:bg-purple-900 px-8 py-4 rounded-xl font-medium text-lg shadow-xl transform transition-all hover:scale-105 hover:shadow-2xl focus:ring-4 focus:ring-white focus:ring-opacity-30 focus:outline-none border border-purple-500 dark:border-purple-600 relative overflow-hidden"
+                >
+                  <span className="relative z-10">Become a Mentor</span>
+                  <span className="absolute top-0 -right-10 w-20 h-20 bg-purple-600 dark:bg-purple-700 rotate-45 transform -translate-y-8 translate-x-2 group-hover:translate-x-1 group-hover:-translate-y-7 transition-transform duration-500"></span>
+                </Link>
+              </motion.div>
+            </div>
+            
+            {/* Right side - Floating cards */}
+            <div className="md:col-span-2 hidden md:block relative h-96">
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.7, delay: 0.5 }}
+                className="absolute z-30 right-10 top-10"
+              >
+                <div className="bg-white/10 backdrop-blur-md p-4 rounded-xl shadow-xl border border-white/20 w-64">
+                  <div className="flex items-center mb-3">
+                    <div className="w-10 h-10 rounded-full bg-green-400 flex items-center justify-center text-white font-bold">J</div>
+                    <div className="ml-3">
+                      <div className="text-white font-medium">Jane Smith</div>
+                      <div className="text-xs text-purple-200">Senior Developer • 4.9 ⭐</div>
+                    </div>
+                  </div>
+                  <p className="text-sm text-indigo-100">"I've mentored over 50 developers in the past 3 years, helping them achieve their career goals."</p>
+                </div>
+              </motion.div>
+              
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.7, delay: 0.7 }}
+                className="absolute z-20 left-0 top-32"
+              >
+                <div className="bg-white/10 backdrop-blur-md p-4 rounded-xl shadow-xl border border-white/20 w-64">
+                  <div className="flex items-center mb-3">
+                    <div className="w-10 h-10 rounded-full bg-blue-400 flex items-center justify-center text-white font-bold">M</div>
+                    <div className="ml-3">
+                      <div className="text-white font-medium">Michael Chen</div>
+                      <div className="text-xs text-purple-200">UX Designer • 4.8 ⭐</div>
+                    </div>
+                  </div>
+                  <p className="text-sm text-indigo-100">"My mentee doubled his salary within a year following our design portfolio overhaul."</p>
+                </div>
+              </motion.div>
+              
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.7, delay: 0.9 }}
+                className="absolute z-10 right-20 bottom-0"
+              >
+                <div className="bg-white/10 backdrop-blur-md p-4 rounded-xl shadow-xl border border-white/20 w-64">
+                  <div className="text-center py-2">
+                    <div className="text-4xl font-bold text-white mb-1">500+</div>
+                    <div className="text-purple-200 text-sm">Successful Mentorships</div>
+                  </div>
+                </div>
+              </motion.div>
+            </div>
+          </div>
+        </div>
+        
+        {/* Stats bar - visible on mobile and desktop */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.7, delay: 1.1 }}
+          className="max-w-5xl mx-auto mt-12 md:mt-16 bg-white/10 backdrop-blur-md rounded-xl border border-white/20 relative z-10"
+        >
+          <div className="grid grid-cols-2 md:grid-cols-4 divide-x divide-white/10">
+            {[
+              { number: "500+", label: "Mentors" },
+              { number: "2,400+", label: "Sessions" },
+              { number: "96%", label: "Satisfaction" },
+              { number: "45+", label: "Industries" }
+            ].map((stat, i) => (
+              <div key={i} className="py-4 px-2 text-center">
+                <div className="text-2xl font-bold text-white">{stat.number}</div>
+                <div className="text-sm text-purple-200">{stat.label}</div>
+              </div>
+            ))}
+          </div>
+        </motion.div>
       </motion.section>
 
       {/* How It Works */}
