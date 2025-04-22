@@ -31,18 +31,36 @@ const port = process.env.PORT || 3001;
 const isProduction = process.env.NODE_ENV === 'production';
 
 // Middleware
-app.use(cors({
-  origin: [
-    'https://thoughtcloud-mentorship.netlify.app',
-    'https://devserver-main--thoughtcloud-mentorship.netlify.app',
-    'http://localhost:3000',
-    'http://localhost:5173',
-    process.env.FRONTEND_URL
-  ].filter(Boolean) as string[],
+const corsOptions = {
+  origin: function(origin: string | undefined, callback: (err: Error | null, allowed?: boolean) => void) {
+    // Allow requests with no origin (like mobile apps, curl requests)
+    if (!origin) return callback(null, true);
+    
+    const allowedOrigins = [
+      'https://thoughtcloud-mentorship.netlify.app',
+      'https://devserver-main--thoughtcloud-mentorship.netlify.app',
+      'http://localhost:3000',
+      'http://localhost:5173'
+    ];
+    
+    if (allowedOrigins.indexOf(origin) !== -1 || !origin) {
+      callback(null, true);
+    } else {
+      callback(new Error('CORS not allowed for this origin'));
+    }
+  },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   credentials: true,
-  allowedHeaders: ['Content-Type', 'Authorization']
-}));
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  preflightContinue: false,
+  optionsSuccessStatus: 204
+};
+
+// Apply CORS middleware with options
+app.use(cors(corsOptions));
+
+// Enable CORS preflight for all routes
+app.options('*', cors(corsOptions));
 
 // Special parsing for Stripe webhooks (raw body)
 app.use('/api/webhook', bodyParser.raw({ type: 'application/json' }));
