@@ -20,6 +20,7 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
 }) => {
     const [isLoading, setIsLoading] = useState(false);
     const [name, setName] = useState('');
+    const [errorMessage, setErrorMessage] = useState<string | null>(null);
     
     // Initialize Stripe
     const stripe = useStripe();
@@ -27,14 +28,17 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        setErrorMessage(null);
 
         if (!stripe || !elements) {
+            setErrorMessage('Stripe has not been initialized. Please try again later.');
             onError('Stripe has not been initialized');
             return;
         }
 
         const cardElement = elements.getElement(CardElement);
         if (!cardElement) {
+            setErrorMessage('Card input not found. Please reload the page and try again.');
             onError('Card element not found');
             return;
         }
@@ -42,7 +46,19 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
         setIsLoading(true);
 
         try {
-            // Step 1: Create a PaymentMethod
+            // Step 1: Create a Payment Intent and get client secret
+            const paymentIntent = await createPaymentIntent(
+                amount * 100, // Convert to cents
+                'usd',
+                `Session payment for ${sessionId}`,
+                undefined // mentorStripeAccountId will be handled server-side
+            );
+
+            if (!paymentIntent || !paymentIntent.clientSecret) {
+                throw new Error('Failed to create payment intent. Please try again later.');
+            }
+
+            // Step 2: Create a PaymentMethod
             const { error: createPaymentMethodError, paymentMethod } = await stripe.createPaymentMethod({
                 type: 'card',
                 card: cardElement,
@@ -59,14 +75,31 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
                 throw new Error('Failed to create payment method');
             }
 
-            // Step 2: Process the payment using our service
-            const payment = await processPayment(sessionId, amount, paymentMethod.id);
+            // Step 3: Confirm the payment using Stripe
+            const { error: confirmError, paymentIntent: confirmedIntent } = await stripe.confirmCardPayment(
+                paymentIntent.clientSecret,
+                {
+                    payment_method: paymentMethod.id
+                }
+            );
 
-            // Step 3: Call onSuccess with the payment ID
-            onSuccess(payment.id);
+            if (confirmError) {
+                throw new Error(confirmError.message);
+            }
+
+            if (confirmedIntent.status === 'requires_capture' || confirmedIntent.status === 'succeeded') {
+                // Step 4: Process the payment using our service
+                const payment = await processPayment(sessionId, amount, paymentMethod.id);
+                
+                // Step 5: Call onSuccess with the payment ID
+                onSuccess(payment.id);
+            } else {
+                throw new Error(`Payment failed with status: ${confirmedIntent.status}`);
+            }
         } catch (error) {
             console.error('Payment error:', error);
             const errorMessage = error instanceof Error ? error.message : 'An error occurred during payment processing';
+            setErrorMessage(errorMessage);
             onError(errorMessage);
         } finally {
             setIsLoading(false);
@@ -103,6 +136,12 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
                 <FaCreditCard className="text-indigo-600 dark:text-indigo-400 text-xl" />
                 <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Payment Details</h2>
             </div>
+            
+            {errorMessage && (
+                <div className="mb-4 p-3 bg-red-50 text-red-700 border border-red-200 rounded">
+                    <p className="text-sm">{errorMessage}</p>
+                </div>
+            )}
             
             <form onSubmit={handleSubmit}>
                 {/* Card Holder Name */}

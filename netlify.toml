@@ -22,10 +22,10 @@
     Access-Control-Allow-Credentials = "true"
     Access-Control-Max-Age = "86400"
 
-# Add a specific rule for OPTIONS preflight requests
+# Handle OPTIONS preflight requests
 [[redirects]]
   from = "/api/*"
-  to = "/api/:splat"
+  to = "/.netlify/functions/api/:splat"
   status = 200
   force = true
   conditions = {method = "OPTIONS"}
