@@ -3,7 +3,7 @@ import {
     updateDocument,
     COLLECTIONS
 } from '../firebase';
-import { API_BASE_URL } from '../config';
+import { API_BASE_URL, getApiUrl } from '../config';
 
 // Check if we're in a development environment
 // const isDevelopment = import.meta.env.DEV ||
@@ -19,7 +19,7 @@ export const createPaymentIntent = async (
 ) => {
     try {
         // Send request to our backend API
-        const response = await fetch(`${API_BASE_URL}/api/create-payment-intent`, {
+        const response = await fetch(getApiUrl('api/create-payment-intent'), {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -77,7 +77,7 @@ export const retrievePaymentIntent = async (clientSecret: string) => {
 export const capturePayment = async (paymentIntentId: string) => {
     try {
         // Send request to our backend API
-        const response = await fetch(`${API_BASE_URL}/api/capture-payment`, {
+        const response = await fetch(getApiUrl('api/capture-payment'), {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -104,7 +104,7 @@ export const capturePayment = async (paymentIntentId: string) => {
 export const createRefund = async (paymentIntentId: string, reason?: string) => {
     try {
         // Send request to our backend API
-        const response = await fetch(`${API_BASE_URL}/api/create-refund`, {
+        const response = await fetch(getApiUrl('api/create-refund'), {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -132,7 +132,7 @@ export const createRefund = async (paymentIntentId: string, reason?: string) => 
 export const getMentorBalance = async (mentorId: string) => {
     try {
         // Send request to our backend API
-        const response = await fetch(`${API_BASE_URL}/api/mentor-balance/${mentorId}`, {
+        const response = await fetch(getApiUrl(`api/mentor-balance/${mentorId}`), {
             method: 'GET',
             headers: {
                 'Content-Type': 'application/json',
@@ -156,7 +156,7 @@ export const getMentorBalance = async (mentorId: string) => {
 export const connectMentorToStripe = async (mentorId: string, email: string, country: string) => {
     try {
         // Send request to our backend API
-        const response = await fetch(`${API_BASE_URL}/api/create-connect-account`, {
+        const response = await fetch(getApiUrl('api/create-connect-account'), {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',

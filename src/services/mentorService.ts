@@ -8,7 +8,7 @@ import {
   getDocuments,
   whereEqual,
 } from './firebase';
-import { API_BASE_URL } from './config';
+import { API_BASE_URL, getApiUrl } from './config';
 
 // Extended MentorProfile with additional fields from our database schema
 interface ExtendedMentorProfile extends MentorProfile {
@@ -443,22 +443,22 @@ export const getMentorByUserId = async (userId: string) => {
  */
 export const createMentorStripeAccount = async (mentorId: string) => {
   try {
-    // Call the server API to create/get a Stripe account
-    const response = await fetch(`${API_BASE_URL}/api/mentor-stripe-account/${mentorId}`, {
+    const response = await fetch(getApiUrl(`api/mentor-stripe-account/${mentorId}`), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-      }
+      },
+      credentials: 'include',
+      mode: 'cors',
     });
 
     if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error || 'Failed to create Stripe account');
+      throw new Error('Error creating Stripe account');
     }
 
     return await response.json();
   } catch (error) {
-    console.error("Error creating Stripe account for mentor:", error);
+    console.error('Error creating mentor Stripe account:', error);
     throw error;
   }
 };
@@ -468,8 +468,7 @@ export const createMentorStripeAccount = async (mentorId: string) => {
  */
 export const createMentorPayout = async (mentorId: string, amount: number, currency: string = 'usd') => {
   try {
-    // Call the server API to create a payout
-    const response = await fetch(`${API_BASE_URL}/api/mentor-payout/${mentorId}`, {
+    const response = await fetch(getApiUrl(`api/mentor-payout/${mentorId}`), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -477,17 +476,18 @@ export const createMentorPayout = async (mentorId: string, amount: number, curre
       body: JSON.stringify({
         amount,
         currency
-      })
+      }),
+      credentials: 'include',
+      mode: 'cors',
     });
 
     if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error || 'Failed to create payout');
+      throw new Error('Error creating payout');
     }
 
     return await response.json();
   } catch (error) {
-    console.error("Error creating payout for mentor:", error);
+    console.error('Error creating mentor payout:', error);
     throw error;
   }
 };
