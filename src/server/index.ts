@@ -31,7 +31,17 @@ const port = process.env.PORT || 3001;
 const isProduction = process.env.NODE_ENV === 'production';
 
 // Middleware
-app.use(cors());
+app.use(cors({
+  origin: [
+    'https://thoughtcloud-mentorship.netlify.app',
+    'http://localhost:3000',
+    'http://localhost:5173',
+    process.env.FRONTEND_URL,
+  ].filter(Boolean),
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  credentials: true,
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
 
 // Special parsing for Stripe webhooks (raw body)
 app.use('/api/webhook', bodyParser.raw({ type: 'application/json' }));
