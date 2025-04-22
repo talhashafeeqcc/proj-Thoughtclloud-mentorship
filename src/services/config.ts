@@ -1,8 +1,8 @@
 // Set the base URL for API calls
-export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 
+export const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || 
     (import.meta.env.PROD 
         ? window.location.origin
-        : 'http://localhost:3001');
+        : 'http://localhost:3001')).replace(/\/$/, '');
 
 // Check if we're in a development environment
 export const isDevelopment = import.meta.env.DEV ||

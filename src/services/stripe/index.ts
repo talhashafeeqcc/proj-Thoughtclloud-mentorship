@@ -31,7 +31,7 @@ export const createPaymentIntent = async (
                 mentorStripeAccountId
             }),
             credentials: 'include',
-            mode: import.meta.env.PROD ? 'cors' : 'same-origin',
+            mode: 'cors',
         });
 
         if (!response.ok) {
@@ -85,6 +85,8 @@ export const capturePayment = async (paymentIntentId: string) => {
             body: JSON.stringify({
                 paymentIntentId
             }),
+            credentials: 'include',
+            mode: 'cors',
         });
 
         if (!response.ok) {
@@ -111,6 +113,8 @@ export const createRefund = async (paymentIntentId: string, reason?: string) => 
                 paymentIntentId,
                 reason
             }),
+            credentials: 'include',
+            mode: 'cors',
         });
 
         if (!response.ok) {
@@ -132,7 +136,9 @@ export const getMentorBalance = async (mentorId: string) => {
             method: 'GET',
             headers: {
                 'Content-Type': 'application/json',
-            }
+            },
+            credentials: 'include',
+            mode: 'cors',
         });
 
         if (!response.ok) {
@@ -160,6 +166,8 @@ export const connectMentorToStripe = async (mentorId: string, email: string, cou
                 email,
                 country
             }),
+            credentials: 'include',
+            mode: 'cors',
         });
 
         if (!response.ok) {

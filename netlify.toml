@@ -16,6 +16,7 @@
 [[headers]]
   for = "/api/*"
   [headers.values]
-    Access-Control-Allow-Origin = "*"
+    Access-Control-Allow-Origin = "https://thoughtcloud-mentorship.netlify.app, https://devserver-main--thoughtcloud-mentorship.netlify.app"
     Access-Control-Allow-Methods = "GET, POST, PUT, DELETE, OPTIONS"
-    Access-Control-Allow-Headers = "Origin, X-Requested-With, Content-Type, Accept, Authorization" 
+    Access-Control-Allow-Headers = "Origin, X-Requested-With, Content-Type, Accept, Authorization"
+    Access-Control-Allow-Credentials = "true" 

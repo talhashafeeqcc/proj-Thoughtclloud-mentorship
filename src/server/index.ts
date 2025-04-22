@@ -34,6 +34,7 @@ const isProduction = process.env.NODE_ENV === 'production';
 app.use(cors({
   origin: [
     'https://thoughtcloud-mentorship.netlify.app',
+    'https://devserver-main--thoughtcloud-mentorship.netlify.app',
     'http://localhost:3000',
     'http://localhost:5173',
     process.env.FRONTEND_URL
