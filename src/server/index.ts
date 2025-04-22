@@ -36,8 +36,8 @@ app.use(cors({
     'https://thoughtcloud-mentorship.netlify.app',
     'http://localhost:3000',
     'http://localhost:5173',
-    process.env.FRONTEND_URL,
-  ].filter(Boolean),
+    process.env.FRONTEND_URL
+  ].filter(Boolean) as string[],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   credentials: true,
   allowedHeaders: ['Content-Type', 'Authorization']
