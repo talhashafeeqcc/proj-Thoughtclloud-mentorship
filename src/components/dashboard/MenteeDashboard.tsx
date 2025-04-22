@@ -2,11 +2,12 @@ import React, { useEffect, useMemo } from "react";
 import { useSession } from "../../context/SessionContext";
 import { useAuth } from "../../context/AuthContext";
 import SessionList from "./SessionList";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Users, Calendar, AlertCircle } from "lucide-react";
 import { motion } from "framer-motion";
 
 const MenteeDashboard: React.FC = () => {
+  const navigate = useNavigate();
   // Add error handling for context issues
   let sessionContextValue;
 
@@ -34,7 +35,6 @@ const MenteeDashboard: React.FC = () => {
   // Force refresh sessions when component mounts
   useEffect(() => {
     if (authState.user?.id) {
-      console.log("MenteeDashboard: Refreshing sessions on mount");
       fetchUserSessions(true); // Force refresh
     }
   }, [authState.user?.id, fetchUserSessions]);
@@ -45,17 +45,10 @@ const MenteeDashboard: React.FC = () => {
 
     // Don't filter by mentee ID - show all sessions for this user
     // The sessionService already handles proper filtering by profile ID
-    console.log("MenteeDashboard sessions:", sessionState.sessions);
-
+    
     // Verify no filtering is happening accidentally
     if (sessionState.sessions.length > 0) {
-      console.log("All session details:", sessionState.sessions.map(s => ({
-        id: s.id,
-        mentorId: s.mentorId,
-        menteeId: s.menteeId,
-        status: s.status,
-        paymentStatus: s.paymentStatus
-      })));
+      // Log for debugging if needed
     }
 
     return sessionState.sessions;
@@ -97,14 +90,14 @@ const MenteeDashboard: React.FC = () => {
           <Calendar className="mr-2 text-indigo-600 dark:text-indigo-400 h-6 w-6" /> 
           Your Mentoring Sessions
         </h2>
-        <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
+        {/* <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
           <Link
             to="/mentors"
             className="bg-indigo-600 hover:bg-indigo-700 text-white py-2.5 px-4 rounded-lg shadow-sm flex items-center justify-center transition-colors"
           >
             <Users className="h-5 w-5 mr-2" /> Find a Mentor
           </Link>
-        </motion.div>
+        </motion.div> */}
       </div>
     ),
     []
