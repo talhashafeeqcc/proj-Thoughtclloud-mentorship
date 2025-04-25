@@ -2,17 +2,6 @@ import { Request, Response } from 'express';
 import stripe from './stripeConfig.js';
 
 export const createPaymentIntentHandler = async (req: Request, res: Response) => {
-  // Set CORS headers explicitly for this endpoint
-  res.header('Access-Control-Allow-Origin', 'https://thoughtcloud-mentorship.netlify.app');
-  res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  res.header('Access-Control-Allow-Credentials', 'true');
-
-  // Handle preflight OPTIONS request
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
-
   try {
     const { amount, currency, description, mentorStripeAccountId } = req.body;
 
