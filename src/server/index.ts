@@ -45,23 +45,18 @@ app.use((req, res, next) => {
   next();
 });
 
-// Use the cors middleware properly
-app.use(cors({
-  origin: '*', // Allow all origins
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Origin', 'X-Requested-With', 'Content-Type', 'Accept', 'Authorization'],
-  maxAge: 86400, // 24 hours
-}));
+// // Use the cors middleware properly
+app.use(cors());
 
 // Additional CORS headers for preflight requests
-app.options('*', (req, res) => {
-  console.log('Handling OPTIONS preflight request globally');
-  res.header('Access-Control-Allow-Origin', '*');
-  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
-  res.header('Access-Control-Max-Age', '86400');
-  res.status(200).send();
-});
+// app.options('*', (req, res) => {
+//   console.log('Handling OPTIONS preflight request globally');
+//   res.header('Access-Control-Allow-Origin', '*');
+//   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+//   res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+//   res.header('Access-Control-Max-Age', '86400');
+//   res.status(200).send();
+// });
 
 // Special parsing for Stripe webhooks (raw body)
 app.use('/api/webhook', bodyParser.raw({ type: 'application/json' }));
