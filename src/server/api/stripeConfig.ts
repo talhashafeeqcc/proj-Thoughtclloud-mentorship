@@ -10,7 +10,7 @@ const stripeSecretKey = process.env.VITE_STRIPE_SECRET_KEY ||
 
 // Initialize Stripe
 const stripe = new Stripe(stripeSecretKey, {
-  apiVersion: '2025-03-31.basil' // Latest stable API version
+  apiVersion: '2025-03-31.basil' // Using a stable API version
 });
 
 // Log the API version (using the config object)

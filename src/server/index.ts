@@ -69,6 +69,22 @@ app.use('/api/webhook', bodyParser.raw({ type: 'application/json' }));
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
+// Middleware to sanitize URLs in route parameters
+app.use((req, res, next) => {
+  // Fix for path-to-regexp issues with URLs in route parameters
+  if (req.params) {
+    Object.keys(req.params).forEach(key => {
+      const param = req.params[key];
+      // Check if the parameter looks like a URL
+      if (typeof param === 'string' && (param.startsWith('http://') || param.startsWith('https://'))) {
+        // Encode the URL to prevent path-to-regexp from trying to parse it
+        req.params[key] = encodeURIComponent(param);
+      }
+    });
+  }
+  next();
+});
+
 // API Routes - use type assertion for handlers
 app.post('/api/create-payment-intent', createPaymentIntentHandler as RequestHandler);
 app.post('/api/capture-payment', capturePaymentHandler as RequestHandler);
