@@ -49,21 +49,16 @@ app.use((req, res, next) => {
 app.use((req, res, next) => {
   const origin = req.headers.origin;
   
-  console.log(`Processing CORS for origin: ${origin}`);
+  console.log(`Processing CORS for origin: ${origin || 'undefined'}`);
   
-  // Check if origin is allowed or allow all origins in development
-  if (!isProduction || (origin && allowedOrigins.includes(origin))) {
-    // In development, use less restrictive CORS settings
-    res.header('Access-Control-Allow-Origin', origin || '*');
-    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-    res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
-    res.header('Access-Control-Allow-Credentials', 'true');
-    res.header('Access-Control-Max-Age', '86400');
-    
-    console.log(`CORS headers set for origin: ${origin || '*'}`);
-  } else {
-    console.log(`CORS not allowed for origin: ${origin}`);
-  }
+  // Always set CORS headers regardless of origin
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+  res.header('Access-Control-Allow-Credentials', 'true');
+  res.header('Access-Control-Max-Age', '86400');
+  
+  console.log('CORS headers set');
   
   // Handle preflight requests
   if (req.method === 'OPTIONS') {

@@ -12,21 +12,16 @@ export const createPaymentIntentHandler = async (req: Request, res: Response) =>
   
   const origin = req.headers.origin;
   
-  console.log(`Payment intent request from origin: ${origin}`);
+  console.log(`Payment intent request from origin: ${origin || 'undefined'}`);
   
-  // Set CORS headers
-  if (origin && allowedOrigins.includes(origin)) {
-    res.header('Access-Control-Allow-Origin', origin);
-    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-    res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
-    res.header('Access-Control-Allow-Credentials', 'true');
-    res.header('Access-Control-Max-Age', '86400');
-    
-    console.log(`CORS headers set for payment intent endpoint for origin: ${origin}`);
-  } else {
-    // For debugging
-    console.log(`Payment intent request from unauthorized origin: ${origin}`);
-  }
+  // Always set CORS headers, even if origin is undefined
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+  res.header('Access-Control-Allow-Credentials', 'true');
+  res.header('Access-Control-Max-Age', '86400');
+  
+  console.log('CORS headers set for payment intent endpoint');
   
   // Handle OPTIONS preflight requests
   if (req.method === 'OPTIONS') {

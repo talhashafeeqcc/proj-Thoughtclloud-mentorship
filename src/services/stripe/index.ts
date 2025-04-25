@@ -31,8 +31,7 @@ export const createPaymentIntent = async (
                 description,
                 mentorStripeAccountId
             }),
-            credentials: 'include',
-            mode: 'cors',
+            mode: 'cors'
         });
 
         if (!response.ok) {
