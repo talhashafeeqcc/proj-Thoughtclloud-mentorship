@@ -1,8 +1,23 @@
 // Set the base URL for API calls
-export const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || 
-    (import.meta.env.PROD 
-        ? window.location.origin
-        : 'http://localhost:3001')).replace(/\/$/, '');
+export const API_BASE_URL = (() => {
+  // If VITE_API_BASE_URL is explicitly provided, use it
+  if (import.meta.env.VITE_API_BASE_URL) {
+    return import.meta.env.VITE_API_BASE_URL.replace(/\/$/, '');
+  }
+
+  // For production on Netlify
+  if (import.meta.env.PROD) {
+    // If we're accessing from the main site but need to use the server deployment
+    if (window.location.hostname === 'thoughtcloud-mentorship.netlify.app') {
+      return 'https://devserver-main--thoughtcloud-mentorship.netlify.app';
+    }
+    // Otherwise use the current origin
+    return window.location.origin;
+  }
+
+  // Default for local development
+  return 'http://localhost:3001';
+})();
 
 // Create a utility function to form proper API URLs
 export const getApiUrl = (path: string): string => {

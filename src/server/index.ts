@@ -38,20 +38,35 @@ const allowedOrigins = [
   'http://localhost:5173'
 ];
 
+// Debug middleware to log all incoming requests
+app.use((req, res, next) => {
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
+  console.log('Headers:', JSON.stringify(req.headers, null, 2));
+  next();
+});
+
 // CORS middleware with improved configuration
 app.use((req, res, next) => {
   const origin = req.headers.origin;
   
-  // Check if origin is allowed
-  if (origin && allowedOrigins.includes(origin)) {
-    res.header('Access-Control-Allow-Origin', origin);
+  console.log(`Processing CORS for origin: ${origin}`);
+  
+  // Check if origin is allowed or allow all origins in development
+  if (!isProduction || (origin && allowedOrigins.includes(origin))) {
+    // In development, use less restrictive CORS settings
+    res.header('Access-Control-Allow-Origin', isProduction ? origin : '*');
     res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
     res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
     res.header('Access-Control-Allow-Credentials', 'true');
+    
+    console.log(`CORS headers set for origin: ${isProduction ? origin : '*'}`);
+  } else {
+    console.log(`CORS not allowed for origin: ${origin}`);
   }
   
   // Handle preflight requests
   if (req.method === 'OPTIONS') {
+    console.log('Responding to OPTIONS preflight request');
     return res.status(200).end();
   }
   
@@ -115,6 +130,7 @@ if (isProduction) {
 // Start server
 app.listen(port, () => {
   console.log(`Server running in ${isProduction ? 'production' : 'development'} mode on port ${port}`);
+  console.log(`CORS allowed origins: ${allowedOrigins.join(', ')}`);
 });
 
 export default app; 

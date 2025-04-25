@@ -18,49 +18,31 @@ export const createPaymentIntent = async (
     mentorStripeAccountId?: string
 ) => {
     try {
-        // First try with standard CORS
-        try {
-            const response = await fetch(getApiUrl('api/create-payment-intent'), {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    amount,
-                    currency,
-                    description,
-                    mentorStripeAccountId
-                }),
-                credentials: 'include',
-                mode: 'cors',
-            });
+        console.log(`Sending payment intent request to: ${getApiUrl('api/create-payment-intent')}`);
+        
+        const response = await fetch(getApiUrl('api/create-payment-intent'), {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                amount,
+                currency,
+                description,
+                mentorStripeAccountId
+            }),
+            credentials: 'include',
+        });
 
-            if (response.ok) {
-                const result = await response.json();
-                return result;
-            }
-        } catch (corsError) {
-            console.log('CORS request failed, trying alternative approach', corsError);
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error(`Payment intent error (${response.status}): ${errorText}`);
+            throw new Error(`Failed to create payment intent: ${response.status} ${response.statusText}`);
         }
 
-        // If CORS approach failed, we need to make sure we still have a valid client secret
-        // Create a direct call to Stripe.js to create a payment intent client-side
-        // This is not ideal but serves as a fallback mechanism
-        const stripe = await getStripe();
-        
-        // Use a provided client secret or create directly using Stripe.js as a fallback
-        // Note: For this to work, your Stripe publishable key must have proper permissions
-        console.log(`Creating payment intent directly with Stripe.js as fallback`);
-        
-        // For testing purposes, return a properly formatted response
-        // In production, you should implement proper client-side fallback or notify the user
-        return {
-            clientSecret: `pi_${Math.random().toString(36).substring(2)}_secret_${Math.random().toString(36).substring(2)}`,
-            id: `pi_${Math.random().toString(36).substring(2)}`,
-            amount: amount,
-            currency: currency,
-            status: 'requires_payment_method'
-        };
+        const result = await response.json();
+        console.log('Payment intent created successfully:', result);
+        return result;
     } catch (error) {
         console.error('Error creating payment intent:', error);
         throw error;
@@ -108,7 +90,6 @@ export const capturePayment = async (paymentIntentId: string) => {
                 paymentIntentId
             }),
             credentials: 'include',
-            mode: 'cors',
         });
 
         if (!response.ok) {
@@ -136,7 +117,6 @@ export const createRefund = async (paymentIntentId: string, reason?: string) => 
                 reason
             }),
             credentials: 'include',
-            mode: 'cors',
         });
 
         if (!response.ok) {
@@ -160,7 +140,6 @@ export const getMentorBalance = async (mentorId: string) => {
                 'Content-Type': 'application/json',
             },
             credentials: 'include',
-            mode: 'cors',
         });
 
         if (!response.ok) {
@@ -189,7 +168,6 @@ export const connectMentorToStripe = async (mentorId: string, email: string, cou
                 country
             }),
             credentials: 'include',
-            mode: 'cors',
         });
 
         if (!response.ok) {
