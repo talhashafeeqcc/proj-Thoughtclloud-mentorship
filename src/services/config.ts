@@ -9,13 +9,16 @@ export const API_BASE_URL = (() => {
   if (import.meta.env.PROD) {
     // If we're accessing from the main site but need to use the server deployment
     if (window.location.hostname === 'thoughtcloud-mentorship.netlify.app') {
+      console.log('Detected main site, using server deployment URL');
       return 'https://devserver-main--thoughtcloud-mentorship.netlify.app';
     }
     // Otherwise use the current origin
+    console.log('Using current origin for API requests:', window.location.origin);
     return window.location.origin;
   }
 
   // Default for local development
+  console.log('Using local development server');
   return 'http://localhost:3001';
 })();
 
@@ -24,7 +27,9 @@ export const getApiUrl = (path: string): string => {
     // Make sure path starts with a slash but doesn't add an extra one
     const formattedPath = path.startsWith('/') ? path : `/${path}`;
     // Combine and ensure no double slashes
-    return `${API_BASE_URL}${formattedPath}`;
+    const url = `${API_BASE_URL}${formattedPath}`;
+    console.log(`Generated API URL: ${url}`);
+    return url;
 };
 
 // Check if we're in a development environment

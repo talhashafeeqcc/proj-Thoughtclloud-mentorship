@@ -18,12 +18,14 @@ export const createPaymentIntent = async (
     mentorStripeAccountId?: string
 ) => {
     try {
-        console.log(`Sending payment intent request to: ${getApiUrl('api/create-payment-intent')}`);
+        const apiUrl = getApiUrl('api/create-payment-intent');
+        console.log(`Sending payment intent request to: ${apiUrl}`);
         
-        const response = await fetch(getApiUrl('api/create-payment-intent'), {
+        const response = await fetch(apiUrl, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
+                'Origin': window.location.origin,
             },
             body: JSON.stringify({
                 amount,
@@ -89,7 +91,7 @@ export const capturePayment = async (paymentIntentId: string) => {
             body: JSON.stringify({
                 paymentIntentId
             }),
-            credentials: 'include',
+            mode: 'cors'
         });
 
         if (!response.ok) {
@@ -116,7 +118,7 @@ export const createRefund = async (paymentIntentId: string, reason?: string) => 
                 paymentIntentId,
                 reason
             }),
-            credentials: 'include',
+            mode: 'cors'
         });
 
         if (!response.ok) {
@@ -139,7 +141,7 @@ export const getMentorBalance = async (mentorId: string) => {
             headers: {
                 'Content-Type': 'application/json',
             },
-            credentials: 'include',
+            mode: 'cors'
         });
 
         if (!response.ok) {
@@ -167,7 +169,7 @@ export const connectMentorToStripe = async (mentorId: string, email: string, cou
                 email,
                 country
             }),
-            credentials: 'include',
+            mode: 'cors'
         });
 
         if (!response.ok) {
