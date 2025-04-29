@@ -4,8 +4,8 @@
   publish = "dist"
 
 # Environment variable during build
-[build.environment]
-  VITE_API_URL = "https://thoughtcloud-mentorship.netlify.app"
+# [build.environment]
+#   VITE_API_URL = "https://thoughtcloud-mentorship.netlify.app"
 
 # Redirect all API requests to the Netlify Functions
 [[redirects]]
@@ -78,4 +78,14 @@
     Access-Control-Allow-Origin = "*"
     Access-Control-Allow-Methods = "GET, POST, PUT, DELETE, OPTIONS"
     Access-Control-Allow-Headers = "Origin, X-Requested-With, Content-Type, Accept, Authorization"
-    Content-Type = "application/json" 
+    Content-Type = "application/json"
+
+# Ensure all Function responses carry CORS headers
+[[headers]]
+  for = "/.netlify/functions/api/*"
+  [headers.values]
+    Access-Control-Allow-Origin = "*"
+    Access-Control-Allow-Methods = "GET, POST, PUT, DELETE, OPTIONS"
+    Access-Control-Allow-Headers = "Origin, X-Requested-With, Content-Type, Accept, Authorization"
+    Access-Control-Allow-Credentials = "true"
+    Access-Control-Max-Age = "86400" 

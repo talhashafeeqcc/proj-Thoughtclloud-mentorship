@@ -9,7 +9,8 @@
     "strict": true,
     "forceConsistentCasingInFileNames": true,
     "noFallthroughCasesInSwitch": true,
-    "outDir": "functions/server",
+    "rootDir": "src",
+    "outDir": "functions",
     "declaration": true,
     "skipLibCheck": true,
     "resolveJsonModule": true,
@@ -17,6 +18,11 @@
     "allowJs": true,
     "types": ["node"]
   },
-  "include": ["src/server/**/*.ts"],
-  "exclude": ["node_modules", "dist", "src/services/firebase/config.ts"]
+  "include": [
+    "src/server/**/*.ts",
+    "src/services/firebase/config.ts",
+    "src/services/firebase/firestore.ts",
+    "src/env.d.ts"
+  ],
+  "exclude": ["node_modules", "dist"]
 } 
