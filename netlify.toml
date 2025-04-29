@@ -1,10 +1,18 @@
 [build]
-  command = "npm run build:frontend"
+  command = "npm run build:all"
+  functions = "functions"
   publish = "dist"
 
 # Environment variable during build
 [build.environment]
   VITE_API_URL = "https://thoughtcloud-mentorship.netlify.app"
+
+# Redirect all API requests to the Netlify Functions
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/api/:splat"
+  status = 200
+  force = true
 
 # Handle SPA routing
 [[redirects]]
@@ -57,7 +65,6 @@
   [redirects.headers]
     Access-Control-Allow-Origin = "*"
     Access-Control-Allow-Methods = "GET, POST, PUT, DELETE, OPTIONS"
-    Access-Control-Allow-Headers = "Origin, X-Requested-With, Content-Type, Accept, Authorization"
     Access-Control-Max-Age = "86400"
     Content-Type = "text/plain"
 
