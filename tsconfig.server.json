@@ -9,7 +9,7 @@
     "strict": true,
     "forceConsistentCasingInFileNames": true,
     "noFallthroughCasesInSwitch": true,
-    "outDir": "dist/server",
+    "outDir": "functions/server",
     "declaration": true,
     "skipLibCheck": true,
     "resolveJsonModule": true,
