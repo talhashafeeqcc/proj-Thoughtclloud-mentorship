@@ -7,7 +7,55 @@
 # [build.environment]
 #   VITE_API_URL = "https://thoughtcloud-mentorship.netlify.app"
 
-# Redirect all API requests to the Netlify Functions
+# Redirect all API requests to the specific Netlify Functions
+[[redirects]]
+  from = "/api/create-payment-intent"
+  to = "/.netlify/functions/create-payment-intent"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/api/capture-payment"
+  to = "/.netlify/functions/capture-payment"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/api/create-refund"
+  to = "/.netlify/functions/create-refund"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/api/mentor-balance/*"
+  to = "/.netlify/functions/mentor-balance/:splat"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/api/create-connect-account"
+  to = "/.netlify/functions/create-connect-account"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/api/webhook"
+  to = "/.netlify/functions/webhook"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/api/mentor-payout/*"
+  to = "/.netlify/functions/mentor-payout/:splat"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/api/mentor-stripe-account/*"
+  to = "/.netlify/functions/create-mentor-stripe-account/:splat"
+  status = 200
+  force = true
+
 [[redirects]]
   from = "/api/*"
   to = "/.netlify/functions/api/:splat"
@@ -20,34 +68,34 @@
   to = "/index.html"
   status = 200 
 
-# Add CORS headers for API routes - both main site and server deployment
+# Add CORS headers for API routes
 [[headers]]
   for = "/api/*"
   [headers.values]
     Access-Control-Allow-Origin = "*"
     Access-Control-Allow-Methods = "GET, POST, PUT, DELETE, OPTIONS"
-    Access-Control-Allow-Headers = "Origin, X-Requested-With, Content-Type, Accept, Authorization"
+    Access-Control-Allow-Headers = "Origin, X-Requested-With, Content-Type, Accept, Authorization, stripe-signature"
     Access-Control-Allow-Credentials = "true"
     Access-Control-Max-Age = "86400"
 
 # Handle OPTIONS preflight requests
 [[redirects]]
   from = "/api/*"
-  to = "/.netlify/functions/api/:splat"
+  to = "/.netlify/functions/:splat"
   status = 200
   force = true
   conditions = {method = "OPTIONS"}
   [redirects.headers]
     Access-Control-Allow-Origin = "*"
     Access-Control-Allow-Methods = "GET, POST, PUT, DELETE, OPTIONS"
-    Access-Control-Allow-Headers = "Origin, X-Requested-With, Content-Type, Accept, Authorization"
+    Access-Control-Allow-Headers = "Origin, X-Requested-With, Content-Type, Accept, Authorization, stripe-signature"
     Access-Control-Allow-Credentials = "true"
     Access-Control-Max-Age = "86400"
     Content-Type = "text/plain"
 
 # Explicitly set CORS headers for create-payment-intent endpoint
 [[headers]]
-  for = "/api/create-payment-intent"
+  for = "/.netlify/functions/create-payment-intent"
   [headers.values]
     Access-Control-Allow-Origin = "*"
     Access-Control-Allow-Methods = "GET, POST, PUT, DELETE, OPTIONS"
@@ -55,30 +103,15 @@
     Access-Control-Allow-Credentials = "true"
     Access-Control-Max-Age = "86400"
 
-# Special handling for create-payment-intent endpoint OPTIONS requests
-[[redirects]]
-  from = "/api/create-payment-intent"
-  to = "/.netlify/functions/api/create-payment-intent"
-  status = 200
-  force = true
-  conditions = {method = "OPTIONS"}
-  [redirects.headers]
+# Webhook endpoint headers
+[[headers]]
+  for = "/.netlify/functions/webhook"
+  [headers.values]
     Access-Control-Allow-Origin = "*"
-    Access-Control-Allow-Methods = "GET, POST, PUT, DELETE, OPTIONS"
+    Access-Control-Allow-Methods = "POST, OPTIONS"
+    Access-Control-Allow-Headers = "Origin, X-Requested-With, Content-Type, Accept, stripe-signature"
+    Access-Control-Allow-Credentials = "true"
     Access-Control-Max-Age = "86400"
-    Content-Type = "text/plain"
-
-# Special handling for create-payment-intent endpoint POST requests  
-[[redirects]]
-  from = "/api/create-payment-intent"
-  to = "/.netlify/functions/api/create-payment-intent"
-  status = 200
-  force = true
-  [redirects.headers]
-    Access-Control-Allow-Origin = "*"
-    Access-Control-Allow-Methods = "GET, POST, PUT, DELETE, OPTIONS"
-    Access-Control-Allow-Headers = "Origin, X-Requested-With, Content-Type, Accept, Authorization"
-    Content-Type = "application/json"
 
 # Ensure all Function responses carry CORS headers
 [[headers]]

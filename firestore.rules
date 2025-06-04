@@ -1,0 +1,76 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Allow users to read their own profile
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+      // Admins can read all user documents
+      allow read: if request.auth != null && 
+                   exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+                   get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    
+    // Mentors collection
+    match /mentors/{mentorId} {
+      allow read: if request.auth != null; // Anyone logged in can view mentors
+      allow write: if request.auth != null && 
+                    (request.auth.uid == mentorId || 
+                     exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+                     get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
+    }
+    
+    // Mentees collection
+    match /mentees/{menteeId} {
+      allow read: if request.auth != null; // Anyone logged in can view mentees
+      allow write: if request.auth != null && 
+                    (request.auth.uid == menteeId || 
+                     exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+                     get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
+    }
+    
+    // Sessions collection - all authenticated users can read sessions
+    match /sessions/{sessionId} {
+      allow read: if request.auth != null;
+      // Allow users to create sessions if they are authenticated
+      allow create: if request.auth != null;
+      // Allow users to update sessions only if they are involved in the session
+      allow update, delete: if request.auth != null && 
+                      (request.auth.uid == resource.data.mentorId || 
+                       request.auth.uid == resource.data.menteeId || 
+                       exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+                       get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
+    }
+    
+    // Availability collection
+    match /availability/{docId} {
+      allow read: if request.auth != null; // Anyone logged in can view availability
+      allow write: if request.auth != null && 
+                    (request.auth.uid == resource.data.mentorId || 
+                     exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+                     get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
+    }
+    
+    // Ratings collection
+    match /ratings/{ratingId} {
+      allow read: if request.auth != null; // Anyone logged in can view ratings
+      allow create: if request.auth != null; // Anyone logged in can create ratings
+      allow update, delete: if request.auth != null && 
+                      (request.auth.uid == resource.data.userId || 
+                       exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+                       get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
+    }
+    
+    // Payments collection
+    match /payments/{paymentId} {
+      allow read: if request.auth != null && 
+                   (request.auth.uid == resource.data.userId || 
+                    request.auth.uid == resource.data.mentorId || 
+                    exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+                    get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
+      allow create: if request.auth != null;
+      allow update, delete: if request.auth != null && 
+                      exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+                      get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+  }
+} 

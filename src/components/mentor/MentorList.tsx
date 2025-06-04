@@ -56,9 +56,9 @@ const MentorList: React.FC = () => {
 
   const filteredMentors = mentors.filter(
     (mentor) =>
-      mentor.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      mentor.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       mentor.expertise?.some((e: string) =>
-        e.toLowerCase().includes(searchQuery.toLowerCase())
+        e?.toLowerCase().includes(searchQuery.toLowerCase())
       )
   );
 
@@ -75,7 +75,7 @@ const MentorList: React.FC = () => {
 
   if (error) {
     return (
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         className="max-w-2xl mx-auto px-4 py-8"
@@ -125,7 +125,8 @@ const MentorList: React.FC = () => {
         <div className="flex items-center">
           <Users className="h-5 w-5 text-indigo-600 dark:text-indigo-400 mr-2" />
           <span className="text-lg font-medium text-gray-700 dark:text-gray-300">
-            {filteredMentors.length} {filteredMentors.length === 1 ? 'Mentor' : 'Mentors'} Available
+            {filteredMentors.length}{" "}
+            {filteredMentors.length === 1 ? "Mentor" : "Mentors"} Available
           </span>
         </div>
         <motion.button
@@ -140,7 +141,7 @@ const MentorList: React.FC = () => {
       </div>
 
       {filteredMentors.length === 0 ? (
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           className="text-center py-16 px-4 bg-gray-50 dark:bg-gray-800/50 rounded-xl"
@@ -148,19 +149,22 @@ const MentorList: React.FC = () => {
           <div className="inline-flex items-center justify-center w-16 h-16 bg-gray-100 dark:bg-gray-700 rounded-full mb-4">
             <Search className="h-8 w-8 text-gray-500 dark:text-gray-400" />
           </div>
-          <h3 className="text-xl font-semibold mb-2 text-gray-800 dark:text-gray-200">No results found</h3>
+          <h3 className="text-xl font-semibold mb-2 text-gray-800 dark:text-gray-200">
+            No results found
+          </h3>
           <p className="text-gray-600 dark:text-gray-400 max-w-md mx-auto">
-            No mentors found matching your search criteria. Try adjusting your search or browse all mentors.
+            No mentors found matching your search criteria. Try adjusting your
+            search or browse all mentors.
           </p>
-          <button 
-            onClick={() => setSearchQuery('')}
+          <button
+            onClick={() => setSearchQuery("")}
             className="mt-4 text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 font-medium"
           >
             Clear search
           </button>
         </motion.div>
       ) : (
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.4 }}

@@ -1,13 +1,31 @@
 import React, { createContext, useContext, useReducer, useEffect } from "react";
 import { User, AuthState } from "../types";
 import { getDatabase } from "../services/database/db";
-import { db } from "../services/firebase";
-import { collection, query, where, getDocs } from "firebase/firestore";
+import { db, auth } from "../services/firebase";
+import {
+  collection,
+  query,
+  where,
+  getDocs,
+  doc,
+  getDoc,
+  setDoc,
+} from "firebase/firestore";
+import {
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  signOut,
+  onAuthStateChanged,
+} from "firebase/auth";
 
 // Define the context type
 export interface AuthContextType {
   authState: AuthState;
-  login: (email: string, password: string, rememberMe?: boolean) => Promise<void>;
+  login: (
+    email: string,
+    password: string,
+    rememberMe?: boolean
+  ) => Promise<void>;
   register: (data: {
     name: string;
     email: string;
@@ -92,27 +110,46 @@ const authReducer = (state: AuthState, action: AuthAction): AuthState => {
 };
 
 // Provider component
-export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
+  children,
+}) => {
   const [authState, dispatch] = useReducer(authReducer, initialState);
 
   // Check for logged in user on initial load
   useEffect(() => {
-    const checkLoggedInUser = async () => {
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       try {
-        const savedUser = localStorage.getItem("currentUser");
-        if (savedUser) {
-          const userData = JSON.parse(savedUser);
-          dispatch({ type: "LOGIN_SUCCESS", payload: userData });
+        if (firebaseUser) {
+          // User is signed in, get additional data from Firestore
+          const userDocRef = doc(db, "users", firebaseUser.uid);
+          const userDoc = await getDoc(userDocRef);
+
+          if (userDoc.exists()) {
+            const userData = userDoc.data();
+            const user: User = {
+              id: firebaseUser.uid,
+              email: firebaseUser.email || "",
+              name: userData.name || "",
+              role: userData.role || "mentee",
+              profilePicture: userData.profilePicture || undefined,
+            };
+
+            dispatch({ type: "LOGIN_SUCCESS", payload: user });
+          } else {
+            // No user document found, create a basic one
+            console.log("User document not found, creating a basic one");
+            dispatch({ type: "LOGOUT_SUCCESS" });
+          }
         } else {
           dispatch({ type: "LOGOUT_SUCCESS" });
         }
       } catch (error) {
-        console.error("Error checking logged in user:", error);
+        console.error("Error checking auth state:", error);
         dispatch({ type: "LOGOUT_SUCCESS" });
       }
-    };
+    });
 
-    checkLoggedInUser();
+    return () => unsubscribe();
   }, []);
 
   // Ensure database is initialized
@@ -132,60 +169,75 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     initDb();
   }, []);
 
-  // Login function
-  const login = async (email: string, password: string, rememberMe: boolean = false) => {
+  // Login function using Firebase Auth
+  const login = async (
+    email: string,
+    password: string,
+    rememberMe: boolean = false
+  ) => {
     dispatch({ type: "LOGIN_START" });
-    
+
     try {
-      // Query Firestore directly for the user
-      const usersRef = collection(db, "users");
-      const q = query(usersRef, where("email", "==", email));
-      const querySnapshot = await getDocs(q);
-      
-      if (querySnapshot.empty) {
-        throw new Error("Invalid email or password");
+      // Sign in with Firebase Auth
+      const userCredential = await signInWithEmailAndPassword(
+        auth,
+        email,
+        password
+      );
+      const firebaseUser = userCredential.user;
+
+      // Get additional user data from Firestore
+      const userDocRef = doc(db, "users", firebaseUser.uid);
+      const userDoc = await getDoc(userDocRef);
+
+      if (!userDoc.exists()) {
+        // Create a basic user document if it doesn't exist
+        await setDoc(userDocRef, {
+          email: firebaseUser.email,
+          name: firebaseUser.displayName || email.split("@")[0],
+          role: "mentee",
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        });
       }
-      
-      // Get the user document
-      const userDoc = querySnapshot.docs[0];
-      const userData = userDoc.data();
-      
-      // Validate password (direct comparison)
-      if (userData.password !== password) {
-        throw new Error("Invalid email or password");
-      }
-      
+
+      const userData = userDoc.exists()
+        ? userDoc.data()
+        : {
+            name: firebaseUser.displayName || email.split("@")[0],
+            role: "mentee",
+          };
+
       // Create user object
       const user: User = {
-        id: userDoc.id,
-        email: userData.email,
-        name: userData.name,
-        role: userData.role,
+        id: firebaseUser.uid,
+        email: firebaseUser.email || email,
+        name: userData.name || "",
+        role: userData.role || "mentee",
         profilePicture: userData.profilePicture || undefined,
       };
-      
-      // Store in localStorage
-      localStorage.setItem("currentUser", JSON.stringify(user));
-      
+
       if (rememberMe) {
         localStorage.setItem("rememberMe", "true");
       } else {
         localStorage.removeItem("rememberMe");
       }
-      
+
       dispatch({ type: "LOGIN_SUCCESS", payload: user });
     } catch (error: any) {
       console.error("Login error:", error);
-      
-      dispatch({ 
-        type: "AUTH_ERROR", 
-        payload: error.message || "Login failed. Please check your credentials and try again." 
+
+      dispatch({
+        type: "AUTH_ERROR",
+        payload:
+          error.message ||
+          "Login failed. Please check your credentials and try again.",
       });
       throw error;
     }
   };
 
-  // Register function using direct Firestore access
+  // Register function using Firebase Auth
   const register = async (data: {
     name: string;
     email: string;
@@ -194,80 +246,70 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     profilePicture?: string;
   }) => {
     dispatch({ type: "REGISTER_START" });
-    
+
     try {
-      // Check if email already exists in Firestore
-      const usersRef = collection(db, "users");
-      const q = query(usersRef, where("email", "==", data.email));
-      const querySnapshot = await getDocs(q);
-      
-      if (!querySnapshot.empty) {
-        throw new Error("Email already exists. Please use a different email or try logging in.");
-      }
-      
-      // Use database adapter to create new user
-      const dbInstance = await getDatabase();
-      
+      // Create user with Firebase Auth
+      const userCredential = await createUserWithEmailAndPassword(
+        auth,
+        data.email,
+        data.password
+      );
+      const firebaseUser = userCredential.user;
+
       // Create timestamp
       const now = Date.now();
-      
-      // Create user document with plain password (matching existing structure)
-      const newUser = {
+
+      // Create user document in Firestore
+      const userDocRef = doc(db, "users", firebaseUser.uid);
+      await setDoc(userDocRef, {
         email: data.email,
         name: data.name,
         role: data.role,
-        password: data.password, // Store as plain text to match existing pattern
         profilePicture: data.profilePicture || "",
         createdAt: now,
-        updatedAt: now
-      };
-      
-      // Insert into database
-      const userDoc = await dbInstance.users.insert(newUser);
-      const user = userDoc.toJSON();
-      
-      // Create user object without sensitive data
+        updatedAt: now,
+      });
+
+      // Create user object
       const userData: User = {
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        role: user.role,
-        profilePicture: user.profilePicture || undefined,
+        id: firebaseUser.uid,
+        email: data.email,
+        name: data.name,
+        role: data.role,
+        profilePicture: data.profilePicture || undefined,
       };
-      
-      // Auto-login after registration
-      localStorage.setItem("currentUser", JSON.stringify(userData));
-      
+
       dispatch({ type: "REGISTER_SUCCESS", payload: userData });
     } catch (error: any) {
       console.error("Registration error:", error);
-      
+
       // Provide user-friendly error message
       let errorMessage = "Registration failed. Please try again.";
       if (error.message) {
         errorMessage = error.message;
       }
-      
+
       dispatch({ type: "AUTH_ERROR", payload: errorMessage });
       throw error;
     }
   };
 
-  // Logout function
+  // Logout function using Firebase Auth
   const logout = async () => {
     dispatch({ type: "LOGOUT_START" });
-    
+
     try {
-      // Clear user data from localStorage
+      // Sign out from Firebase
+      await signOut(auth);
       localStorage.removeItem("currentUser");
       localStorage.removeItem("rememberMe");
-      
+
       dispatch({ type: "LOGOUT_SUCCESS" });
     } catch (error: any) {
       console.error("Logout error:", error);
       dispatch({
         type: "AUTH_ERROR",
-        payload: "Logout failed. Please try again."
+        payload: error.message || "Logout failed.",
       });
     }
   };
@@ -276,7 +318,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const updateUser = (user: User) => {
     // Update user in localStorage
     localStorage.setItem("currentUser", JSON.stringify(user));
-    
+
     dispatch({ type: "UPDATE_USER", payload: user });
   };
 

@@ -45,18 +45,18 @@ const SessionContext = createContext<SessionContextType | undefined>(undefined);
 // Define action types
 type SessionAction =
   | {
-    type:
-    | "FETCH_SESSIONS_START"
-    | "BOOK_SESSION_START"
-    | "UPDATE_SESSION_START"
-    | "CANCEL_SESSION_START"
-    | "INIT_DB_START";
-  }
+      type:
+        | "FETCH_SESSIONS_START"
+        | "BOOK_SESSION_START"
+        | "UPDATE_SESSION_START"
+        | "CANCEL_SESSION_START"
+        | "INIT_DB_START";
+    }
   | { type: "FETCH_SESSIONS_SUCCESS"; payload: Session[] }
   | {
-    type: "BOOK_SESSION_SUCCESS" | "UPDATE_SESSION_SUCCESS";
-    payload: Session;
-  }
+      type: "BOOK_SESSION_SUCCESS" | "UPDATE_SESSION_SUCCESS";
+      payload: Session;
+    }
   | { type: "CANCEL_SESSION_SUCCESS"; payload: string }
   | { type: "INIT_DB_SUCCESS" }
   | { type: "SESSION_ERROR"; payload: string };
@@ -191,96 +191,66 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({
     };
   }, []);
 
-  const doFetchSessions = async (userId: string, forceRefresh = false) => {
-    if (!mountedRef.current) return;
+  const doFetchSessions = useCallback(
+    async (userId: string, forceRefresh = false) => {
+      if (!mountedRef.current) return;
+      if (!userId) {
+        console.warn(
+          "Attempted to fetch sessions without a valid userId. Skipping fetch."
+        );
+        return;
+      }
+      // If already fetching, don't start another fetch unless forced
+      if (isFetchingRef.current && !forceRefresh) return;
 
-    // If already fetching, don't start another fetch unless forced
-    if (isFetchingRef.current && !forceRefresh) return;
+      // Implement a cool-down period (3 seconds) to prevent excessive refreshes
+      // Skip this check if forceRefresh is true
+      const now = Date.now();
+      if (!forceRefresh && now - lastFetchTimeRef.current < 3000) {
+        return;
+      }
 
-    // Implement a cool-down period (3 seconds) to prevent excessive refreshes
-    // Skip this check if forceRefresh is true
-    const now = Date.now();
-    if (!forceRefresh && now - lastFetchTimeRef.current < 3000) {
-      return;
-    }
-
-    // Set the last fetch time
-    lastFetchTimeRef.current = now;
-    isFetchingRef.current = true;
-
-    if (mountedRef.current) {
-      dispatch({ type: "FETCH_SESSIONS_START" });
-    }
-
-    try {
-      const sessions = await getSessions(userId);
+      // Set the last fetch time
+      lastFetchTimeRef.current = now;
+      isFetchingRef.current = true;
 
       if (mountedRef.current) {
-        dispatch({ type: "FETCH_SESSIONS_SUCCESS", payload: sessions });
-      }
-    } catch (error) {
-      console.error("Error fetching sessions:", error);
-      if (mountedRef.current) {
-        dispatch({
-          type: "SESSION_ERROR",
-          payload:
-            error instanceof Error ? error.message : "Failed to fetch sessions",
-        });
-      }
-    } finally {
-      if (mountedRef.current) {
-        isFetchingRef.current = false;
-      }
-    }
-  };
-
-  const fetchUserSessions = useCallback(async (forceRefresh = false) => {
-    if (!user || !mountedRef.current) return;
-
-    const currentUserId = user.id;
-
-    // If we're already fetching for this user and not forcing a refresh, return
-    if (userIdRef.current === currentUserId && isFetchingRef.current && !forceRefresh) {
-      return;
-    }
-
-    userIdRef.current = currentUserId;
-
-    // Clear any existing timeout
-    if (fetchTimeoutRef.current) {
-      clearTimeout(fetchTimeoutRef.current);
-    }
-
-    // Schedule the fetch with a small delay to allow for batched updates
-    fetchTimeoutRef.current = setTimeout(() => {
-      if (mountedRef.current) {
-        doFetchSessions(currentUserId, forceRefresh);
-      }
-    }, 50);
-  }, [user]);
-
-  // Fetch sessions when the user changes
-  useEffect(() => {
-    if (!user || !mountedRef.current) {
-      userIdRef.current = null;
-      return;
-    }
-
-    const currentUserId = user.id;
-
-    // If user ID changed or we're forcing a refresh on mount
-    if (userIdRef.current !== currentUserId) {
-      userIdRef.current = currentUserId;
-
-      if (fetchTimeoutRef.current) {
-        clearTimeout(fetchTimeoutRef.current);
+        dispatch({ type: "FETCH_SESSIONS_START" });
       }
 
-      fetchTimeoutRef.current = setTimeout(() => {
+      try {
+        const sessions = await getSessions(userId);
+
         if (mountedRef.current) {
-          doFetchSessions(currentUserId, true); // Force refresh on user change
+          dispatch({ type: "FETCH_SESSIONS_SUCCESS", payload: sessions });
         }
-      }, 50);
+      } catch (error) {
+        console.error("Error fetching sessions:", error);
+        if (mountedRef.current) {
+          dispatch({
+            type: "SESSION_ERROR",
+            payload:
+              error instanceof Error
+                ? error.message
+                : "Failed to fetch sessions",
+          });
+        }
+      } finally {
+        if (mountedRef.current) {
+          isFetchingRef.current = false;
+        }
+      }
+    },
+    [dispatch]
+  );
+
+  // Only fetch sessions when user is authenticated
+  useEffect(() => {
+    if (user && user.id) {
+      console.log("Fetching sessions for user:", user);
+      doFetchSessions(user.id, true); // Force refresh on user change
+    } else {
+      console.log("User not authenticated. Skipping session fetch.");
     }
   }, [user]);
 
@@ -302,31 +272,81 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({
 
   // Add a useEffect to periodically check and update session statuses
   useEffect(() => {
-    // Run once when component mounts
+    if (!user || !user.id) {
+      // Guard: Only run if user is authenticated
+      console.log("User not authenticated. Skipping session status checks.");
+      return () => {
+        // No-op cleanup if not initialized
+      };
+    }
+
+    console.log(
+      "User authenticated. Initializing session status checks for user:",
+      user.id
+    );
+
+    // Run once when component mounts (if user is authenticated)
     const checkStatusesOnce = async () => {
       try {
+        console.log("Running checkStatusesOnce for user:", user.id);
         await checkAndUpdateSessionStatuses();
+        // After updating statuses, refresh the sessions
+        // This call to doFetchSessions is already guarded by user check in its own useEffect
       } catch (error) {
-        console.error("Error checking session statuses:", error);
+        console.error("Error checking session statuses (once):", error);
       }
     };
 
     checkStatusesOnce();
 
-    // Set up interval to check statuses every 5 minutes
+    // Set up interval to check statuses every 5 minutes (if user is authenticated)
     const intervalId = setInterval(async () => {
       try {
-        await checkAndUpdateSessionStatuses();
-        // After updating statuses, refresh the sessions
-        fetchUserSessions();
+        if (user && user.id) {
+          // Re-check user in case of logout during interval
+          console.log(
+            "Running periodic checkAndUpdateSessionStatuses for user:",
+            user.id
+          );
+          await checkAndUpdateSessionStatuses();
+          // After updating statuses, refresh the sessions
+          doFetchSessions(user.id, true); // This was already guarded, keeping it consistent
+        } else {
+          console.log(
+            "User logged out or became null during interval. Stopping status check."
+          );
+          clearInterval(intervalId);
+        }
       } catch (error) {
         console.error("Error in periodic session status check:", error);
       }
     }, 5 * 60 * 1000); // 5 minutes in milliseconds
 
-    // Clean up interval on unmount
-    return () => clearInterval(intervalId);
-  }, [user]);
+    // Clean up interval on unmount or if user logs out
+    return () => {
+      console.log(
+        "Cleaning up session status check interval for user:",
+        user ? user.id : "unknown"
+      );
+      clearInterval(intervalId);
+    };
+  }, [user]); // Dependency array includes user to re-run if auth state changes
+
+  // Wrapper function for fetchUserSessions to match context type
+  const fetchUserSessionsForContext = useCallback(
+    async (forceRefresh = false) => {
+      if (user && user.id) {
+        await doFetchSessions(user.id, forceRefresh);
+      } else {
+        console.warn(
+          "fetchUserSessionsForContext called without a logged-in user."
+        );
+        // Optionally, you could dispatch an error or return a rejected promise
+        // For now, it logs a warning and does nothing if user is not available.
+      }
+    },
+    [user, doFetchSessions]
+  );
 
   // Book a session with proper type handling
   const bookSession = useCallback(
@@ -421,14 +441,14 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({
   const contextValue = useMemo(
     () => ({
       sessionState,
-      fetchUserSessions,
+      fetchUserSessions: fetchUserSessionsForContext,
       bookSession,
       updateSessionDetails,
       cancelUserSession,
     }),
     [
       sessionState,
-      fetchUserSessions,
+      fetchUserSessionsForContext,
       bookSession,
       updateSessionDetails,
       cancelUserSession,

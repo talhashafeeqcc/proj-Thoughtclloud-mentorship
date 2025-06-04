@@ -1,196 +1,149 @@
 import { v4 as uuidv4 } from "uuid";
 import type { MentorProfile, AvailabilitySlot } from "../types";
 import { getDatabase } from "./database/db";
-import { Document } from "../types/database"; // Import the Document type
+import { Document } from "../types/database";
 import { getMentorRatings, getMentorAverageRating } from "./ratingService";
-import { deleteDocument, COLLECTIONS } from "./firebase/firestore";
+import { db } from "./firebase/config";
 import {
+  doc,
+  getDoc,
+  updateDoc as firestoreUpdateDoc,
+} from "firebase/firestore";
+import {
+  COLLECTIONS,
+  setDocument,
+  getDocument,
   getDocuments,
   whereEqual,
-} from './firebase';
-import { API_BASE_URL, getApiUrl } from './config';
+  deleteDocument,
+} from "./firebase";
+import { API_BASE_URL, getApiUrl } from "./config";
 
 // Extended MentorProfile with additional fields from our database schema
 interface ExtendedMentorProfile extends MentorProfile {
+  userId: string; // Ensure userId is part of this extended interface or inherited correctly
   yearsOfExperience?: number;
-  userId?: string;
+  name: string;
+  email: string;
+  profilePicture?: string;
 }
 
-// Define the interface for a mentor document
+// Define the interface for a mentor document in Firestore
 interface MentorDocument {
-  id: string;
-  userId?: string;
+  id: string; // This will be the same as userId (Firebase Auth UID)
+  userId: string; // Explicitly storing the Firebase Auth UID, serves as foreign key
   stripeAccountId?: string;
   expertise?: string[];
   bio?: string;
   sessionPrice?: number;
   balance?: number;
-  [key: string]: any;
+  // Denormalized fields from the User document
+  name: string;
+  email: string;
+  profilePicture?: string;
+  // Fields from original ExtendedMentorProfile that are not in User document
+  yearsOfExperience?: number;
+  // Timestamps
+  createdAt: number;
+  updatedAt: number;
+  [key: string]: any; // Allow other fields if necessary
+}
+
+// Assume UserDataForMentor contains the necessary fields from the user to denormalize
+interface UserDataForMentor {
+  uid: string; // Firebase Auth UID
+  email: string;
+  name: string;
+  profilePicture?: string;
 }
 
 /**
- * Get all mentors with combined user and mentor data
+ * Get all mentors. Data is denormalized, so no separate user fetch needed.
  */
 export const getMentors = async (): Promise<MentorProfile[]> => {
   try {
-    const db = await getDatabase();
-    const mentorDocs = await db.mentors.find().exec();
+    // Fetch directly from the /mentors collection.
+    // Using the existing getDocuments wrapper which is assumed to fetch all if no constraints.
+    const mentorDocuments = await getDocuments<MentorDocument>(
+      COLLECTIONS.MENTORS
+    );
 
-    // Get the mentor profiles and convert to plain objects to avoid readonly issues
-    const mentorProfiles = mentorDocs.map((doc: Document) => {
-      // Use JSON parse/stringify to convert readonly arrays to mutable ones
-      return JSON.parse(JSON.stringify(doc.toJSON()));
-    });
+    if (!mentorDocuments || mentorDocuments.length === 0) {
+      return [];
+    }
 
-    // Get user data for all mentors
-    const userIds = mentorProfiles.map((mentor: ExtendedMentorProfile) => mentor.userId);
+    // Map MentorDocument to MentorProfile
+    // Ratings and averageRating might still need separate fetches if not denormalized too.
+    const mentorProfiles = await Promise.all(
+      mentorDocuments.map(async (mentorDoc) => {
+        // Assuming getMentorRatings and getMentorAverageRating fetch based on mentorDoc.id
+        const ratings = await getMentorRatings(mentorDoc.id);
+        const averageRating = await getMentorAverageRating(mentorDoc.id);
 
-    const userDocs = await db.users
-      .find({
-        selector: {
-          id: {
-            $in: userIds,
-          },
-        },
-      })
-      .exec();
+        // Fetch availability separately if needed (current logic in getMentorById suggests this)
+        // For a list view, full availability might be too much. Consider a summary or fetching on demand.
+        // For now, defaulting to empty array as per previous structure for the list.
+        const availability: AvailabilitySlot[] = []; // Placeholder, adjust if summary needed
 
-    // Map users to their respective mentor profiles
-    return Promise.all(
-      mentorProfiles.map(async (mentor: ExtendedMentorProfile) => {
-        const userDoc = userDocs.find((u: Document) => u.id === mentor.userId);
-
-        // Get ratings for this mentor
-        const ratings = await getMentorRatings(mentor.id);
-        const averageRating = await getMentorAverageRating(mentor.id);
-
-        if (!userDoc) {
-          // If we don't have user data, create a placeholder with required fields
-          return {
-            id: mentor.id,
-            email: "unknown@example.com",
-            name: "Unknown Mentor",
-            role: "mentor" as const,
-            expertise: mentor.expertise,
-            bio: mentor.bio,
-            sessionPrice: mentor.sessionPrice,
-            yearsOfExperience: mentor.yearsOfExperience,
-            ratings: ratings,
-            averageRating: averageRating,
-          } as ExtendedMentorProfile;
-        }
-
-        const user = JSON.parse(JSON.stringify(userDoc.toJSON()));
-        // Don't include password in the returned object
-        const { password, ...safeUser } = user;
-
-        // Get availability slots for this mentor
-        const availabilityDocs = await db.availability
-          .find({
-            selector: {
-              mentorId: mentor.id,
-            },
-          })
-          .exec();
-
-        const availability = availabilityDocs.map((doc: Document) =>
-          JSON.parse(JSON.stringify(doc.toJSON()))
-        );
-
-        // Combine mentor and user data
         return {
-          ...mentor,
-          id: mentor.id,
-          email: safeUser.email,
-          name: safeUser.name,
-          role: "mentor" as const,
-          profilePicture: safeUser.profilePicture || "",
-          availability: availability,
-          ratings: ratings,
-          averageRating: averageRating,
-        } as ExtendedMentorProfile;
+          ...mentorDoc, // Spread all fields from MentorDocument (id, userId, name, email, profilePicture, expertise, etc.)
+          role: "mentor" as const, // Ensure role is correctly set
+          availability,
+          ratings,
+          averageRating,
+          // Ensure any other MentorProfile specific fields are handled
+        } as MentorProfile; // Cast to MentorProfile
       })
     );
+
+    return mentorProfiles;
   } catch (error) {
     console.error("Failed to get mentors:", error);
-    throw new Error("Failed to get mentors");
+    throw new Error(
+      `Failed to get mentors: ${
+        error instanceof Error ? error.message : String(error)
+      }`
+    );
   }
 };
 
 /**
- * Get a mentor by ID with combined user and mentor data
+ * Get a mentor by ID. Data is denormalized.
  */
 export const getMentorById = async (
-  id: string
+  mentorId: string // This is the user UID and document ID in /mentors
 ): Promise<MentorProfile | null> => {
   try {
-    const db = await getDatabase();
-    const mentorDoc = await db.mentors.findOne(id).exec();
+    const mentorDoc = await getDocument<MentorDocument>(
+      COLLECTIONS.MENTORS,
+      mentorId
+    );
 
     if (!mentorDoc) {
       return null;
     }
 
-    // Convert to plain JS object to avoid readonly issues
-    const mentor = JSON.parse(JSON.stringify(mentorDoc.toJSON()));
+    // Data like name, email, profilePicture is now directly in mentorDoc.
+    // Fetch availability, ratings, averageRating as previously
+    const availability = await getMentorAvailabilitySlots(mentorId); // Assuming this fetches from /availability
+    const ratings = await getMentorRatings(mentorId);
+    const averageRating = await getMentorAverageRating(mentorId);
 
-    // Get user data
-    const userDoc = await db.users.findOne(mentor.userId).exec();
-
-    // Get availability slots for this mentor
-    const availabilityDocs = await db.availability
-      .find({
-        selector: {
-          mentorId: id,
-        },
-      })
-      .exec();
-
-    const availability = availabilityDocs.map((doc: Document) =>
-      JSON.parse(JSON.stringify(doc.toJSON()))
-    );
-
-    // Get mentor ratings
-    const ratings = await getMentorRatings(id);
-    const averageRating = await getMentorAverageRating(id);
-
-    if (!userDoc) {
-      // If we don't have user data, create a placeholder with required fields
-      return {
-        id: mentor.id,
-        email: "unknown@example.com",
-        name: "Unknown Mentor",
-        role: "mentor" as const,
-        expertise: mentor.expertise,
-        bio: mentor.bio,
-        sessionPrice: mentor.sessionPrice,
-        yearsOfExperience: mentor.yearsOfExperience,
-        availability: availability,
-        ratings: ratings,
-        averageRating: averageRating,
-      } as ExtendedMentorProfile;
-    }
-
-    // Convert to plain JS object to avoid readonly issues
-    const user = JSON.parse(JSON.stringify(userDoc.toJSON()));
-    // Don't include password in the returned object
-    const { password, ...safeUser } = user;
-
-    // Combine mentor and user data
     return {
-      ...mentor,
-      id: mentor.id,
-      email: safeUser.email,
-      name: safeUser.name,
-      role: "mentor" as const,
-      profilePicture: safeUser.profilePicture || "",
-      availability: availability,
-      ratings: ratings,
-      averageRating: averageRating,
-    } as ExtendedMentorProfile;
+      ...mentorDoc, // Spread all fields from MentorDocument
+      role: "mentor" as const, // Ensure role is correctly set
+      availability,
+      ratings,
+      averageRating,
+      // Ensure any other MentorProfile specific fields are handled
+    } as MentorProfile; // Cast to MentorProfile
   } catch (error) {
-    console.error(`Failed to get mentor with ID ${id}:`, error);
-    throw new Error(`Failed to get mentor with ID ${id}`);
+    console.error(`Failed to get mentor with ID ${mentorId}:`, error);
+    throw new Error(
+      `Failed to get mentor with ID ${mentorId}: ${
+        error instanceof Error ? error.message : String(error)
+      }`
+    );
   }
 };
 
@@ -198,221 +151,159 @@ export const getMentorById = async (
  * Create a new mentor profile
  */
 export const createMentorProfile = async (
-  mentorData: Partial<ExtendedMentorProfile>
+  userData: UserDataForMentor, // Expecting UID, email, name, etc.
+  mentorSpecificData: {
+    expertise?: string[];
+    bio?: string;
+    sessionPrice?: number;
+    yearsOfExperience?: number;
+    stripeAccountId?: string; // Optional: if created at the same time
+  }
 ): Promise<MentorProfile> => {
   try {
-    const db = await getDatabase();
+    const now = Date.now();
+    const mentorId = userData.uid; // Document ID for /mentors will be the user's UID
 
-    // Create the user first if it doesn't exist
-    if (!mentorData.userId) {
-      // Check if user exists with email
-      if (!mentorData.email) {
-        throw new Error("Email is required to create a new mentor profile");
-      }
-
-      const existingUserDocs = await db.users
-        .find({
-          selector: {
-            email: mentorData.email,
-          },
-        })
-        .exec();
-
-      if (existingUserDocs.length > 0) {
-        // User exists, use their ID
-        mentorData.userId = existingUserDocs[0].id;
-      } else {
-        // Create new user
-        const now = Date.now();
-        const userId = uuidv4();
-
-        const newUser = {
-          id: userId,
-          email: mentorData.email,
-          name: mentorData.name || `New Mentor`,
-          role: "mentor",
-          password: `hashed_defaultpassword_${now}`, // This is a placeholder - in real app, proper registration flow needed
-          profilePicture: mentorData.profilePicture || "",
-          createdAt: now,
-          updatedAt: now,
-        };
-
-        await db.users.insert(newUser);
-        mentorData.userId = userId;
-      }
+    // Check if a mentor profile already exists for this user ID
+    const existingMentorDoc = await getDocument<MentorDocument>(
+      COLLECTIONS.MENTORS,
+      mentorId
+    );
+    if (existingMentorDoc) {
+      console.log(
+        `Mentor profile already exists for user ID: ${mentorId}. Returning existing.`
+      );
+      // Potentially update it if necessary, or just return
+      // For now, just return the existing profile mapped to MentorProfile type
+      return {
+        ...existingMentorDoc,
+        id: existingMentorDoc.id, // which is mentorId
+        role: "mentor" as const,
+        // Ensure all fields required by MentorProfile type are present
+        // This mapping might need adjustment based on MentorProfile definition in types.ts
+        availability: [], // Default or fetch if needed
+        ratings: [], // Default or fetch if needed
+        averageRating: 0, // Default or fetch if needed
+      } as MentorProfile; // Cast, ensure this matches your actual MentorProfile type
     }
 
-    // Create the mentor profile
-    const now = Date.now();
-    const mentorId = uuidv4();
-
-    const newMentor = {
-      id: mentorId,
-      userId: mentorData.userId,
-      expertise: mentorData.expertise || [],
-      bio: mentorData.bio || "",
-      sessionPrice: mentorData.sessionPrice || 0,
-      yearsOfExperience: mentorData.yearsOfExperience || 0,
-      portfolio: mentorData.portfolio || [],
-      certifications: mentorData.certifications || [],
-      education: mentorData.education || [],
-      workExperience: mentorData.workExperience || [],
+    const newMentorDoc: MentorDocument = {
+      id: mentorId, // Doc ID is user UID
+      userId: userData.uid, // Link to user
+      name: userData.name, // Denormalized
+      email: userData.email, // Denormalized
+      profilePicture: userData.profilePicture || "", // Denormalized
+      expertise: mentorSpecificData.expertise || [],
+      bio: mentorSpecificData.bio || "",
+      sessionPrice: mentorSpecificData.sessionPrice || 0,
+      yearsOfExperience: mentorSpecificData.yearsOfExperience,
+      stripeAccountId: mentorSpecificData.stripeAccountId,
+      balance: 0,
       createdAt: now,
       updatedAt: now,
     };
 
-    await db.mentors.insert(newMentor);
+    await setDocument(COLLECTIONS.MENTORS, mentorId, newMentorDoc);
 
-    // Create availability slots if provided
-    if (mentorData.availability && mentorData.availability.length > 0) {
-      const availabilitySlots = mentorData.availability.map((slot) => ({
-        id: uuidv4(),
-        mentorId: mentorId,
-        date: slot.date,
-        startTime: slot.startTime,
-        endTime: slot.endTime,
-        isBooked: slot.isBooked || false,
-        createdAt: now,
-        updatedAt: now,
-      }));
-
-      await db.availability.bulkInsert(availabilitySlots);
-    }
-
-    // Return the complete mentor profile
-    const mentorProfile = await getMentorById(mentorId);
-    if (!mentorProfile) {
-      throw new Error(
-        "Failed to create mentor profile: could not retrieve after creation"
-      );
-    }
-    return mentorProfile;
+    // The document in /mentors now contains all necessary public info
+    // Map newMentorDoc to the MentorProfile type for return
+    return {
+      ...newMentorDoc,
+      role: "mentor" as const,
+      // id is already mentorId
+      // name, email, profilePicture are already in newMentorDoc
+      // Ensure fields like availability, ratings, averageRating are handled
+      // as per the MentorProfile type definition (e.g., fetched separately or defaulted)
+      availability: [], // Default or fetch if needed
+      ratings: [], // Default or fetch if needed
+      averageRating: 0, // Default or fetch if needed
+    } as MentorProfile; // Cast, ensure this matches your actual MentorProfile type
   } catch (error) {
     console.error("Failed to create mentor profile:", error);
-    throw new Error("Failed to create mentor profile");
+    // Consider if this should throw a more specific error or a generic one
+    throw new Error(
+      `Failed to create mentor profile for user ${userData.uid}: ${
+        error instanceof Error ? error.message : String(error)
+      }`
+    );
   }
 };
 
 /**
- * Update a mentor profile
+ * Update an existing mentor profile
  */
 export const updateMentorProfile = async (
-  id: string,
-  mentorData: Partial<ExtendedMentorProfile>
+  mentorId: string, // This IS the user's UID and the document ID in /mentors
+  updates: Partial<Omit<ExtendedMentorProfile, "id" | "userId" | "email">> & {
+    // Allow updates to denormalized fields if they change on the user model
+    name?: string;
+    email?: string; // Be cautious: updating email here only updates denormalized copy
+    profilePicture?: string;
+  }
 ): Promise<MentorProfile | null> => {
   try {
-    const db = await getDatabase();
+    const mentorDocRef = doc(db, COLLECTIONS.MENTORS, mentorId);
+    const mentorDocSnap = await getDoc(mentorDocRef);
 
-    // Get existing mentor
-    const mentorDoc = await db.mentors.findOne(id).exec();
-
-    if (!mentorDoc) {
-      return null;
+    if (!mentorDocSnap.exists()) {
+      console.error(`No mentor profile found to update for ID: ${mentorId}`);
+      // Optional: Attempt to create if it doesn't exist, if that's desired behavior.
+      // This would require the full userData similar to createMentorProfile.
+      // For now, we'll assume an update is only for existing profiles.
+      throw new Error(
+        `Mentor profile with ID ${mentorId} not found for update.`
+      );
     }
 
-    const mentor = JSON.parse(JSON.stringify(mentorDoc.toJSON()));
     const now = Date.now();
-
-    // Update mentor data - remove availability from the update
-    const { availability, ...mentorDataWithoutAvailability } = mentorData;
-    const updatedMentor = {
-      ...mentor,
-      expertise:
-        mentorDataWithoutAvailability.expertise !== undefined
-          ? mentorDataWithoutAvailability.expertise
-          : mentor.expertise,
-      bio: mentorDataWithoutAvailability.bio !== undefined ? mentorDataWithoutAvailability.bio : mentor.bio,
-      sessionPrice:
-        mentorDataWithoutAvailability.sessionPrice !== undefined
-          ? mentorDataWithoutAvailability.sessionPrice
-          : mentor.sessionPrice,
-      yearsOfExperience:
-        mentorDataWithoutAvailability.yearsOfExperience !== undefined
-          ? mentorDataWithoutAvailability.yearsOfExperience
-          : mentor.yearsOfExperience,
-      portfolio:
-        mentorDataWithoutAvailability.portfolio !== undefined
-          ? mentorDataWithoutAvailability.portfolio
-          : mentor.portfolio,
-      certifications:
-        mentorDataWithoutAvailability.certifications !== undefined
-          ? mentorDataWithoutAvailability.certifications
-          : mentor.certifications,
-      education:
-        mentorDataWithoutAvailability.education !== undefined
-          ? mentorDataWithoutAvailability.education
-          : mentor.education,
-      workExperience:
-        mentorDataWithoutAvailability.workExperience !== undefined
-          ? mentorDataWithoutAvailability.workExperience
-          : mentor.workExperience,
+    const updateData: Partial<MentorDocument> = {
       updatedAt: now,
     };
 
-    await mentorDoc.update({
-      $set: updatedMentor,
-    });
+    // Apply updates for mentor-specific fields
+    if (updates.expertise !== undefined)
+      updateData.expertise = updates.expertise;
+    if (updates.bio !== undefined) updateData.bio = updates.bio;
+    if (updates.sessionPrice !== undefined)
+      updateData.sessionPrice = updates.sessionPrice;
+    if (updates.yearsOfExperience !== undefined)
+      updateData.yearsOfExperience = updates.yearsOfExperience;
+    // Denormalized fields from User - these should be updated if the source User changes
+    if (updates.name !== undefined) updateData.name = updates.name;
+    if (updates.email !== undefined) updateData.email = updates.email; // Again, careful with email updates
+    if (updates.profilePicture !== undefined)
+      updateData.profilePicture = updates.profilePicture;
+    // Do not update stripeAccountId, balance, createdAt, id, userId directly via this general update
 
-    // Update user data if provided
-    if (mentorDataWithoutAvailability.name || mentorDataWithoutAvailability.email || mentorDataWithoutAvailability.profilePicture) {
-      const userDoc = await db.users.findOne(mentor.userId).exec();
+    await firestoreUpdateDoc(mentorDocRef, updateData);
 
-      if (userDoc) {
-        const user = JSON.parse(JSON.stringify(userDoc.toJSON()));
-        const updatedUser = {
-          ...user,
-          name: mentorDataWithoutAvailability.name !== undefined ? mentorDataWithoutAvailability.name : user.name,
-          email: mentorDataWithoutAvailability.email !== undefined ? mentorDataWithoutAvailability.email : user.email,
-          profilePicture:
-            mentorDataWithoutAvailability.profilePicture !== undefined
-              ? mentorDataWithoutAvailability.profilePicture
-              : user.profilePicture,
-          updatedAt: now,
-        };
-
-        await userDoc.update({
-          $set: updatedUser,
-        });
-      }
+    const updatedMentorDoc = await getDocument<MentorDocument>(
+      COLLECTIONS.MENTORS,
+      mentorId
+    );
+    if (!updatedMentorDoc) {
+      // This should ideally not happen if the updateDoc succeeded without error
+      throw new Error("Failed to retrieve mentor profile after update.");
     }
 
-    // Handle availability updates separately
-    if (availability) {
-      // Delete existing availability
-      const existingAvailabilityDocs = await db.availability
-        .find({
-          selector: {
-            mentorId: id,
-          },
-        })
-        .exec();
-
-      for (const doc of existingAvailabilityDocs) {
-        await doc.remove();
-      }
-
-      // Add new availability
-      if (availability.length > 0) {
-        const availabilitySlots = availability.map((slot) => ({
-          id: slot.id || uuidv4(),
-          mentorId: id,
-          date: slot.date,
-          startTime: slot.startTime,
-          endTime: slot.endTime,
-          isBooked: slot.isBooked || false,
-          createdAt: now,
-          updatedAt: now,
-        }));
-
-        await db.availability.bulkInsert(availabilitySlots);
-      }
-    }
-
-    // Return updated mentor profile
-    return getMentorById(id);
+    // Map updatedMentorDoc to the MentorProfile type for return
+    return {
+      ...updatedMentorDoc,
+      role: "mentor" as const,
+      // id is already mentorId
+      // name, email, profilePicture are already in updatedMentorDoc
+      // Ensure fields like availability, ratings, averageRating are handled
+      availability: [], // Default or fetch if needed / or load existing
+      ratings: [], // Default or fetch if needed / or load existing
+      averageRating: 0, // Default or fetch if needed / or load existing
+    } as MentorProfile; // Cast, ensure this matches your actual MentorProfile type
   } catch (error) {
-    console.error(`Failed to update mentor with ID ${id}:`, error);
-    throw new Error(`Failed to update mentor with ID ${id}`);
+    console.error(`Failed to update mentor profile for ID ${mentorId}:`, error);
+    throw new Error(
+      `Failed to update mentor profile for ID ${mentorId}: ${
+        error instanceof Error ? error.message : String(error)
+      }`
+    );
   }
 };
 
@@ -422,10 +313,9 @@ export const updateMentorProfile = async (
 export const getMentorByUserId = async (userId: string) => {
   try {
     // Find mentors with matching userId
-    const mentors = await getDocuments<MentorDocument>(
-      COLLECTIONS.MENTORS,
-      [whereEqual('userId', userId)]
-    );
+    const mentors = await getDocuments<MentorDocument>(COLLECTIONS.MENTORS, [
+      whereEqual("userId", userId),
+    ]);
 
     if (mentors.length === 0) {
       return null;
@@ -443,22 +333,25 @@ export const getMentorByUserId = async (userId: string) => {
  */
 export const createMentorStripeAccount = async (mentorId: string) => {
   try {
-    const response = await fetch(getApiUrl(`api/mentor-stripe-account/${mentorId}`), {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      credentials: 'include',
-      mode: 'cors',
-    });
+    const response = await fetch(
+      getApiUrl(`api/mentor-stripe-account/${mentorId}`),
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+        mode: "cors",
+      }
+    );
 
     if (!response.ok) {
-      throw new Error('Error creating Stripe account');
+      throw new Error("Error creating Stripe account");
     }
 
     return await response.json();
   } catch (error) {
-    console.error('Error creating mentor Stripe account:', error);
+    console.error("Error creating mentor Stripe account:", error);
     throw error;
   }
 };
@@ -466,34 +359,40 @@ export const createMentorStripeAccount = async (mentorId: string) => {
 /**
  * Create a payout (withdrawal) for a mentor
  */
-export const createMentorPayout = async (mentorId: string, amount: number, currency: string = 'usd') => {
+export const createMentorPayout = async (
+  mentorId: string,
+  amount: number,
+  currency: string = "usd"
+) => {
   try {
     const response = await fetch(getApiUrl(`api/mentor-payout/${mentorId}`), {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
       body: JSON.stringify({
         amount,
-        currency
+        currency,
       }),
-      credentials: 'include',
-      mode: 'cors',
+      credentials: "include",
+      mode: "cors",
     });
 
     if (!response.ok) {
-      throw new Error('Error creating payout');
+      throw new Error("Error creating payout");
     }
 
     return await response.json();
   } catch (error) {
-    console.error('Error creating mentor payout:', error);
+    console.error("Error creating mentor payout:", error);
     throw error;
   }
 };
 
 // Get mentor availability slots
-export const getMentorAvailabilitySlots = async (mentorId: string): Promise<AvailabilitySlot[]> => {
+export const getMentorAvailabilitySlots = async (
+  mentorId: string
+): Promise<AvailabilitySlot[]> => {
   try {
     const db = await getDatabase();
 
@@ -501,8 +400,8 @@ export const getMentorAvailabilitySlots = async (mentorId: string): Promise<Avai
     const availabilityDocs = await db.availability
       .find({
         selector: {
-          mentorId: mentorId
-        }
+          mentorId: mentorId,
+        },
       })
       .exec();
 
@@ -512,8 +411,8 @@ export const getMentorAvailabilitySlots = async (mentorId: string): Promise<Avai
 
       // Normalize date format to YYYY-MM-DD for consistency
       let normalizedDate = slotData.date || "";
-      if (normalizedDate.includes('T')) {
-        normalizedDate = normalizedDate.split('T')[0];
+      if (normalizedDate.includes("T")) {
+        normalizedDate = normalizedDate.split("T")[0];
       }
 
       return {
@@ -522,7 +421,7 @@ export const getMentorAvailabilitySlots = async (mentorId: string): Promise<Avai
         date: normalizedDate, // Use normalized date
         startTime: slotData.startTime,
         endTime: slotData.endTime,
-        isBooked: slotData.isBooked || false
+        isBooked: slotData.isBooked || false,
       } as AvailabilitySlot;
     });
 
@@ -534,7 +433,9 @@ export const getMentorAvailabilitySlots = async (mentorId: string): Promise<Avai
 };
 
 // Add availability slot
-export const addAvailabilitySlot = async (slot: AvailabilitySlot): Promise<AvailabilitySlot> => {
+export const addAvailabilitySlot = async (
+  slot: AvailabilitySlot
+): Promise<AvailabilitySlot> => {
   try {
     const db = await getDatabase();
 
@@ -546,17 +447,17 @@ export const addAvailabilitySlot = async (slot: AvailabilitySlot): Promise<Avail
 
     // Format date consistently as YYYY-MM-DD (without time component)
     let formattedDate = slot.date;
-    if (formattedDate.includes('T')) {
+    if (formattedDate.includes("T")) {
       // If it already has a T, strip the time part
-      formattedDate = formattedDate.split('T')[0];
+      formattedDate = formattedDate.split("T")[0];
     } else {
       // Ensure it's a valid date format but avoid timezone shifts
       try {
         // Parse the date directly into year, month, day components
         const dateObj = new Date(formattedDate);
         const year = dateObj.getFullYear();
-        const month = String(dateObj.getMonth() + 1).padStart(2, '0');
-        const day = String(dateObj.getDate()).padStart(2, '0');
+        const month = String(dateObj.getMonth() + 1).padStart(2, "0");
+        const day = String(dateObj.getDate()).padStart(2, "0");
         formattedDate = `${year}-${month}-${day}`;
       } catch (e) {
         console.error("Error formatting date:", e);
@@ -599,11 +500,11 @@ export const deleteAvailabilitySlot = async (slotId: string): Promise<void> => {
     }
 
     // Try the collection-level remove method first
-    if (typeof db.availability.remove === 'function') {
+    if (typeof db.availability.remove === "function") {
       await db.availability.remove(slotDoc);
     }
     // Fall back to the document-level remove method if available
-    else if (slotDoc && typeof slotDoc.remove === 'function') {
+    else if (slotDoc && typeof slotDoc.remove === "function") {
       await slotDoc.remove();
     }
     // Last resort - try direct deletion
@@ -617,7 +518,9 @@ export const deleteAvailabilitySlot = async (slotId: string): Promise<void> => {
 };
 
 // Get mentor availability slots with dates
-export const getMentorAvailability = async (mentorId: string): Promise<AvailabilitySlot[]> => {
+export const getMentorAvailability = async (
+  mentorId: string
+): Promise<AvailabilitySlot[]> => {
   try {
     const db = await getDatabase();
 
@@ -633,13 +536,15 @@ export const getMentorAvailability = async (mentorId: string): Promise<Availabil
       .find({
         selector: {
           mentorId: mentorId,
-          date: { $exists: true }
+          date: { $exists: true },
         },
-        sort: [{ date: "asc" }]
+        sort: [{ date: "asc" }],
       })
       .exec();
 
-    return slots.map((doc: Document) => JSON.parse(JSON.stringify(doc.toJSON())));
+    return slots.map((doc: Document) =>
+      JSON.parse(JSON.stringify(doc.toJSON()))
+    );
   } catch (error) {
     console.error("Error getting mentor availability:", error);
     throw error;

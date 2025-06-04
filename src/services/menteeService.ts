@@ -1,12 +1,18 @@
 import { v4 as uuidv4 } from "uuid";
 import type { Mentee } from "../types";
+import { db } from "./firebase/config";
+import {
+  doc,
+  getDoc,
+  updateDoc as firestoreUpdateDoc,
+} from "firebase/firestore";
 import {
   getDocument,
   getDocuments,
   setDocument,
   updateDocument,
   whereEqual,
-  COLLECTIONS
+  COLLECTIONS,
 } from "./firebase";
 
 // Define interfaces for Firestore document types
@@ -45,18 +51,19 @@ export interface ExtendedMentee extends Mentee {
 export const getMentees = async (): Promise<ExtendedMentee[]> => {
   try {
     // Get the mentee profiles
-    const menteeProfiles = await getDocuments<MenteeDocument>(COLLECTIONS.MENTEES);
+    const menteeProfiles = await getDocuments<MenteeDocument>(
+      COLLECTIONS.MENTEES
+    );
 
     // Get user data for all mentees
-    const userIds = menteeProfiles.map(mentee => mentee.userId);
-    const users = await getDocuments<UserDocument>(
-      COLLECTIONS.USERS,
-      [whereEqual('id', userIds)]
-    );
+    const userIds = menteeProfiles.map((mentee) => mentee.userId);
+    const users = await getDocuments<UserDocument>(COLLECTIONS.USERS, [
+      whereEqual("id", userIds),
+    ]);
 
     // Map users to their respective mentee profiles with type assertion
     return menteeProfiles.map((mentee) => {
-      const user = users.find(u => u.id === mentee.userId);
+      const user = users.find((u) => u.id === mentee.userId);
 
       if (!user) {
         // If we don't have user data, create a placeholder with required fields
@@ -65,7 +72,9 @@ export const getMentees = async (): Promise<ExtendedMentee[]> => {
           email: "unknown@example.com",
           name: "Unknown Mentee",
           role: "mentee" as const,
-          interests: Array.isArray(mentee.interests) ? [...mentee.interests] : [],
+          interests: Array.isArray(mentee.interests)
+            ? [...mentee.interests]
+            : [],
           bio: mentee.bio || "",
           goals: Array.isArray(mentee.goals) ? [...mentee.goals] : [],
           currentPosition: mentee.currentPosition || "",
@@ -109,7 +118,10 @@ export const getMenteeById = async (
     }
 
     // Get user data
-    const user = await getDocument<UserDocument>(COLLECTIONS.USERS, mentee.userId);
+    const user = await getDocument<UserDocument>(
+      COLLECTIONS.USERS,
+      mentee.userId
+    );
 
     if (!user) {
       // If we don't have user data, create a placeholder
@@ -153,10 +165,9 @@ export const getMenteeByUserId = async (
 ): Promise<ExtendedMentee | null> => {
   try {
     // Get mentees filtered by userId
-    const mentees = await getDocuments<MenteeDocument>(
-      COLLECTIONS.MENTEES,
-      [whereEqual('userId', userId)]
-    );
+    const mentees = await getDocuments<MenteeDocument>(COLLECTIONS.MENTEES, [
+      whereEqual("userId", userId),
+    ]);
 
     if (mentees.length === 0) {
       return null;
@@ -205,10 +216,14 @@ export const getMenteeByUserId = async (
  */
 export const createMenteeProfile = async (
   userData: {
+    // This userId should ideally come from the authenticated Firebase user (auth.currentUser.uid)
+    // and be passed into this function, not generated or re-fetched if already known.
+    // For this refactor, we'll assume `userData.id` can be this Firebase Auth UID.
+    id: string; // Expecting Firebase Auth UID to be passed here
     email: string;
     name: string;
-    password: string;
-    profilePicture?: string;
+    // Password handling should be done via Firebase Auth, not stored here directly.
+    // profilePicture?: string; // This should be part of user document
   },
   menteeData: {
     interests?: string[];
@@ -219,60 +234,45 @@ export const createMenteeProfile = async (
 ): Promise<ExtendedMentee> => {
   try {
     const now = Date.now();
+    const userId = userData.id; // This IS the Firebase Auth UID
 
-    // Check if user already exists
-    const existingUsers = await getDocuments<UserDocument>(
-      COLLECTIONS.USERS,
-      [whereEqual('email', userData.email)]
-    );
-
-    let userId: string;
-
-    if (existingUsers.length > 0) {
-      // User exists, use their ID
-      const existingUser = existingUsers[0];
-      userId = existingUser.id;
-
-      // Update user if needed (except password)
-      if (userData.name || userData.profilePicture) {
-        await updateDocument(COLLECTIONS.USERS, userId, {
-          name: userData.name,
-          profilePicture: userData.profilePicture,
-          updatedAt: now,
-        });
-      }
-    } else {
-      // Create new user
-      userId = uuidv4();
-      const newUser = {
-        id: userId,
-        email: userData.email,
-        name: userData.name,
-        role: "mentee" as const,
-        password: `hashed_${userData.password}_${now}`, // Use proper hashing in production
-        profilePicture: userData.profilePicture || "",
-        createdAt: now,
-        updatedAt: now,
-      };
-      await setDocument(COLLECTIONS.USERS, userId, newUser);
-    }
+    // User document should already exist or be created by Firebase Auth flows.
+    // This service should not typically create user auth entries or user documents from scratch
+    // if standard Firebase Auth (createUserWithEmailAndPassword) is used.
+    // For now, we'll assume the user document in /users/{userId} is managed elsewhere or
+    // is correctly updated if necessary.
 
     // Check if mentee profile already exists for this user
-    const existingMentees = await getDocuments<MenteeDocument>(
-      COLLECTIONS.MENTEES,
-      [whereEqual('userId', userId)]
-    );
+    // The document ID for the mentee profile will be the userId
+    const menteeDocRef = doc(db, COLLECTIONS.MENTEES, userId);
+    const menteeDocSnap = await getDoc(menteeDocRef);
 
-    if (existingMentees.length > 0) {
-      // Mentee profile already exists, return it
-      return getMenteeByUserId(userId) as Promise<ExtendedMentee>;
+    if (menteeDocSnap.exists()) {
+      // Mentee profile already exists, update it or return it
+      console.log(
+        `Mentee profile for user ${userId} already exists. Consider updating or just returning.`
+      );
+      // For simplicity, let's return the existing one. Update logic can be separate.
+      const existingMenteeData = menteeDocSnap.data() as MenteeDocument;
+      const userDoc = await getDocument<UserDocument>(
+        COLLECTIONS.USERS,
+        userId
+      );
+      return {
+        ...existingMenteeData,
+        id: userId, // mentee profile ID is the userId
+        email: userDoc?.email || userData.email,
+        name: userDoc?.name || userData.name,
+        role: "mentee" as const,
+        profilePicture: userDoc?.profilePicture || "",
+        sessions: [],
+      };
     }
 
-    // Create the mentee profile
-    const menteeId = uuidv4();
+    // Create the new mentee profile with userId as its document ID
     const newMentee: MenteeDocument = {
-      id: menteeId,
-      userId: userId,
+      id: userId, // Document ID is the userId
+      userId: userId, // Link to the user document
       interests: menteeData.interests || [],
       bio: menteeData.bio || "",
       goals: menteeData.goals || [],
@@ -281,15 +281,18 @@ export const createMenteeProfile = async (
       updatedAt: now,
     };
 
-    await setDocument(COLLECTIONS.MENTEES, menteeId, newMentee);
+    await setDocument(COLLECTIONS.MENTEES, userId, newMentee); // Use userId as doc ID
 
-    // Return the full mentee profile
+    // Fetch the associated user document to return complete data
+    const userDoc = await getDocument<UserDocument>(COLLECTIONS.USERS, userId);
+
     return {
       ...newMentee,
-      email: userData.email,
-      name: userData.name,
+      // id field is already userId from newMentee
+      email: userDoc?.email || userData.email,
+      name: userDoc?.name || userData.name,
       role: "mentee" as const,
-      profilePicture: userData.profilePicture || "",
+      profilePicture: userDoc?.profilePicture || "",
       sessions: [],
     };
   } catch (error) {
@@ -303,10 +306,9 @@ export const createMenteeProfile = async (
  */
 export const hasMenteeProfile = async (userId: string): Promise<boolean> => {
   try {
-    const mentees = await getDocuments<MenteeDocument>(
-      COLLECTIONS.MENTEES,
-      [whereEqual('userId', userId)]
-    );
+    const mentees = await getDocuments<MenteeDocument>(COLLECTIONS.MENTEES, [
+      whereEqual("userId", userId),
+    ]);
     return mentees.length > 0;
   } catch (error) {
     console.error(`Failed to check mentee profile for user ${userId}:`, error);
@@ -318,61 +320,89 @@ export const hasMenteeProfile = async (userId: string): Promise<boolean> => {
  * Update mentee profile
  */
 export const updateMenteeProfile = async (
-  userId: string,
+  userId: string, // This is the Firebase Auth UID and thus the mentee document ID
   updates: Partial<ExtendedMentee>
 ): Promise<ExtendedMentee | null> => {
   try {
-    // Get the mentee document for this user
-    const mentees = await getDocuments<MenteeDocument>(
-      COLLECTIONS.MENTEES,
-      [whereEqual('userId', userId)]
-    );
+    const menteeDocRef = doc(db, COLLECTIONS.MENTEES, userId); // Use userId as doc ID
+    const menteeDocSnap = await getDoc(menteeDocRef);
 
-    if (mentees.length === 0) {
-      throw new Error(`No mentee profile found for user ${userId}`);
+    if (!menteeDocSnap.exists()) {
+      // If profile doesn't exist, perhaps we should create it?
+      // Or throw a more specific error / handle as per product requirements.
+      // For now, let's assume ProfileSettings will call create if hasMenteeProfile is false.
+      console.error(`No mentee profile found for user ${userId} to update.`);
+      // throw new Error(`No mentee profile found for user ${userId} to update.`);
+      // Attempt to create it if it's missing, using the updates provided
+      // This mirrors a "get or create" pattern that might be intended by ProfileSettings
+      console.log(
+        `Attempting to create mentee profile for ${userId} during update.`
+      );
+      const createdProfile = await createMenteeProfile(
+        {
+          id: userId,
+          email: updates.email || "", // Need to ensure these are available or handled
+          name: updates.name || "",
+          // password should not be handled here
+        },
+        {
+          interests: updates.interests,
+          bio: updates.bio,
+          goals: updates.goals,
+          currentPosition: updates.currentPosition,
+        }
+      );
+      return createdProfile;
     }
 
-    const mentee = mentees[0];
+    const mentee = menteeDocSnap.data() as MenteeDocument;
     const now = Date.now();
 
     // Prepare mentee updates
     const menteeUpdates: Partial<MenteeDocument> = {
-      interests: updates.interests !== undefined ? updates.interests : mentee.interests,
-      bio: updates.bio !== undefined ? updates.bio : mentee.bio,
-      goals: updates.goals !== undefined ? updates.goals : mentee.goals,
-      currentPosition:
-        updates.currentPosition !== undefined
-          ? updates.currentPosition
-          : mentee.currentPosition,
+      // id and userId fields should not change
       updatedAt: now,
     };
+    if (updates.interests !== undefined)
+      menteeUpdates.interests = updates.interests;
+    if (updates.bio !== undefined) menteeUpdates.bio = updates.bio;
+    if (updates.goals !== undefined) menteeUpdates.goals = updates.goals;
+    if (updates.currentPosition !== undefined)
+      menteeUpdates.currentPosition = updates.currentPosition;
 
-    // Update the mentee document
-    await updateDocument(COLLECTIONS.MENTEES, mentee.id, menteeUpdates);
+    // Update the mentee document (its ID is userId)
+    await firestoreUpdateDoc(menteeDocRef, menteeUpdates);
 
-    // Update user data if provided
+    // Update user data in /users/{userId} if provided
     if (updates.name || updates.email || updates.profilePicture) {
-      const user = await getDocument<UserDocument>(COLLECTIONS.USERS, userId);
+      const userDocRef = doc(db, COLLECTIONS.USERS, userId);
+      const userToUpdate: Partial<UserDocument> = { updatedAt: now };
+      if (updates.name !== undefined) userToUpdate.name = updates.name;
+      if (updates.email !== undefined) userToUpdate.email = updates.email;
+      if (updates.profilePicture !== undefined)
+        userToUpdate.profilePicture = updates.profilePicture;
 
-      if (user) {
-        const userUpdates: Partial<UserDocument> = {
-          name: updates.name !== undefined ? updates.name : user.name,
-          email: updates.email !== undefined ? updates.email : user.email,
-          profilePicture:
-            updates.profilePicture !== undefined
-              ? updates.profilePicture
-              : user.profilePicture,
-          updatedAt: now,
-        };
-
-        await updateDocument(COLLECTIONS.USERS, userId, userUpdates);
-      }
+      await firestoreUpdateDoc(userDocRef, userToUpdate);
     }
 
     // Return updated mentee profile
     return getMenteeByUserId(userId);
   } catch (error) {
-    console.error(`Failed to update mentee with user ID ${userId}:`, error);
-    throw new Error(`Failed to update mentee with user ID ${userId}`);
+    console.error(
+      `Failed to update mentee profile for user ID ${userId}:`,
+      error
+    );
+    // Provide a more specific error message if possible
+    if (
+      error instanceof Error &&
+      error.message.includes("No mentee profile found")
+    ) {
+      throw error; // Re-throw specific error if it was about not finding the profile initially
+    }
+    throw new Error(
+      `Failed to update mentee profile for user ID ${userId}. Original error: ${
+        error instanceof Error ? error.message : String(error)
+      }`
+    );
   }
 };
