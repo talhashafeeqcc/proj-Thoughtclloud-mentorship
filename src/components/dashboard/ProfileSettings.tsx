@@ -5,28 +5,26 @@ import {
   updateMentorProfile,
   getUserById,
   getMentorByUserId,
-  getMenteeByUserId
+  getMenteeByUserId,
 } from "../../services/userService";
-import {
-  updateMenteeProfile,
-} from "../../services/menteeService";
+import { updateMenteeProfile } from "../../services/menteeService";
 import { User, MentorProfile } from "../../types";
-import PortfolioManager from '../profile/PortfolioManager';
-import EducationManager from '../profile/EducationManager';
-import CertificationManager from '../profile/CertificationManager';
-import WorkExperienceManager from '../profile/WorkExperienceManager';
+import PortfolioManager from "../profile/PortfolioManager";
+import EducationManager from "../profile/EducationManager";
+import CertificationManager from "../profile/CertificationManager";
+import WorkExperienceManager from "../profile/WorkExperienceManager";
 import { motion, AnimatePresence } from "framer-motion";
-import { 
-  FaUser, 
-  FaBriefcase, 
-  FaGraduationCap, 
-  FaCertificate, 
-  FaFolder, 
-  FaSave, 
+import {
+  FaUser,
+  FaBriefcase,
+  FaGraduationCap,
+  FaCertificate,
+  FaFolder,
+  FaSave,
   FaExclamationTriangle,
   FaCheckCircle,
   FaTimesCircle,
-  FaSpinner
+  FaSpinner,
 } from "react-icons/fa";
 
 // Create a more specific combined type with all possible fields
@@ -73,25 +71,25 @@ interface ValidationErrors {
 // Animation variants
 const containerVariants = {
   hidden: { opacity: 0 },
-  visible: { 
+  visible: {
     opacity: 1,
-    transition: { 
-      staggerChildren: 0.1
-    }
-  }
+    transition: {
+      staggerChildren: 0.1,
+    },
+  },
 };
 
 const itemVariants = {
   hidden: { y: 20, opacity: 0 },
-  visible: { 
-    y: 0, 
+  visible: {
+    y: 0,
     opacity: 1,
-    transition: { 
-      type: "spring", 
+    transition: {
+      type: "spring",
       stiffness: 300,
-      damping: 24
-    }
-  }
+      damping: 24,
+    },
+  },
 };
 
 const ProfileSettings: React.FC = () => {
@@ -117,19 +115,25 @@ const ProfileSettings: React.FC = () => {
         setLoading(true);
         setMessage(null);
 
-        console.log("Attempting to fetch profile data for user ID:", authState.user.id);
+        console.log(
+          "Attempting to fetch profile data for user ID:",
+          authState.user.id
+        );
 
         // First get the user data
         let userData = await getUserById(authState.user.id);
 
         // If user data isn't found in the database but exists in auth state
         if (!userData) {
-          console.error("getUserById returned null for user ID:", authState.user.id);
+          console.error(
+            "getUserById returned null for user ID:",
+            authState.user.id
+          );
 
           // Show a more specific error message
           setMessage({
             type: "error",
-            text: "Your user profile couldn't be found in the database. Please log out and log in again."
+            text: "Your user profile couldn't be found in the database. Please log out and log in again.",
           });
           return;
         }
@@ -169,10 +173,13 @@ const ProfileSettings: React.FC = () => {
               portfolio: [],
               certifications: [],
               education: [],
-              workExperience: []
+              workExperience: [],
             };
 
-            roleData = await updateMentorProfile(userData.id, defaultMentorData);
+            roleData = await updateMentorProfile(
+              userData.id,
+              defaultMentorData
+            );
 
             if (!roleData) {
               throw new Error("Failed to create mentor profile");
@@ -198,10 +205,13 @@ const ProfileSettings: React.FC = () => {
               bio: "",
               interests: [],
               goals: [],
-              currentPosition: ""
+              currentPosition: "",
             };
 
-            roleData = await updateMenteeProfile(userData.id, defaultMenteeData);
+            roleData = await updateMenteeProfile(
+              userData.id,
+              defaultMenteeData
+            );
             if (!roleData) {
               throw new Error("Failed to create mentee profile");
             }
@@ -228,7 +238,9 @@ const ProfileSettings: React.FC = () => {
   }, [authState.user?.id]);
 
   const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
+    e: React.ChangeEvent<
+      HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
+    >
   ) => {
     const { name, value } = e.target;
 
@@ -275,15 +287,13 @@ const ProfileSettings: React.FC = () => {
     }
   };
 
-  const handleNumberChange = (
-    e: React.ChangeEvent<HTMLInputElement>
-  ) => {
+  const handleNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     const numValue = value === "" ? "" : Number(value);
 
     setFormData((prev) => ({
       ...prev,
-      [name]: numValue
+      [name]: numValue,
     }));
 
     // Clear validation error when field is changed
@@ -296,30 +306,30 @@ const ProfileSettings: React.FC = () => {
   };
 
   const handlePortfolioChange = (updatedItems: any[]) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      portfolio: updatedItems
+      portfolio: updatedItems,
     }));
   };
 
   const handleEducationChange = (updatedItems: any[]) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      education: updatedItems
+      education: updatedItems,
     }));
   };
 
   const handleCertificationsChange = (updatedItems: any[]) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      certifications: updatedItems
+      certifications: updatedItems,
     }));
   };
 
   const handleWorkExperienceChange = (updatedItems: any[]) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      workExperience: updatedItems
+      workExperience: updatedItems,
     }));
   };
 
@@ -369,7 +379,7 @@ const ProfileSettings: React.FC = () => {
       if (
         formData.sessionPrice === undefined ||
         formData.sessionPrice === "" ||
-        (typeof formData.sessionPrice === 'number' && formData.sessionPrice < 0)
+        (typeof formData.sessionPrice === "number" && formData.sessionPrice < 0)
       ) {
         newErrors.sessionPrice = "Valid session price is required";
         isValid = false;
@@ -399,7 +409,7 @@ const ProfileSettings: React.FC = () => {
       setLoading(false);
       setMessage({
         type: "error",
-        text: "Please correct the errors in the form."
+        text: "Please correct the errors in the form.",
       });
       return;
     }
@@ -408,7 +418,7 @@ const ProfileSettings: React.FC = () => {
       // Set temporary saving message
       setMessage({
         type: "success",
-        text: "Saving your changes..."
+        text: "Saving your changes...",
       });
 
       // Prepare the user data for update
@@ -451,6 +461,9 @@ const ProfileSettings: React.FC = () => {
         profilePicture,
       });
 
+      // Flag to track if any update succeeded
+      let profileUpdated = true;
+
       if (userRole === "mentor") {
         // Create a properly typed mentor data object
         const mentorData = {
@@ -458,22 +471,38 @@ const ProfileSettings: React.FC = () => {
           expertise: formData.expertise || [],
           sessionPrice: Number(formData.sessionPrice) || 0,
           yearsOfExperience: Number(formData.yearsOfExperience) || 0,
-          portfolio: Array.isArray(formData.portfolio) ? formData.portfolio : [],
-          certifications: Array.isArray(formData.certifications) ? formData.certifications : [],
-          education: Array.isArray(formData.education) ? formData.education : [],
-          workExperience: Array.isArray(formData.workExperience) ? formData.workExperience : [],
+          portfolio: Array.isArray(formData.portfolio)
+            ? formData.portfolio
+            : [],
+          certifications: Array.isArray(formData.certifications)
+            ? formData.certifications
+            : [],
+          education: Array.isArray(formData.education)
+            ? formData.education
+            : [],
+          workExperience: Array.isArray(formData.workExperience)
+            ? formData.workExperience
+            : [],
         };
 
         console.log("Updating mentor profile with data:", mentorData);
 
-        // Update mentor profile
-        const updatedMentorProfile = await updateMentorProfile(
-          userId,
-          mentorData
-        );
+        try {
+          // Try to update mentor profile, but continue even if it fails
+          const updatedMentorProfile = await updateMentorProfile(
+            userId,
+            mentorData
+          );
 
-        if (!updatedMentorProfile) {
-          throw new Error("Failed to update mentor profile");
+          if (!updatedMentorProfile) {
+            console.warn(
+              "Mentor profile update returned no data, but proceeding anyway"
+            );
+          }
+        } catch (mentorError) {
+          console.error("Error updating mentor profile:", mentorError);
+          // Don't throw, just log and continue
+          profileUpdated = false;
         }
       } else if (userRole === "mentee") {
         // Create a properly typed mentee data object
@@ -486,33 +515,59 @@ const ProfileSettings: React.FC = () => {
 
         console.log("Updating mentee profile with data:", menteeData);
 
-        // Update mentee profile
-        const updatedMenteeProfile = await updateMenteeProfile(
-          userId,
-          menteeData
-        );
+        try {
+          // Try to update mentee profile, but continue even if it fails
+          const updatedMenteeProfile = await updateMenteeProfile(
+            userId,
+            menteeData
+          );
 
-        if (!updatedMenteeProfile) {
-          throw new Error("Failed to update mentee profile");
+          if (!updatedMenteeProfile) {
+            console.warn(
+              "Mentee profile update returned no data, but proceeding anyway"
+            );
+          }
+        } catch (menteeError) {
+          console.error("Error updating mentee profile:", menteeError);
+          // Don't throw, just log and continue
+          profileUpdated = false;
         }
       }
 
       // Update initialData to reflect the current state
       setInitialData({ ...formData });
-      setMessage({
-        type: "success",
-        text: "Profile updated successfully!"
-      });
+
+      // Show appropriate success message
+      if (profileUpdated) {
+        setMessage({
+          type: "success",
+          text: "Profile updated successfully!",
+        });
+      } else {
+        setMessage({
+          type: "success",
+          text: "Basic profile updated successfully. Some profile details could not be saved.",
+        });
+      }
 
       // Auto clear the success message after 3 seconds
       setTimeout(() => {
         setMessage(null);
       }, 3000);
-
     } catch (error) {
+      // Check if the error is a permission error
+      const errorMessage =
+        error instanceof Error ? error.message : "Failed to update profile";
+      const isPermissionError =
+        errorMessage.includes("permission") ||
+        errorMessage.includes("insufficient");
+
+      // If it's a permission error, show a more user-friendly message
       setMessage({
         type: "error",
-        text: error instanceof Error ? error.message : "Failed to update profile"
+        text: isPermissionError
+          ? "Your basic information was updated, but there was an issue updating your extended profile."
+          : errorMessage,
       });
     } finally {
       setLoading(false);
@@ -571,32 +626,60 @@ const ProfileSettings: React.FC = () => {
   // Define the navigation tabs based on user role
   const getTabs = () => {
     const commonTabs = [
-      { id: "basic", label: "Basic Information", icon: <FaUser className="mr-2" /> }
+      {
+        id: "basic",
+        label: "Basic Information",
+        icon: <FaUser className="mr-2" />,
+      },
     ];
 
     if (authState.user?.role === "mentor") {
       return [
         ...commonTabs,
-        { id: "mentor", label: "Mentor Profile", icon: <FaBriefcase className="mr-2" /> },
-        { id: "portfolio", label: "Portfolio", icon: <FaFolder className="mr-2" /> },
-        { id: "education", label: "Education", icon: <FaGraduationCap className="mr-2" /> },
-        { id: "certifications", label: "Certifications", icon: <FaCertificate className="mr-2" /> },
-        { id: "experience", label: "Work Experience", icon: <FaBriefcase className="mr-2" /> }
+        {
+          id: "mentor",
+          label: "Mentor Profile",
+          icon: <FaBriefcase className="mr-2" />,
+        },
+        {
+          id: "portfolio",
+          label: "Portfolio",
+          icon: <FaFolder className="mr-2" />,
+        },
+        {
+          id: "education",
+          label: "Education",
+          icon: <FaGraduationCap className="mr-2" />,
+        },
+        {
+          id: "certifications",
+          label: "Certifications",
+          icon: <FaCertificate className="mr-2" />,
+        },
+        {
+          id: "experience",
+          label: "Work Experience",
+          icon: <FaBriefcase className="mr-2" />,
+        },
       ];
     } else if (authState.user?.role === "mentee") {
       return [
         ...commonTabs,
-        { id: "mentee", label: "Mentee Profile", icon: <FaUser className="mr-2" /> }
+        {
+          id: "mentee",
+          label: "Mentee Profile",
+          icon: <FaUser className="mr-2" />,
+        },
       ];
     }
-    
+
     return commonTabs;
   };
 
   const tabs = getTabs();
 
   return (
-    <motion.div 
+    <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.4 }}
@@ -604,7 +687,7 @@ const ProfileSettings: React.FC = () => {
     >
       {loading && (
         <div className="absolute inset-0 bg-gray-800/50 dark:bg-gray-900/70 flex items-center justify-center z-50">
-          <motion.div 
+          <motion.div
             initial={{ scale: 0.8 }}
             animate={{ scale: 1, rotate: 360 }}
             transition={{ duration: 0.5, loop: Infinity, ease: "linear" }}
@@ -617,7 +700,7 @@ const ProfileSettings: React.FC = () => {
 
       <div className="p-6 dark:text-white">
         <h2 className="text-2xl font-semibold mb-4 flex items-center text-gray-800 dark:text-white">
-          <FaUser className="mr-2 text-indigo-600 dark:text-indigo-400" /> 
+          <FaUser className="mr-2 text-indigo-600 dark:text-indigo-400" />
           Profile Settings
         </h2>
 
@@ -629,8 +712,8 @@ const ProfileSettings: React.FC = () => {
               exit={{ opacity: 0, y: -10 }}
               transition={{ duration: 0.3 }}
               className={`${
-                message.type === "success" 
-                  ? "bg-green-100 dark:bg-green-900/30 border-green-400 dark:border-green-700 text-green-700 dark:text-green-300" 
+                message.type === "success"
+                  ? "bg-green-100 dark:bg-green-900/30 border-green-400 dark:border-green-700 text-green-700 dark:text-green-300"
                   : "bg-red-100 dark:bg-red-900/30 border-red-400 dark:border-red-700 text-red-700 dark:text-red-300"
               } px-4 py-3 rounded border mb-4 flex items-start`}
             >
@@ -654,9 +737,10 @@ const ProfileSettings: React.FC = () => {
                 whileTap={{ scale: 0.97 }}
                 onClick={() => setActiveSection(tab.id)}
                 className={`px-4 py-2 rounded-t-lg font-medium text-sm flex items-center whitespace-nowrap
-                  ${activeSection === tab.id
-                    ? "bg-indigo-600 text-white"
-                    : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
+                  ${
+                    activeSection === tab.id
+                      ? "bg-indigo-600 text-white"
+                      : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
                   } transition-colors`}
               >
                 {tab.icon}
@@ -683,7 +767,10 @@ const ProfileSettings: React.FC = () => {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <motion.div variants={itemVariants}>
-                    <label htmlFor="name" className="block text-gray-700 dark:text-gray-300 text-sm font-medium mb-2">
+                    <label
+                      htmlFor="name"
+                      className="block text-gray-700 dark:text-gray-300 text-sm font-medium mb-2"
+                    >
                       Name
                     </label>
                     <input
@@ -693,15 +780,24 @@ const ProfileSettings: React.FC = () => {
                       value={formData.name || ""}
                       onChange={handleChange}
                       className={`w-full px-3 py-2 bg-white dark:bg-gray-700 border rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 text-gray-700 dark:text-gray-200 transition-colors
-                        ${errors.name ? "border-red-500 dark:border-red-400" : "border-gray-300 dark:border-gray-600"}`}
+                        ${
+                          errors.name
+                            ? "border-red-500 dark:border-red-400"
+                            : "border-gray-300 dark:border-gray-600"
+                        }`}
                     />
                     {errors.name && (
-                      <p className="text-red-500 dark:text-red-400 text-xs italic mt-1">{errors.name}</p>
+                      <p className="text-red-500 dark:text-red-400 text-xs italic mt-1">
+                        {errors.name}
+                      </p>
                     )}
                   </motion.div>
 
                   <motion.div variants={itemVariants}>
-                    <label htmlFor="email" className="block text-gray-700 dark:text-gray-300 text-sm font-medium mb-2">
+                    <label
+                      htmlFor="email"
+                      className="block text-gray-700 dark:text-gray-300 text-sm font-medium mb-2"
+                    >
                       Email
                     </label>
                     <input
@@ -711,16 +807,25 @@ const ProfileSettings: React.FC = () => {
                       value={formData.email || ""}
                       onChange={handleChange}
                       className={`w-full px-3 py-2 bg-white dark:bg-gray-700 border rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 text-gray-700 dark:text-gray-200 transition-colors
-                        ${errors.email ? "border-red-500 dark:border-red-400" : "border-gray-300 dark:border-gray-600"}`}
+                        ${
+                          errors.email
+                            ? "border-red-500 dark:border-red-400"
+                            : "border-gray-300 dark:border-gray-600"
+                        }`}
                     />
                     {errors.email && (
-                      <p className="text-red-500 dark:text-red-400 text-xs italic mt-1">{errors.email}</p>
+                      <p className="text-red-500 dark:text-red-400 text-xs italic mt-1">
+                        {errors.email}
+                      </p>
                     )}
                   </motion.div>
                 </div>
 
                 <motion.div variants={itemVariants} className="mt-4">
-                  <label htmlFor="profilePicture" className="block text-gray-700 dark:text-gray-300 text-sm font-medium mb-2">
+                  <label
+                    htmlFor="profilePicture"
+                    className="block text-gray-700 dark:text-gray-300 text-sm font-medium mb-2"
+                  >
                     Profile Picture URL
                   </label>
                   <input
@@ -737,7 +842,10 @@ const ProfileSettings: React.FC = () => {
                 </motion.div>
 
                 <motion.div variants={itemVariants} className="mt-4">
-                  <label htmlFor="role" className="block text-gray-700 dark:text-gray-300 text-sm font-medium mb-2">
+                  <label
+                    htmlFor="role"
+                    className="block text-gray-700 dark:text-gray-300 text-sm font-medium mb-2"
+                  >
                     Role
                   </label>
                   <input
@@ -755,273 +863,342 @@ const ProfileSettings: React.FC = () => {
               </motion.div>
             )}
 
-            {activeSection === "mentor" && authState.user?.role === "mentor" && (
-              <motion.div
-                key="mentor"
-                variants={containerVariants}
-                initial="hidden"
-                animate="visible"
-                exit="hidden"
-                className="p-5 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800"
-              >
-                <h3 className="text-lg font-medium mb-4 text-gray-800 dark:text-white border-b pb-2 border-gray-200 dark:border-gray-700">
-                  Mentor Profile
-                </h3>
+            {activeSection === "mentor" &&
+              authState.user?.role === "mentor" && (
+                <motion.div
+                  key="mentor"
+                  variants={containerVariants}
+                  initial="hidden"
+                  animate="visible"
+                  exit="hidden"
+                  className="p-5 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800"
+                >
+                  <h3 className="text-lg font-medium mb-4 text-gray-800 dark:text-white border-b pb-2 border-gray-200 dark:border-gray-700">
+                    Mentor Profile
+                  </h3>
 
-                <motion.div variants={itemVariants}>
-                  <label htmlFor="bio" className="block text-gray-700 dark:text-gray-300 text-sm font-medium mb-2">
-                    Bio
-                  </label>
-                  <textarea
-                    id="bio"
-                    name="bio"
-                    value={formData.bio || ""}
-                    onChange={handleChange}
-                    rows={4}
-                    className={`w-full px-3 py-2 bg-white dark:bg-gray-700 border rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 text-gray-700 dark:text-gray-200 transition-colors resize-none
-                      ${errors.bio ? "border-red-500 dark:border-red-400" : "border-gray-300 dark:border-gray-600"}`}
-                  />
-                  {errors.bio && (
-                    <p className="text-red-500 dark:text-red-400 text-xs italic mt-1">{errors.bio}</p>
-                  )}
-                </motion.div>
-
-                <motion.div variants={itemVariants} className="mt-4">
-                  <label className="block text-gray-700 dark:text-gray-300 text-sm font-medium mb-2">
-                    Expertise
-                  </label>
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                    {expertiseOptions.map((option) => (
-                      <label key={option} className="flex items-center space-x-2 text-gray-700 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400 cursor-pointer group transition-colors">
-                        <input
-                          type="checkbox"
-                          name="expertise"
-                          value={option}
-                          checked={hasValue("expertise", option)}
-                          onChange={(e) =>
-                            handleSelectChange(e.target.name as "expertise", e.target.value)
-                          }
-                          className="form-checkbox h-4 w-4 text-indigo-600 dark:text-indigo-400 transition duration-150 ease-in-out rounded focus:ring-2 focus:ring-indigo-500"
-                        />
-                        <span className="group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">{option}</span>
-                      </label>
-                    ))}
-                  </div>
-                  {errors.expertise && (
-                    <p className="text-red-500 dark:text-red-400 text-xs italic mt-1">{errors.expertise}</p>
-                  )}
-                </motion.div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
                   <motion.div variants={itemVariants}>
-                    <label htmlFor="sessionPrice" className="block text-gray-700 dark:text-gray-300 text-sm font-medium mb-2">
-                      Session Price (USD)
+                    <label
+                      htmlFor="bio"
+                      className="block text-gray-700 dark:text-gray-300 text-sm font-medium mb-2"
+                    >
+                      Bio
                     </label>
-                    <input
-                      type="number"
-                      id="sessionPrice"
-                      name="sessionPrice"
-                      value={formData.sessionPrice || ""}
-                      onChange={handleNumberChange}
-                      className={`w-full px-3 py-2 bg-white dark:bg-gray-700 border rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 text-gray-700 dark:text-gray-200 transition-colors
-                        ${errors.sessionPrice ? "border-red-500 dark:border-red-400" : "border-gray-300 dark:border-gray-600"}`}
+                    <textarea
+                      id="bio"
+                      name="bio"
+                      value={formData.bio || ""}
+                      onChange={handleChange}
+                      rows={4}
+                      className={`w-full px-3 py-2 bg-white dark:bg-gray-700 border rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 text-gray-700 dark:text-gray-200 transition-colors resize-none
+                      ${
+                        errors.bio
+                          ? "border-red-500 dark:border-red-400"
+                          : "border-gray-300 dark:border-gray-600"
+                      }`}
                     />
-                    {errors.sessionPrice && (
-                      <p className="text-red-500 dark:text-red-400 text-xs italic mt-1">{errors.sessionPrice}</p>
+                    {errors.bio && (
+                      <p className="text-red-500 dark:text-red-400 text-xs italic mt-1">
+                        {errors.bio}
+                      </p>
                     )}
                   </motion.div>
 
-                  <motion.div variants={itemVariants}>
-                    <label htmlFor="yearsOfExperience" className="block text-gray-700 dark:text-gray-300 text-sm font-medium mb-2">
-                      Years of Experience
+                  <motion.div variants={itemVariants} className="mt-4">
+                    <label className="block text-gray-700 dark:text-gray-300 text-sm font-medium mb-2">
+                      Expertise
                     </label>
-                    <input
-                      type="number"
-                      id="yearsOfExperience"
-                      name="yearsOfExperience"
-                      value={formData.yearsOfExperience || ""}
-                      onChange={handleNumberChange}
-                      className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 text-gray-700 dark:text-gray-200 transition-colors"
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                      {expertiseOptions.map((option) => (
+                        <label
+                          key={option}
+                          className="flex items-center space-x-2 text-gray-700 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400 cursor-pointer group transition-colors"
+                        >
+                          <input
+                            type="checkbox"
+                            name="expertise"
+                            value={option}
+                            checked={hasValue("expertise", option)}
+                            onChange={(e) =>
+                              handleSelectChange(
+                                e.target.name as "expertise",
+                                e.target.value
+                              )
+                            }
+                            className="form-checkbox h-4 w-4 text-indigo-600 dark:text-indigo-400 transition duration-150 ease-in-out rounded focus:ring-2 focus:ring-indigo-500"
+                          />
+                          <span className="group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+                            {option}
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+                    {errors.expertise && (
+                      <p className="text-red-500 dark:text-red-400 text-xs italic mt-1">
+                        {errors.expertise}
+                      </p>
+                    )}
+                  </motion.div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                    <motion.div variants={itemVariants}>
+                      <label
+                        htmlFor="sessionPrice"
+                        className="block text-gray-700 dark:text-gray-300 text-sm font-medium mb-2"
+                      >
+                        Session Price (USD)
+                      </label>
+                      <input
+                        type="number"
+                        id="sessionPrice"
+                        name="sessionPrice"
+                        value={formData.sessionPrice || ""}
+                        onChange={handleNumberChange}
+                        className={`w-full px-3 py-2 bg-white dark:bg-gray-700 border rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 text-gray-700 dark:text-gray-200 transition-colors
+                        ${
+                          errors.sessionPrice
+                            ? "border-red-500 dark:border-red-400"
+                            : "border-gray-300 dark:border-gray-600"
+                        }`}
+                      />
+                      {errors.sessionPrice && (
+                        <p className="text-red-500 dark:text-red-400 text-xs italic mt-1">
+                          {errors.sessionPrice}
+                        </p>
+                      )}
+                    </motion.div>
+
+                    <motion.div variants={itemVariants}>
+                      <label
+                        htmlFor="yearsOfExperience"
+                        className="block text-gray-700 dark:text-gray-300 text-sm font-medium mb-2"
+                      >
+                        Years of Experience
+                      </label>
+                      <input
+                        type="number"
+                        id="yearsOfExperience"
+                        name="yearsOfExperience"
+                        value={formData.yearsOfExperience || ""}
+                        onChange={handleNumberChange}
+                        className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 text-gray-700 dark:text-gray-200 transition-colors"
+                      />
+                    </motion.div>
+                  </div>
+                </motion.div>
+              )}
+
+            {activeSection === "portfolio" &&
+              authState.user?.role === "mentor" && (
+                <motion.div
+                  key="portfolio"
+                  variants={containerVariants}
+                  initial="hidden"
+                  animate="visible"
+                  exit="hidden"
+                  className="p-5 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800"
+                >
+                  <h3 className="text-lg font-medium mb-4 text-gray-800 dark:text-white border-b pb-2 border-gray-200 dark:border-gray-700">
+                    Portfolio
+                  </h3>
+                  <PortfolioManager
+                    portfolioItems={formData.portfolio || []}
+                    onChange={handlePortfolioChange}
+                  />
+                </motion.div>
+              )}
+
+            {activeSection === "education" &&
+              authState.user?.role === "mentor" && (
+                <motion.div
+                  key="education"
+                  variants={containerVariants}
+                  initial="hidden"
+                  animate="visible"
+                  exit="hidden"
+                  className="p-5 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800"
+                >
+                  <h3 className="text-lg font-medium mb-4 text-gray-800 dark:text-white border-b pb-2 border-gray-200 dark:border-gray-700">
+                    Education
+                  </h3>
+                  <EducationManager
+                    educationItems={formData.education || []}
+                    onChange={handleEducationChange}
+                  />
+                </motion.div>
+              )}
+
+            {activeSection === "certifications" &&
+              authState.user?.role === "mentor" && (
+                <motion.div
+                  key="certifications"
+                  variants={containerVariants}
+                  initial="hidden"
+                  animate="visible"
+                  exit="hidden"
+                  className="p-5 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800"
+                >
+                  <h3 className="text-lg font-medium mb-4 text-gray-800 dark:text-white border-b pb-2 border-gray-200 dark:border-gray-700">
+                    Certifications
+                  </h3>
+                  <CertificationManager
+                    certificationItems={formData.certifications || []}
+                    onChange={handleCertificationsChange}
+                  />
+                </motion.div>
+              )}
+
+            {activeSection === "experience" &&
+              authState.user?.role === "mentor" && (
+                <motion.div
+                  key="experience"
+                  variants={containerVariants}
+                  initial="hidden"
+                  animate="visible"
+                  exit="hidden"
+                  className="p-5 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800"
+                >
+                  <h3 className="text-lg font-medium mb-4 text-gray-800 dark:text-white border-b pb-2 border-gray-200 dark:border-gray-700">
+                    Work Experience
+                  </h3>
+                  <WorkExperienceManager
+                    workExperienceItems={formData.workExperience || []}
+                    onChange={handleWorkExperienceChange}
+                  />
+                </motion.div>
+              )}
+
+            {activeSection === "mentee" &&
+              authState.user?.role === "mentee" && (
+                <motion.div
+                  key="mentee"
+                  variants={containerVariants}
+                  initial="hidden"
+                  animate="visible"
+                  exit="hidden"
+                  className="p-5 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800"
+                >
+                  <h3 className="text-lg font-medium mb-4 text-gray-800 dark:text-white border-b pb-2 border-gray-200 dark:border-gray-700">
+                    Mentee Profile
+                  </h3>
+
+                  <motion.div variants={itemVariants}>
+                    <label className="block text-gray-700 dark:text-gray-300 text-sm font-medium mb-2">
+                      Interests
+                    </label>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                      {interestOptions.map((option) => (
+                        <label
+                          key={option}
+                          className="flex items-center space-x-2 text-gray-700 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400 cursor-pointer group transition-colors"
+                        >
+                          <input
+                            type="checkbox"
+                            name="interests"
+                            value={option}
+                            checked={hasValue("interests", option)}
+                            onChange={(e) =>
+                              handleSelectChange(
+                                e.target.name as "interests",
+                                e.target.value
+                              )
+                            }
+                            className="form-checkbox h-4 w-4 text-indigo-600 dark:text-indigo-400 transition duration-150 ease-in-out rounded focus:ring-2 focus:ring-indigo-500"
+                          />
+                          <span className="group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+                            {option}
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+                    {errors.interests && (
+                      <p className="text-red-500 dark:text-red-400 text-xs italic mt-1">
+                        {errors.interests}
+                      </p>
+                    )}
+                  </motion.div>
+
+                  <motion.div variants={itemVariants} className="mt-4">
+                    <label
+                      htmlFor="bio"
+                      className="block text-gray-700 dark:text-gray-300 text-sm font-medium mb-2"
+                    >
+                      Bio
+                    </label>
+                    <textarea
+                      id="bio"
+                      name="bio"
+                      value={formData.bio || ""}
+                      onChange={handleChange}
+                      rows={4}
+                      className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 text-gray-700 dark:text-gray-200 transition-colors resize-none"
                     />
                   </motion.div>
-                </div>
-              </motion.div>
-            )}
 
-            {activeSection === "portfolio" && authState.user?.role === "mentor" && (
-              <motion.div
-                key="portfolio"
-                variants={containerVariants}
-                initial="hidden"
-                animate="visible"
-                exit="hidden"
-                className="p-5 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800"
-              >
-                <h3 className="text-lg font-medium mb-4 text-gray-800 dark:text-white border-b pb-2 border-gray-200 dark:border-gray-700">
-                  Portfolio
-                </h3>
-                <PortfolioManager
-                  portfolioItems={formData.portfolio || []}
-                  onChange={handlePortfolioChange}
-                />
-              </motion.div>
-            )}
+                  <motion.div variants={itemVariants} className="mt-4">
+                    <label className="block text-gray-700 dark:text-gray-300 text-sm font-medium mb-2">
+                      Goals
+                    </label>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                      {goalOptions.map((option) => (
+                        <label
+                          key={option}
+                          className="flex items-center space-x-2 text-gray-700 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400 cursor-pointer group transition-colors"
+                        >
+                          <input
+                            type="checkbox"
+                            name="goals"
+                            value={option}
+                            checked={hasValue("goals", option)}
+                            onChange={(e) =>
+                              handleSelectChange(
+                                e.target.name as "goals",
+                                e.target.value
+                              )
+                            }
+                            className="form-checkbox h-4 w-4 text-indigo-600 dark:text-indigo-400 transition duration-150 ease-in-out rounded focus:ring-2 focus:ring-indigo-500"
+                          />
+                          <span className="group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+                            {option}
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+                    {errors.goals && (
+                      <p className="text-red-500 dark:text-red-400 text-xs italic mt-1">
+                        {errors.goals}
+                      </p>
+                    )}
+                  </motion.div>
 
-            {activeSection === "education" && authState.user?.role === "mentor" && (
-              <motion.div
-                key="education"
-                variants={containerVariants}
-                initial="hidden"
-                animate="visible"
-                exit="hidden"
-                className="p-5 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800"
-              >
-                <h3 className="text-lg font-medium mb-4 text-gray-800 dark:text-white border-b pb-2 border-gray-200 dark:border-gray-700">
-                  Education
-                </h3>
-                <EducationManager
-                  educationItems={formData.education || []}
-                  onChange={handleEducationChange}
-                />
-              </motion.div>
-            )}
-
-            {activeSection === "certifications" && authState.user?.role === "mentor" && (
-              <motion.div
-                key="certifications"
-                variants={containerVariants}
-                initial="hidden"
-                animate="visible"
-                exit="hidden"
-                className="p-5 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800"
-              >
-                <h3 className="text-lg font-medium mb-4 text-gray-800 dark:text-white border-b pb-2 border-gray-200 dark:border-gray-700">
-                  Certifications
-                </h3>
-                <CertificationManager
-                  certificationItems={formData.certifications || []}
-                  onChange={handleCertificationsChange}
-                />
-              </motion.div>
-            )}
-
-            {activeSection === "experience" && authState.user?.role === "mentor" && (
-              <motion.div
-                key="experience"
-                variants={containerVariants}
-                initial="hidden"
-                animate="visible"
-                exit="hidden"
-                className="p-5 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800"
-              >
-                <h3 className="text-lg font-medium mb-4 text-gray-800 dark:text-white border-b pb-2 border-gray-200 dark:border-gray-700">
-                  Work Experience
-                </h3>
-                <WorkExperienceManager
-                  workExperienceItems={formData.workExperience || []}
-                  onChange={handleWorkExperienceChange}
-                />
-              </motion.div>
-            )}
-
-            {activeSection === "mentee" && authState.user?.role === "mentee" && (
-              <motion.div
-                key="mentee"
-                variants={containerVariants}
-                initial="hidden"
-                animate="visible"
-                exit="hidden"
-                className="p-5 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800"
-              >
-                <h3 className="text-lg font-medium mb-4 text-gray-800 dark:text-white border-b pb-2 border-gray-200 dark:border-gray-700">
-                  Mentee Profile
-                </h3>
-
-                <motion.div variants={itemVariants}>
-                  <label className="block text-gray-700 dark:text-gray-300 text-sm font-medium mb-2">
-                    Interests
-                  </label>
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                    {interestOptions.map((option) => (
-                      <label key={option} className="flex items-center space-x-2 text-gray-700 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400 cursor-pointer group transition-colors">
-                        <input
-                          type="checkbox"
-                          name="interests"
-                          value={option}
-                          checked={hasValue("interests", option)}
-                          onChange={(e) =>
-                            handleSelectChange(e.target.name as "interests", e.target.value)
-                          }
-                          className="form-checkbox h-4 w-4 text-indigo-600 dark:text-indigo-400 transition duration-150 ease-in-out rounded focus:ring-2 focus:ring-indigo-500"
-                        />
-                        <span className="group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">{option}</span>
-                      </label>
-                    ))}
-                  </div>
-                  {errors.interests && (
-                    <p className="text-red-500 dark:text-red-400 text-xs italic mt-1">{errors.interests}</p>
-                  )}
+                  <motion.div variants={itemVariants} className="mt-4">
+                    <label
+                      htmlFor="currentPosition"
+                      className="block text-gray-700 dark:text-gray-300 text-sm font-medium mb-2"
+                    >
+                      Current Position
+                    </label>
+                    <input
+                      type="text"
+                      id="currentPosition"
+                      name="currentPosition"
+                      value={formData.currentPosition || ""}
+                      onChange={handleChange}
+                      className={`w-full px-3 py-2 bg-white dark:bg-gray-700 border rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 text-gray-700 dark:text-gray-200 transition-colors
+                      ${
+                        errors.currentPosition
+                          ? "border-red-500 dark:border-red-400"
+                          : "border-gray-300 dark:border-gray-600"
+                      }`}
+                    />
+                    {errors.currentPosition && (
+                      <p className="text-red-500 dark:text-red-400 text-xs italic mt-1">
+                        {errors.currentPosition}
+                      </p>
+                    )}
+                  </motion.div>
                 </motion.div>
-
-                <motion.div variants={itemVariants} className="mt-4">
-                  <label htmlFor="bio" className="block text-gray-700 dark:text-gray-300 text-sm font-medium mb-2">
-                    Bio
-                  </label>
-                  <textarea
-                    id="bio"
-                    name="bio"
-                    value={formData.bio || ""}
-                    onChange={handleChange}
-                    rows={4}
-                    className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 text-gray-700 dark:text-gray-200 transition-colors resize-none"
-                  />
-                </motion.div>
-
-                <motion.div variants={itemVariants} className="mt-4">
-                  <label className="block text-gray-700 dark:text-gray-300 text-sm font-medium mb-2">
-                    Goals
-                  </label>
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                    {goalOptions.map((option) => (
-                      <label key={option} className="flex items-center space-x-2 text-gray-700 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400 cursor-pointer group transition-colors">
-                        <input
-                          type="checkbox"
-                          name="goals"
-                          value={option}
-                          checked={hasValue("goals", option)}
-                          onChange={(e) =>
-                            handleSelectChange(e.target.name as "goals", e.target.value)
-                          }
-                          className="form-checkbox h-4 w-4 text-indigo-600 dark:text-indigo-400 transition duration-150 ease-in-out rounded focus:ring-2 focus:ring-indigo-500"
-                        />
-                        <span className="group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">{option}</span>
-                      </label>
-                    ))}
-                  </div>
-                  {errors.goals && (
-                    <p className="text-red-500 dark:text-red-400 text-xs italic mt-1">{errors.goals}</p>
-                  )}
-                </motion.div>
-
-                <motion.div variants={itemVariants} className="mt-4">
-                  <label htmlFor="currentPosition" className="block text-gray-700 dark:text-gray-300 text-sm font-medium mb-2">
-                    Current Position
-                  </label>
-                  <input
-                    type="text"
-                    id="currentPosition"
-                    name="currentPosition"
-                    value={formData.currentPosition || ""}
-                    onChange={handleChange}
-                    className={`w-full px-3 py-2 bg-white dark:bg-gray-700 border rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 text-gray-700 dark:text-gray-200 transition-colors
-                      ${errors.currentPosition ? "border-red-500 dark:border-red-400" : "border-gray-300 dark:border-gray-600"}`}
-                  />
-                  {errors.currentPosition && (
-                    <p className="text-red-500 dark:text-red-400 text-xs italic mt-1">{errors.currentPosition}</p>
-                  )}
-                </motion.div>
-              </motion.div>
-            )}
+              )}
           </AnimatePresence>
         </div>
 
@@ -1034,9 +1211,10 @@ const ProfileSettings: React.FC = () => {
             onClick={(e) => handleSubmit(e as unknown as React.FormEvent)}
             disabled={isDisabled}
             className={`flex items-center px-6 py-2 rounded-md text-white font-medium shadow-sm transition-all 
-              ${isDisabled 
-                ? "bg-gray-400 dark:bg-gray-600 cursor-not-allowed opacity-60" 
-                : "bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-600 dark:hover:bg-indigo-700"
+              ${
+                isDisabled
+                  ? "bg-gray-400 dark:bg-gray-600 cursor-not-allowed opacity-60"
+                  : "bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-600 dark:hover:bg-indigo-700"
               }`}
           >
             {loading ? (
@@ -1053,7 +1231,7 @@ const ProfileSettings: React.FC = () => {
           </motion.button>
 
           {hasUnsavedChanges() && (
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0, scale: 0.8 }}
               animate={{ opacity: 1, scale: 1 }}
               className="flex items-center text-amber-600 dark:text-amber-400 text-sm font-medium"

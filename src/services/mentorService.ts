@@ -8,6 +8,7 @@ import {
   doc,
   getDoc,
   updateDoc as firestoreUpdateDoc,
+  setDoc,
 } from "firebase/firestore";
 import {
   COLLECTIONS,
@@ -242,19 +243,57 @@ export const updateMentorProfile = async (
   }
 ): Promise<MentorProfile | null> => {
   try {
+    console.log("Starting updateMentorProfile for ID:", mentorId);
     const mentorDocRef = doc(db, COLLECTIONS.MENTORS, mentorId);
     const mentorDocSnap = await getDoc(mentorDocRef);
 
     if (!mentorDocSnap.exists()) {
-      console.error(`No mentor profile found to update for ID: ${mentorId}`);
-      // Optional: Attempt to create if it doesn't exist, if that's desired behavior.
-      // This would require the full userData similar to createMentorProfile.
-      // For now, we'll assume an update is only for existing profiles.
-      throw new Error(
-        `Mentor profile with ID ${mentorId} not found for update.`
-      );
+      console.log(`No mentor profile found for ID: ${mentorId}, creating one`);
+
+      // Get user info from users collection
+      const userDocRef = doc(db, COLLECTIONS.USERS, mentorId);
+      const userDocSnap = await getDoc(userDocRef);
+
+      if (!userDocSnap.exists()) {
+        console.error(`User document not found for ID: ${mentorId}`);
+        throw new Error(`User with ID ${mentorId} not found.`);
+      }
+
+      const userData = userDocSnap.data();
+
+      // Create a basic mentor profile
+      const now = Date.now();
+      const newMentorProfile: MentorDocument = {
+        id: mentorId,
+        userId: mentorId,
+        name: userData.name || "",
+        email: userData.email || "",
+        profilePicture: userData.profilePicture || "",
+        bio: updates.bio || "",
+        expertise: updates.expertise || [],
+        sessionPrice: updates.sessionPrice || 0,
+        yearsOfExperience: updates.yearsOfExperience || 0,
+        balance: 0,
+        createdAt: now,
+        updatedAt: now,
+      };
+
+      // Set the document with setDoc instead of addDoc to use the mentorId as document ID
+      await setDoc(mentorDocRef, newMentorProfile);
+      console.log(`Created new mentor profile for ID: ${mentorId}`);
+
+      // Return the newly created profile
+      return {
+        ...newMentorProfile,
+        role: "mentor" as const,
+        availability: [],
+        ratings: [],
+        averageRating: 0,
+      } as MentorProfile;
     }
 
+    // Document exists, update it
+    console.log(`Updating existing mentor profile for ID: ${mentorId}`);
     const now = Date.now();
     const updateData: Partial<MentorDocument> = {
       updatedAt: now,

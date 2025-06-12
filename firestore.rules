@@ -12,11 +12,16 @@ service cloud.firestore {
     
     // Mentors collection
     match /mentors/{mentorId} {
-      allow read: if request.auth != null; // Anyone logged in can view mentors
+      // Anyone logged in can read mentors
+      allow read: if request.auth != null;
+      
+      // Allow users to create and update their own mentor profile with a simpler rule
+      allow create, update, delete: if request.auth != null && request.auth.uid == mentorId;
+      
+      // Admin can write to any mentor profile
       allow write: if request.auth != null && 
-                    (request.auth.uid == mentorId || 
-                     exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-                     get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
+                   exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+                   get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
     
     // Mentees collection
