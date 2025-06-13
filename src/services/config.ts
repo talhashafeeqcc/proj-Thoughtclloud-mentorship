@@ -1,9 +1,5 @@
 // Set the base URL for API calls
 export const API_BASE_URL = (() => {
-  // If VITE_API_BASE_URL is explicitly provided, use it
-  if (import.meta.env.VITE_API_BASE_URL) {
-    return import.meta.env.VITE_API_BASE_URL.replace(/\/$/, "");
-  }
 
   // For production or development - we're using Netlify functions now
   // So the API base is the same as the site origin
