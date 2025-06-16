@@ -1,7 +1,7 @@
 import stripe from './stripeConfig.js';
 
 // Set the webhook signing secret provided by Stripe
-const endpointSecret = process.env.VITE_STRIPE_WEBHOOK_SECRET;
+const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET || process.env.VITE_STRIPE_WEBHOOK_SECRET;
 
 // Netlify function for handling Stripe webhooks
 export const handler = async (event, context) => {

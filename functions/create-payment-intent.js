@@ -19,6 +19,16 @@ export const handler = async (event, context) => {
   }
 
   try {
+    // Check if Stripe is properly configured
+    if (!stripe) {
+      console.error("Stripe is not properly configured");
+      return {
+        statusCode: 500,
+        headers,
+        body: JSON.stringify({ error: "Payment service configuration error" }),
+      };
+    }
+
     const body = JSON.parse(event.body);
     const { amount, currency, description, mentorStripeAccountId } = body;
 
@@ -65,10 +75,17 @@ export const handler = async (event, context) => {
     };
   } catch (error) {
     console.error("Error creating payment intent:", error);
+    console.error("Error details:", error.message);
+    console.error("Error code:", error.code);
+    console.error("Error type:", error.type);
+    
     return {
       statusCode: 500,
       headers,
-      body: JSON.stringify({ error: "Failed to create payment intent" }),
+      body: JSON.stringify({ 
+        error: "Failed to create payment intent",
+        details: error.message || "Unknown error"
+      }),
     };
   }
 };
