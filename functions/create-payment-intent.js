@@ -71,11 +71,26 @@ export const handler = async (event, context) => {
 
     // Parse and validate request body
     console.log('📦 Request body:', event.body);
+    console.log('📦 Request body type:', typeof event.body);
+    console.log('📦 Request body length:', event.body?.length);
+    
     let body;
+    
+    // Check if body exists and is not empty
+    if (!event.body || event.body.trim() === '') {
+      console.error("❌ Request body is empty or missing");
+      return {
+        statusCode: 400,
+        headers,
+        body: JSON.stringify({ error: "Request body is required" }),
+      };
+    }
+    
     try {
       body = JSON.parse(event.body);
     } catch (parseError) {
       console.error("❌ Invalid JSON in request body:", parseError);
+      console.error("❌ Request body content:", event.body);
       return {
         statusCode: 400,
         headers,
