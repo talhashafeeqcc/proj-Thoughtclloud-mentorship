@@ -1,3 +1,5 @@
+import stripeConfig from './stripeConfig.js';
+
 export const handler = async (event, context) => {
   console.log('🧪 Stripe Test Function Started');
   
@@ -23,44 +25,60 @@ export const handler = async (event, context) => {
 
     console.log('Environment Check:', JSON.stringify(envCheck, null, 2));
 
-    // Try to import Stripe
+    // Try to import Stripe directly
     let stripeImportResult = null;
     try {
       const StripeLib = await import('stripe');
       stripeImportResult = {
         success: true,
         hasDefault: !!StripeLib.default,
-        type: typeof StripeLib.default,
-        constructor: StripeLib.default?.name
+        defaultType: typeof StripeLib.default,
+        defaultName: StripeLib.default?.name,
+        isFunction: typeof StripeLib.default === 'function',
+        moduleKeys: Object.keys(StripeLib)
       };
     } catch (importError) {
       stripeImportResult = {
         success: false,
-        error: importError.message
+        error: importError.message,
+        stack: importError.stack
       };
     }
 
-    // Try to import our stripe config
+    // Try to use our stripe config
     let stripeConfigResult = null;
     try {
-      const stripeConfig = await import('./stripeConfig.js');
+      console.log('Testing stripe config...');
+      const stripe = await stripeConfig.getInstance();
       stripeConfigResult = {
         success: true,
-        hasDefault: !!stripeConfig.default,
-        type: typeof stripeConfig.default,
-        hasPaymentIntents: !!stripeConfig.default?.paymentIntents
+        hasInstance: !!stripe,
+        instanceType: typeof stripe,
+        constructorName: stripe?.constructor?.name,
+        hasPaymentIntents: !!stripe?.paymentIntents,
+        paymentIntentsType: typeof stripe?.paymentIntents,
+        hasCreateMethod: typeof stripe?.paymentIntents?.create === 'function',
+        createMethodType: typeof stripe?.paymentIntents?.create
       };
+      
+      // Try to list available methods
+      if (stripe?.paymentIntents) {
+        stripeConfigResult.paymentIntentsMethods = Object.getOwnPropertyNames(stripe.paymentIntents)
+          .filter(prop => typeof stripe.paymentIntents[prop] === 'function');
+      }
+      
     } catch (configError) {
       stripeConfigResult = {
         success: false,
-        error: configError.message
+        error: configError.message,
+        stack: configError.stack
       };
     }
 
     const result = {
       timestamp: new Date().toISOString(),
       environment: envCheck,
-      stripeImport: stripeImportResult,
+      stripeDirectImport: stripeImportResult,
       stripeConfig: stripeConfigResult,
       netlifyContext: {
         functionName: context.functionName,

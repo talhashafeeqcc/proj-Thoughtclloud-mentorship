@@ -1,8 +1,4 @@
-// Import Stripe with proper error handling for Netlify functions
-import Stripe from 'stripe';
-
 // For Netlify functions, environment variables are injected automatically
-// No need for dotenv in production
 console.log('🔄 Loading Stripe configuration...');
 
 // Get the Stripe secret key from environment variables
@@ -34,45 +30,105 @@ console.log("✅ Stripe secret key found and validated");
 console.log("🔑 Key type:", stripeSecretKey.startsWith('sk_test_') ? 'TEST' : 'LIVE');
 console.log("🔑 Key prefix:", stripeSecretKey.substring(0, 12) + "...");
 
-// Initialize Stripe with your secret key
-let stripe;
-try {
-  // Validate Stripe constructor
-  if (typeof Stripe !== 'function') {
-    console.error("❌ Stripe constructor details:");
-    console.error("Type:", typeof Stripe);
-    console.error("Value:", Stripe);
-    console.error("Constructor name:", Stripe?.constructor?.name);
-    throw new Error(`Stripe is not a constructor function. Type: ${typeof Stripe}`);
+// Initialize Stripe with better error handling
+let stripe = null;
+let stripeInitialized = false;
+
+async function initializeStripe() {
+  if (stripeInitialized && stripe) {
+    return stripe;
   }
-  
-  stripe = new Stripe(stripeSecretKey, {
-    apiVersion: '2023-10-16',
-    typescript: false,
-  });
-  
-  console.log("✅ Stripe initialized successfully");
-  console.log("Stripe object type:", typeof stripe);
-  console.log("Stripe constructor name:", stripe.constructor.name);
-  console.log("Stripe has paymentIntents:", !!stripe.paymentIntents);
-  console.log("paymentIntents.create type:", typeof stripe.paymentIntents?.create);
-  
-  // Additional validation
-  if (!stripe.paymentIntents) {
-    throw new Error("Stripe object missing paymentIntents property");
+
+  try {
+    console.log('📦 Attempting to import Stripe...');
+    
+    // Try different import methods for better compatibility
+    let StripeConstructor;
+    
+    try {
+      // Method 1: Dynamic import
+      console.log('🔄 Trying dynamic import...');
+      const stripeModule = await import('stripe');
+      StripeConstructor = stripeModule.default;
+      console.log('✅ Dynamic import successful');
+      console.log('Module type:', typeof stripeModule);
+      console.log('Default export type:', typeof stripeModule.default);
+      console.log('Default export name:', stripeModule.default?.name);
+    } catch (dynamicError) {
+      console.error('❌ Dynamic import failed:', dynamicError.message);
+      
+      try {
+        // Method 2: Static import fallback
+        console.log('🔄 Trying require fallback...');
+        StripeConstructor = require('stripe');
+        console.log('✅ Require fallback successful');
+      } catch (requireError) {
+        console.error('❌ Require fallback failed:', requireError.message);
+        throw new Error(`All import methods failed: Dynamic: ${dynamicError.message}, Require: ${requireError.message}`);
+      }
+    }
+    
+    // Validate the constructor
+    if (!StripeConstructor) {
+      throw new Error('Stripe constructor is null or undefined');
+    }
+    
+    if (typeof StripeConstructor !== 'function') {
+      console.error('❌ Stripe constructor validation failed:');
+      console.error('Type:', typeof StripeConstructor);
+      console.error('Value:', StripeConstructor);
+      console.error('Constructor name:', StripeConstructor?.constructor?.name);
+      throw new Error(`Stripe is not a constructor function. Type: ${typeof StripeConstructor}`);
+    }
+    
+    console.log('✅ Stripe constructor validated');
+    console.log('Constructor name:', StripeConstructor.name);
+    
+    // Initialize Stripe instance
+    console.log('🔧 Creating Stripe instance...');
+    stripe = new StripeConstructor(stripeSecretKey, {
+      apiVersion: '2023-10-16',
+      typescript: false,
+    });
+    
+    console.log("✅ Stripe instance created successfully");
+    console.log("Instance type:", typeof stripe);
+    console.log("Instance constructor name:", stripe.constructor.name);
+    console.log("Instance has paymentIntents:", !!stripe.paymentIntents);
+    console.log("paymentIntents type:", typeof stripe.paymentIntents);
+    console.log("paymentIntents.create type:", typeof stripe.paymentIntents?.create);
+    
+    // Additional validation
+    if (!stripe.paymentIntents) {
+      throw new Error("Stripe instance missing paymentIntents property");
+    }
+    
+    if (typeof stripe.paymentIntents.create !== 'function') {
+      throw new Error(`stripe.paymentIntents.create is not a function. Type: ${typeof stripe.paymentIntents.create}`);
+    }
+    
+    console.log("✅ All Stripe validations passed");
+    stripeInitialized = true;
+    
+    return stripe;
+    
+  } catch (error) {
+    console.error("❌ CRITICAL: Failed to create Stripe instance:", error);
+    console.error("Error stack:", error.stack);
+    throw new Error(`Stripe initialization failed: ${error.message}`);
   }
-  
-  if (typeof stripe.paymentIntents.create !== 'function') {
-    throw new Error(`stripe.paymentIntents.create is not a function. Type: ${typeof stripe.paymentIntents.create}`);
-  }
-  
-  console.log("✅ All Stripe validations passed");
-  
-} catch (error) {
-  console.error("❌ CRITICAL: Failed to initialize Stripe:", error);
-  console.error("Stripe constructor:", Stripe);
-  console.error("Error stack:", error.stack);
-  throw new Error(`Stripe initialization failed: ${error.message}`);
 }
 
-export default stripe;
+// Export the initialization function and a getter
+export { initializeStripe };
+
+// For backward compatibility, try to initialize immediately but handle errors gracefully
+export default {
+  async getInstance() {
+    return await initializeStripe();
+  },
+  // Synchronous access (will be null until initialized)
+  get current() {
+    return stripe;
+  }
+};

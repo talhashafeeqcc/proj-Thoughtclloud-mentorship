@@ -1,4 +1,4 @@
-import stripe from './stripeConfig.js';
+import stripeConfig from './stripeConfig.js';
 
 // Netlify function for creating payment intents
 export const handler = async (event, context) => {
@@ -24,6 +24,10 @@ export const handler = async (event, context) => {
   }
 
   try {
+    // Initialize Stripe
+    console.log('🔧 Initializing Stripe...');
+    const stripe = await stripeConfig.getInstance();
+    
     // Comprehensive Stripe validation
     console.log('🔍 Stripe validation:');
     console.log('Stripe object exists:', !!stripe);
