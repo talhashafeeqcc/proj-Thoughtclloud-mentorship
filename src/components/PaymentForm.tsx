@@ -46,19 +46,7 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
         setIsLoading(true);
 
         try {
-            // Step 1: Create a Payment Intent and get client secret
-            const paymentIntent = await createPaymentIntent(
-                amount * 100, // Convert to cents
-                'usd',
-                `Session payment for ${sessionId}`,
-                undefined // mentorStripeAccountId will be handled server-side
-            );
-
-            if (!paymentIntent || !paymentIntent.clientSecret) {
-                throw new Error('Failed to create payment intent. Please try again later.');
-            }
-
-            // Step 2: Create a PaymentMethod
+            // Create a fresh PaymentMethod from the card element
             const { error: createPaymentMethodError, paymentMethod } = await stripe.createPaymentMethod({
                 type: 'card',
                 card: cardElement,
@@ -75,27 +63,13 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
                 throw new Error('Failed to create payment method');
             }
 
-            // Step 3: Confirm the payment using Stripe
-            const { error: confirmError, paymentIntent: confirmedIntent } = await stripe.confirmCardPayment(
-                paymentIntent.clientSecret,
-                {
-                    payment_method: paymentMethod.id
-                }
-            );
+            console.log('Created fresh PaymentMethod:', paymentMethod.id);
 
-            if (confirmError) {
-                throw new Error(confirmError.message);
-            }
-
-            if (confirmedIntent.status === 'requires_capture' || confirmedIntent.status === 'succeeded') {
-                // Step 4: Process the payment using our service
-                const payment = await processPayment(sessionId, amount, paymentMethod.id);
-                
-                // Step 5: Call onSuccess with the payment ID
-                onSuccess(payment.id);
-            } else {
-                throw new Error(`Payment failed with status: ${confirmedIntent.status}`);
-            }
+            // Process the payment using our service (this will handle PaymentIntent creation and confirmation)
+            const payment = await processPayment(sessionId, amount, paymentMethod.id);
+            
+            // Call onSuccess with the payment ID
+            onSuccess(payment.id);
         } catch (error) {
             console.error('Payment error:', error);
             const errorMessage = error instanceof Error ? error.message : 'An error occurred during payment processing';

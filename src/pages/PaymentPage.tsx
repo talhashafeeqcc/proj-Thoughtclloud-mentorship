@@ -158,7 +158,7 @@ const PaymentPage: React.FC = () => {
           Complete Your Payment
         </motion.h1>
 
-        {session && mentor && (
+        {session ? (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             {/* Session Details */}
             <motion.div 
@@ -177,7 +177,7 @@ const PaymentPage: React.FC = () => {
                   <User className="w-5 h-5 text-gray-500 dark:text-gray-400 mt-0.5 mr-3" />
                   <div>
                     <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Mentor</p>
-                    <p className="font-medium text-gray-900 dark:text-white">{mentor.name}</p>
+                    <p className="font-medium text-gray-900 dark:text-white">{mentor?.name || session.mentorName || 'Loading...'}</p>
                   </div>
                 </div>
 
@@ -212,7 +212,7 @@ const PaymentPage: React.FC = () => {
                     <CreditCard className="w-5 h-5 text-gray-700 dark:text-gray-300 mr-2" />
                     <p className="font-semibold text-gray-700 dark:text-gray-300">Total Amount</p>
                   </div>
-                  <p className="text-2xl font-bold text-indigo-600 dark:text-indigo-400">${mentor.sessionPrice || 50}</p>
+                  <p className="text-2xl font-bold text-indigo-600 dark:text-indigo-400">${mentor?.sessionPrice || session.paymentAmount || 50}</p>
                 </div>
               </div>
             </motion.div>
@@ -225,11 +225,17 @@ const PaymentPage: React.FC = () => {
             >
               <PaymentForm
                 sessionId={sessionId || 'temp-session-id'}
-                amount={mentor.sessionPrice || 50}
+                amount={mentor?.sessionPrice || session.paymentAmount || 50}
                 onSuccess={handlePaymentSuccess}
                 onError={handlePaymentError}
               />
             </motion.div>
+          </div>
+        ) : (
+          <div className="text-center p-8 bg-yellow-50 dark:bg-yellow-900/30 rounded-lg">
+            <p className="text-lg text-yellow-700 dark:text-yellow-300">
+              Session not found or invalid session ID.
+            </p>
           </div>
         )}
       </div>

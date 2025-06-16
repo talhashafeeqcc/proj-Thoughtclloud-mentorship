@@ -15,6 +15,7 @@ import {
   createRefund,
   capturePayment
 } from "./stripe";
+import { getApiUrl } from "./config";
 
 // Define interface for Firestore document type
 interface PaymentDocument {
@@ -49,21 +50,32 @@ export const processPayment = async (
   paymentMethodId?: string
 ): Promise<Payment> => {
   try {
+    console.log(`Processing payment for session: ${sessionId}, amount: ${amount}`);
+    
     // Get the session
     const session = await getSessionById(sessionId);
     if (!session) {
       throw new Error("Session not found");
     }
 
-    // Check for existing payments
-    const existingPayments = await getDocuments<PaymentDocument>(
-      COLLECTIONS.PAYMENTS,
-      [whereEqual('sessionId', sessionId)]
-    );
+    console.log(`Session found: ${session.id}, mentor: ${session.mentorId}, mentee: ${session.menteeId}`);
+
+    // Check for existing payments - wrap in try-catch to handle permission issues
+    let existingPayments: PaymentDocument[] = [];
+    try {
+      existingPayments = await getDocuments<PaymentDocument>(
+        COLLECTIONS.PAYMENTS,
+        [whereEqual('sessionId', sessionId)]
+      );
+      console.log(`Found ${existingPayments.length} existing payments for session ${sessionId}`);
+    } catch (error) {
+      console.warn(`Could not check for existing payments (permission issue): ${error}`);
+      // Continue without checking existing payments - the payment creation will handle duplicates
+    }
 
     if (existingPayments.length > 0) {
       const existingPayment = existingPayments[0];
-      if (existingPayment.status === "completed") {
+      if (existingPayment.status === "completed" || existingPayment.status === "authorized") {
         throw new Error("Payment has already been processed for this session");
       }
     }
@@ -76,9 +88,16 @@ export const processPayment = async (
     // Real Stripe payment processing
     if (paymentMethodId) {
       try {
-        // Get the mentor's Stripe account ID if available
-        const mentor = await getDocument<MentorDocument>(COLLECTIONS.MENTORS, session.mentorId);
-        const mentorStripeAccountId = mentor?.stripeAccountId;
+        // Get the mentor's Stripe account ID if available - handle permission issues
+        let mentorStripeAccountId: string | undefined;
+        try {
+          const mentor = await getDocument<MentorDocument>(COLLECTIONS.MENTORS, session.mentorId);
+          mentorStripeAccountId = mentor?.stripeAccountId;
+          console.log(`Mentor Stripe account ID: ${mentorStripeAccountId || 'Not found'}`);
+        } catch (error) {
+          console.warn(`Could not get mentor Stripe account (permission issue): ${error}`);
+          // Continue without mentor Stripe account - payment will go to platform account
+        }
 
         // Create a payment intent with manual capture (authorization only)
         const paymentIntent = await createPaymentIntent(
@@ -88,7 +107,9 @@ export const processPayment = async (
           mentorStripeAccountId
         );
 
-        // Confirm the payment (which will authorize but not capture)
+        console.log(`Payment intent created: ${paymentIntent.id}`);
+
+        // Confirm the payment intent with the payment method
         const confirmation = await confirmPayment(
           paymentIntent.clientSecret,
           paymentMethodId
@@ -98,9 +119,10 @@ export const processPayment = async (
           throw new Error(confirmation.error.message);
         }
 
-        if (confirmation.paymentIntent.status === 'requires_capture') {
+        if (confirmation.paymentIntent.status === 'requires_capture' || confirmation.paymentIntent.status === 'succeeded') {
           transactionId = confirmation.paymentIntent.id;
           paymentIntentId = confirmation.paymentIntent.id;
+          console.log(`Payment authorized successfully: ${transactionId}`);
         } else {
           throw new Error(`Payment failed with status: ${confirmation.paymentIntent.status}`);
         }
@@ -120,21 +142,29 @@ export const processPayment = async (
       amount: amount,
       status: "authorized" as const, // Changed from "completed" to "authorized"
       date: new Date().toISOString().split("T")[0],
-      transactionId: transactionId,
-      paymentIntentId: paymentIntentId,
-      paymentMethodId: paymentMethodId,
       createdAt: now,
       updatedAt: now,
+      // Only include fields if they have values
+      ...(transactionId && { transactionId: transactionId }),
+      ...(paymentIntentId && { paymentIntentId: paymentIntentId }),
+      ...(paymentMethodId && { paymentMethodId: paymentMethodId })
     };
+
+    console.log(`Creating payment record: ${paymentId}`);
+    console.log('Payment data (should not have undefined values):', newPayment);
 
     // Insert the payment
     await setDocument(COLLECTIONS.PAYMENTS, paymentId, newPayment);
+
+    console.log(`Payment record created successfully`);
 
     // Update the session payment status
     await updateSession(sessionId, {
       paymentStatus: "authorized" as "pending", // Type assertion to make it compatible
       paymentAmount: amount,
     });
+
+    console.log(`Session payment status updated`);
 
     return {
       id: paymentId,

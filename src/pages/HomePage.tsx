@@ -422,11 +422,22 @@ const HomePage: React.FC = () => {
                 className="bg-white dark:bg-gray-800 rounded-xl shadow-soft dark:shadow-soft-dark hover:shadow-xl dark:hover:shadow-card-dark transition-all duration-300 border border-gray-100 dark:border-gray-700"
               >
                 <div className="relative h-48 overflow-hidden">
-                <img
-                  src={mentor.profilePicture || "https://via.placeholder.com/300x200?text=Mentor"}
-                  alt={mentor.name}
-                    className="w-full h-full object-cover transition-transform duration-500 hover:scale-110"
-                />
+                  {mentor.profilePicture ? (
+                    <img
+                      src={mentor.profilePicture}
+                      alt={mentor.name}
+                      className="w-full h-full object-cover transition-transform duration-500 hover:scale-110"
+                      onError={(e) => {
+                        e.currentTarget.style.display = 'none';
+                        e.currentTarget.nextElementSibling?.classList.remove('hidden');
+                      }}
+                    />
+                  ) : null}
+                  <div className={`w-full h-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center ${mentor.profilePicture ? 'hidden' : ''}`}>
+                    <span className="text-white text-6xl font-bold">
+                      {mentor.name?.charAt(0)?.toUpperCase() || 'M'}
+                    </span>
+                  </div>
                   <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
                 </div>
                 <div className="p-6">

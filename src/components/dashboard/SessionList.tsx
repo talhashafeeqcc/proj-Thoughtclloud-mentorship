@@ -11,9 +11,8 @@ import {
   FaInfoCircle,
   FaArrowRight,
 } from "react-icons/fa";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import SessionDetails from "../SessionDetails";
-import SessionPayment from "./SessionPayment";
 import { useSession } from "../../context/SessionContext";
 import ReviewForm from "../ReviewForm";
 import { hasSessionRating } from "../../services/ratingService";
@@ -32,10 +31,9 @@ const SessionList: React.FC<SessionListProps> = ({
   currentUserId,
 }) => {
   const { fetchUserSessions } = useSession();
+  const navigate = useNavigate();
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
-  const [showPaymentFor, setShowPaymentFor] = useState<string | null>(null);
   const [showReviewFor, setShowReviewFor] = useState<string | null>(null);
-  const [showDetailsFor, setShowDetailsFor] = useState<string | null>(null);
   const [isCancelling, setIsCancelling] = useState(false);
   const [sessionReviewStatus, setSessionReviewStatus] = useState<Record<string, boolean>>({});
   const [showCancelModal, setShowCancelModal] = useState<string | null>(null);
@@ -43,15 +41,9 @@ const SessionList: React.FC<SessionListProps> = ({
   // Define all useCallback hooks at the top level to maintain consistent hooks order
   const handleShowPayment = useCallback((e: React.MouseEvent, sessionId: string) => {
     e.stopPropagation();
-    setShowPaymentFor(sessionId);
-  }, []);
-
-  const handlePaymentSuccess = useCallback(() => {
-    // Refresh session list after successful payment
-    fetchUserSessions();
-    // Close payment form
-    setShowPaymentFor(null);
-  }, [fetchUserSessions]);
+    // Redirect to the proper PaymentPage with Stripe elements
+    navigate(`/payment/${sessionId}`);
+  }, [navigate]);
 
   const handleShowReview = useCallback(async (e: React.MouseEvent, sessionId: string) => {
     e.stopPropagation();
@@ -117,10 +109,6 @@ const SessionList: React.FC<SessionListProps> = ({
 
   const handleViewDetails = (sessionId: string) => {
     setSelectedSessionId(selectedSessionId === sessionId ? null : sessionId);
-    // Close payment form if user clicks to view details
-    if (showPaymentFor === sessionId) {
-      setShowPaymentFor(null);
-    }
   };
 
   // Group sessions by status
@@ -141,7 +129,6 @@ const SessionList: React.FC<SessionListProps> = ({
     const isPending = session.paymentStatus === "pending";
     // const isRefunded = session.paymentStatus === "refunded";
     const isSelected = selectedSessionId === session.id;
-    const isShowingPayment = showPaymentFor === session.id;
     const isShowingReview = showReviewFor === session.id;
 
     // Use role information to determine if user is mentor/mentee
@@ -273,7 +260,7 @@ const SessionList: React.FC<SessionListProps> = ({
         </motion.div>
 
         <AnimatePresence>
-          {isSelected && !isShowingPayment && !isShowingReview && (
+          {isSelected && !isShowingReview && (
             <motion.div
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: "auto" }}
@@ -285,25 +272,6 @@ const SessionList: React.FC<SessionListProps> = ({
                 <SessionDetails
                   sessionId={session.id}
                   currentUserId={currentUserId}
-                />
-              </div>
-            </motion.div>
-          )}
-          
-          {isShowingPayment && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: "auto" }}
-              exit={{ opacity: 0, height: 0 }}
-              transition={{ duration: 0.3 }}
-              className="overflow-hidden"
-            >
-              <div className="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-lg p-4 mt-2 shadow-md">
-                <SessionPayment
-                  sessionId={session.id}
-                  amount={session.paymentAmount}
-                  onSuccess={handlePaymentSuccess}
-                  onCancel={() => setShowPaymentFor(null)}
                 />
               </div>
             </motion.div>

@@ -8,12 +8,16 @@ export default defineConfig({
     exclude: ['lucide-react'],
   },
   server: {
-    proxy: {
-      '/api': {
-        target: 'http://localhost:3001',
-        changeOrigin: true,
+    // Only set up proxy when NOT using Netlify Dev
+    // Netlify Dev handles API routing internally
+    ...(process.env.NETLIFY !== 'true' && {
+      proxy: {
+        '/api': {
+          target: 'http://localhost:8888', // Default Netlify Dev port
+          changeOrigin: true,
+        }
       }
-    }
+    })
   },
   define: {
     // Polyfill for process.env in the browser (for legacy code)

@@ -55,11 +55,24 @@ const MentorProfile: React.FC<MentorProfileProps> = ({ mentor }) => {
       <div className="p-6 bg-gradient-to-r from-blue-500 to-indigo-600 dark:from-blue-700 dark:to-indigo-800 text-white">
         <div className="flex flex-col md:flex-row items-center">
           <div className="mb-4 md:mb-0 md:mr-6">
-            <img
-              src={mentor.profilePicture || 'https://via.placeholder.com/150'}
-              alt={`${mentor.name}'s profile`}
-              className="w-32 h-32 rounded-full border-4 border-white dark:border-gray-200 object-cover"
-            />
+            <div className="w-32 h-32 rounded-full border-4 border-white dark:border-gray-200 overflow-hidden">
+              {mentor.profilePicture ? (
+                <img
+                  src={mentor.profilePicture}
+                  alt={`${mentor.name}'s profile`}
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    e.currentTarget.style.display = 'none';
+                    e.currentTarget.nextElementSibling?.classList.remove('hidden');
+                  }}
+                />
+              ) : null}
+              <div className={`w-full h-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center ${mentor.profilePicture ? 'hidden' : ''}`}>
+                <span className="text-white text-3xl font-bold">
+                  {mentor.name?.charAt(0)?.toUpperCase() || 'M'}
+                </span>
+              </div>
+            </div>
           </div>
           <div>
             <h1 className="text-2xl font-bold text-white">{mentor.name}</h1>

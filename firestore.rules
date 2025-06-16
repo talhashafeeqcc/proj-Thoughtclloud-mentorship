@@ -3,9 +3,17 @@ service cloud.firestore {
   match /databases/{database}/documents {
     // Allow users to read their own profile
     match /users/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
-      // Admins can read all user documents
-      allow read: if request.auth != null && 
+      // Allow any authenticated user to read user profiles (public data)
+      allow read: if request.auth != null;
+      
+      // Allow users to update their own profile
+      allow update, delete: if request.auth != null && request.auth.uid == userId;
+      
+      // Allow create profile when user signs up
+      allow create: if request.auth != null && request.auth.uid == userId;
+      
+      // Admins can write to any user profile
+      allow write: if request.auth != null && 
                    exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
                    get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
@@ -16,7 +24,10 @@ service cloud.firestore {
       allow read: if request.auth != null;
       
       // Allow users to create and update their own mentor profile with a simpler rule
-      allow create, update, delete: if request.auth != null && request.auth.uid == mentorId;
+      allow create, update, delete: if request.auth != null && 
+                    (request.auth.uid == mentorId || 
+                     request.auth.uid == resource.data.userId ||
+                     exists(/databases/$(database)/documents/mentors/$(request.auth.uid)));
       
       // Admin can write to any mentor profile
       allow write: if request.auth != null && 
@@ -29,6 +40,7 @@ service cloud.firestore {
       allow read: if request.auth != null; // Anyone logged in can view mentees
       allow write: if request.auth != null && 
                     (request.auth.uid == menteeId || 
+                     request.auth.uid == resource.data.userId ||
                      exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
                      get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
     }
@@ -49,10 +61,24 @@ service cloud.firestore {
     // Availability collection
     match /availability/{docId} {
       allow read: if request.auth != null; // Anyone logged in can view availability
-      allow write: if request.auth != null && 
-                    (request.auth.uid == resource.data.mentorId || 
-                     exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-                     get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
+      
+      // Allow creating availability documents
+      allow create: if request.auth != null;
+      
+      // Allow updating availability if you are the mentor or an admin
+      allow update, delete: if request.auth != null && 
+                    (
+                      // Direct match with Auth UID
+                      request.auth.uid == resource.data.mentorId ||
+                      
+                      // Check if the current user is the mentor via mentor document lookup
+                      exists(/databases/$(database)/documents/mentors/$(resource.data.mentorId)) &&
+                      get(/databases/$(database)/documents/mentors/$(resource.data.mentorId)).data.userId == request.auth.uid ||
+                      
+                      // Admin check
+                      exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+                      get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin'
+                    );
     }
     
     // Ratings collection
@@ -68,10 +94,19 @@ service cloud.firestore {
     // Payments collection
     match /payments/{paymentId} {
       allow read: if request.auth != null && 
-                   (request.auth.uid == resource.data.userId || 
-                    request.auth.uid == resource.data.mentorId || 
-                    exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-                    get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
+                   (
+                     // Mentor can read
+                     request.auth.uid == resource.data.mentorId ||
+                     // Mentee can read
+                     request.auth.uid == resource.data.menteeId ||
+                     // Support for potential userId field
+                     request.auth.uid == resource.data.userId ||
+                     // Admins can read any payment
+                     (
+                       exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+                       get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin'
+                     )
+                   );
       allow create: if request.auth != null;
       allow update, delete: if request.auth != null && 
                       exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&

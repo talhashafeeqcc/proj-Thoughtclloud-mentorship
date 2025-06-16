@@ -35,11 +35,17 @@ export const addDocument = async (
 ): Promise<string> => {
   try {
     const collectionRef = collection(db, collectionName);
-    const docRef = await addDoc(collectionRef, {
-      ...data,
-      createdAt: Timestamp.now().toMillis(),
-      updatedAt: Timestamp.now().toMillis(),
-    });
+    
+    // Filter out undefined values from the data object
+    const cleanData = Object.fromEntries(
+      Object.entries({
+        ...data,
+        createdAt: Timestamp.now().toMillis(),
+        updatedAt: Timestamp.now().toMillis(),
+      }).filter(([_, value]) => value !== undefined)
+    );
+    
+    const docRef = await addDoc(collectionRef, cleanData);
     return docRef.id;
   } catch (error) {
     console.error(`Error adding document to ${collectionName}:`, error);
@@ -54,15 +60,17 @@ export const setDocument = async (
 ): Promise<void> => {
   try {
     const docRef = doc(db, collectionName, id);
-    await setDoc(
-      docRef,
-      {
+    
+    // Filter out undefined values from the data object
+    const cleanData = Object.fromEntries(
+      Object.entries({
         ...data,
         id,
         updatedAt: Timestamp.now().toMillis(),
-      },
-      { merge: true }
+      }).filter(([_, value]) => value !== undefined)
     );
+    
+    await setDoc(docRef, cleanData, { merge: true });
   } catch (error) {
     console.error(`Error setting document in ${collectionName}:`, error);
     throw error;
@@ -128,11 +136,16 @@ export const updateDocument = async (
       return setDocument(collectionName, id, data);
     }
 
+    // Filter out undefined values from the data object
+    const cleanData = Object.fromEntries(
+      Object.entries({
+        ...data,
+        updatedAt: Timestamp.now().toMillis(),
+      }).filter(([_, value]) => value !== undefined)
+    );
+
     // Document exists, update it
-    await updateDoc(docRef, {
-      ...data,
-      updatedAt: Timestamp.now().toMillis(),
-    });
+    await updateDoc(docRef, cleanData);
   } catch (error) {
     // Log the error but don't throw to avoid crashing the app
     console.error(`Error updating document in ${collectionName}:`, error);

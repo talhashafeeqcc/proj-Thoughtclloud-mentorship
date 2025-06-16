@@ -32,11 +32,24 @@ const MentorCard: React.FC<MentorCardProps> = ({ mentor }) => {
     <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md overflow-hidden hover:shadow-lg transition-all duration-300 border border-gray-100 dark:border-gray-700 h-full flex flex-col">
       <div className="relative">
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent z-10"></div>
-        <img
-          className="w-full h-56 object-cover transition-transform duration-500 hover:scale-105"
-          src={mentor.profilePicture || "https://via.placeholder.com/300"}
-          alt={mentor.name}
-        />
+        <div className="w-full h-56 overflow-hidden">
+          {mentor.profilePicture ? (
+            <img
+              className="w-full h-full object-cover transition-transform duration-500 hover:scale-105"
+              src={mentor.profilePicture}
+              alt={mentor.name}
+              onError={(e) => {
+                e.currentTarget.style.display = 'none';
+                e.currentTarget.nextElementSibling?.classList.remove('hidden');
+              }}
+            />
+          ) : null}
+          <div className={`w-full h-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center ${mentor.profilePicture ? 'hidden' : ''}`}>
+            <span className="text-white text-6xl font-bold">
+              {mentor.name?.charAt(0)?.toUpperCase() || 'M'}
+            </span>
+          </div>
+        </div>
         {hasRatings && mentor.ratings && (
           <div className="absolute bottom-3 right-3 z-20 flex items-center bg-black/50 backdrop-blur-sm py-1 px-2 rounded-full">
             <Star className="text-yellow-400 w-4 h-4 mr-1 fill-yellow-400" />

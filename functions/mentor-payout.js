@@ -1,4 +1,5 @@
 import stripe from "./stripeConfig.js";
+import { getMentorById } from "./firestoreHelpers.js";
 
 // Netlify function for creating mentor payouts
 export const handler = async (event, context) => {
@@ -47,21 +48,36 @@ export const handler = async (event, context) => {
       } for mentor: ${mentorId}`
     );
 
-    // In a real implementation, you would first query your database to get the mentor's Stripe account ID
-    // For example: const mentorStripeAccountId = await getMentorStripeAccountId(mentorId);
+    // Get the mentor document from Firebase
+    const mentor = await getMentorById(mentorId);
+    
+    if (!mentor) {
+      return {
+        statusCode: 404,
+        headers,
+        body: JSON.stringify({ error: "Mentor not found" }),
+      };
+    }
 
-    // For this example, we're assuming the mentorId passed is actually the Stripe account ID
-    const mentorStripeAccountId = mentorId;
+    if (!mentor.stripeAccountId) {
+      return {
+        statusCode: 400,
+        headers,
+        body: JSON.stringify({ 
+          error: "Mentor has no connected Stripe account. Please connect your account first." 
+        }),
+      };
+    }
 
-    // Create a payout
+    // Create a payout using the mentor's actual Stripe account ID
     const payout = await stripe.payouts.create(
       {
         amount,
         currency: currency || "usd",
-        description: description || `Payout for mentor ${mentorId}`,
+        description: description || `Payout for mentor ${mentor.name || mentorId}`,
       },
       {
-        stripeAccount: mentorStripeAccountId,
+        stripeAccount: mentor.stripeAccountId,
       }
     );
 

@@ -25,10 +25,14 @@ interface MentorBalance {
     amount: number;
     currency: string;
   }[];
-  instant_available: {
+  instant_available?: {
     amount: number;
     currency: string;
   }[];
+  connected?: boolean;
+  message?: string;
+  error?: string;
+  stripeAccountId?: string;
 }
 
 const MentorDashboard: React.FC = () => {
@@ -172,6 +176,75 @@ const MentorDashboard: React.FC = () => {
         console.error("Error resetting database:", error);
         setDebugMessage(`Error: ${error instanceof Error ? error.message : "Unknown error"}`);
       }
+    }
+  };
+
+  // Add test sessions for the current mentor
+  const handleAddTestSessions = async () => {
+    if (!mentorId || !authState.user) return;
+    
+    try {
+      setDebugMessage("Adding test sessions...");
+      
+      // Import session service
+      const { setDocument, COLLECTIONS } = await import("../../services/firebase");
+      
+      // Create test sessions using Firebase directly
+      const today = new Date();
+      const tomorrow = new Date(today);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+
+      const testSessions = [
+        {
+          id: `test-session-1-${Date.now()}`,
+          mentorId: authState.user.id, // Use current user ID as mentorId
+          menteeId: "test-mentee-id", // Use a test mentee ID
+          date: today.toISOString().split('T')[0],
+          startTime: "14:00",
+          endTime: "15:00",
+          status: "scheduled",
+          paymentStatus: "pending",
+          paymentAmount: 5000, // $50.00 in cents
+          notes: "Test mentoring session - scheduled",
+          availabilityId: "test-slot-id-1",
+          mentorName: mentorProfile?.name || "Test Mentor",
+          menteeName: authState.user.name || "Test Mentee",
+          meetingLink: "https://meet.google.com/test-1",
+          createdAt: Date.now(),
+          updatedAt: Date.now()
+        },
+        {
+          id: `test-session-2-${Date.now()}`,
+          mentorId: authState.user.id, // Use current user ID as mentorId
+          menteeId: "test-mentee-id-2",
+          date: tomorrow.toISOString().split('T')[0],
+          startTime: "10:00",
+          endTime: "11:00",
+          status: "completed",
+          paymentStatus: "completed",
+          paymentAmount: 7500, // $75.00 in cents
+          notes: "Test mentoring session - completed",
+          availabilityId: "test-slot-id-2",
+          mentorName: mentorProfile?.name || "Test Mentor",
+          menteeName: authState.user.name || "Test Mentee",
+          meetingLink: "https://meet.google.com/test-2",
+          createdAt: Date.now(),
+          updatedAt: Date.now()
+        }
+      ];
+
+      // Add sessions to Firebase
+      for (const session of testSessions) {
+        await setDocument(COLLECTIONS.SESSIONS, session.id, session);
+      }
+      
+      // Refresh sessions
+      await fetchUserSessions(true);
+      
+      setDebugMessage(`Added ${testSessions.length} test sessions successfully!`);
+    } catch (error) {
+      console.error("Error adding test sessions:", error);
+      setDebugMessage(`Failed to add test sessions: ${error instanceof Error ? error.message : "Unknown error"}`);
     }
   };
 
@@ -329,47 +402,64 @@ const MentorDashboard: React.FC = () => {
             <span className="text-gray-600 dark:text-gray-300">Loading balance...</span>
           </div>
         ) : balance ? (
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-            <div className="bg-blue-50 dark:bg-blue-900/30 p-3 rounded-md">
-              <h4 className="text-sm text-gray-600 dark:text-gray-300">Available</h4>
-              <p className="text-xl font-semibold dark:text-white">
-                {balance.available.length > 0 
-                  ? formatCurrency(balance.available[0].amount, balance.available[0].currency)
-                  : '$0.00'}
-              </p>
-              {balance.available.length > 0 && balance.available[0].amount > 0 && (
-                <button 
-                  onClick={async () => {
-                    try {
-                      setBalanceLoading(true);
-                      await createMentorPayout(mentorId, balance.available[0].amount, balance.available[0].currency);
-                      // Refresh balance after withdrawal
-                      const balanceData = await getMentorBalance(mentorId);
-                      setBalance(balanceData);
-                    } catch (error) {
-                      console.error("Error creating payout:", error);
-                      alert("Failed to process withdrawal. Please try again later.");
-                    } finally {
-                      setBalanceLoading(false);
-                    }
-                  }}
-                  className="mt-2 bg-blue-500 hover:bg-blue-600 text-white text-sm py-1 px-3 rounded"
-                >
-                  Withdraw
-                </button>
-              )}
-            </div>
-            <div className="bg-gray-50 dark:bg-gray-700 p-3 rounded-md">
-              <h4 className="text-sm text-gray-600 dark:text-gray-300">Pending</h4>
-              <p className="text-xl font-semibold dark:text-white">
-                {balance.pending.length > 0 
-                  ? formatCurrency(balance.pending[0].amount, balance.pending[0].currency)
-                  : '$0.00'}
-              </p>
-            </div>
-          </div>
+          <>
+            {balance.connected === false ? (
+              <div className="p-4 bg-orange-50 dark:bg-orange-900/20 rounded-md">
+                <p className="text-sm text-orange-600 dark:text-orange-400 font-medium">
+                  {balance.message || "Connect your Stripe account to receive payments."}
+                </p>
+                {balance.error && (
+                  <p className="text-xs text-orange-500 dark:text-orange-500 mt-1">
+                    {balance.error}
+                  </p>
+                )}
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                <div className="bg-blue-50 dark:bg-blue-900/30 p-3 rounded-md">
+                  <h4 className="text-sm text-gray-600 dark:text-gray-300">Available</h4>
+                  <p className="text-xl font-semibold dark:text-white">
+                    {balance.available.length > 0 
+                      ? formatCurrency(balance.available[0].amount, balance.available[0].currency)
+                      : '$0.00'}
+                  </p>
+                  {balance.available.length > 0 && balance.available[0].amount > 0 && (
+                    <button 
+                      onClick={async () => {
+                        try {
+                          setBalanceLoading(true);
+                          await createMentorPayout(mentorId, balance.available[0].amount, balance.available[0].currency);
+                          // Refresh balance after withdrawal
+                          const balanceData = await getMentorBalance(mentorId);
+                          setBalance(balanceData);
+                        } catch (error) {
+                          console.error("Error creating payout:", error);
+                          alert("Failed to process withdrawal. Please try again later.");
+                        } finally {
+                          setBalanceLoading(false);
+                        }
+                      }}
+                      className="mt-2 bg-blue-500 hover:bg-blue-600 text-white text-sm py-1 px-3 rounded"
+                    >
+                      Withdraw
+                    </button>
+                  )}
+                </div>
+                <div className="bg-gray-50 dark:bg-gray-700 p-3 rounded-md">
+                  <h4 className="text-sm text-gray-600 dark:text-gray-300">Pending</h4>
+                  <p className="text-xl font-semibold dark:text-white">
+                    {balance.pending.length > 0 
+                      ? formatCurrency(balance.pending[0].amount, balance.pending[0].currency)
+                      : '$0.00'}
+                  </p>
+                </div>
+              </div>
+            )}
+          </>
         ) : (
-          <p className="text-gray-600 dark:text-gray-300">No balance information available. Make sure your account is connected to Stripe.</p>
+          <div className="text-gray-600 dark:text-gray-300">
+            <p>No balance information available.</p>
+          </div>
         )}
       </div>
 
@@ -430,6 +520,18 @@ const MentorDashboard: React.FC = () => {
             >
               Reset Database
             </button>
+            <button
+              onClick={handleAddTestSessions}
+              className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded text-sm"
+            >
+              Add Test Sessions
+            </button>
+            <button
+              onClick={() => fetchUserSessions(true)}
+              className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded text-sm"
+            >
+              Refresh Sessions
+            </button>
             {debugMessage && (
               <div className="mt-2 p-2 bg-white dark:bg-gray-800 border border-red-200 dark:border-red-700 rounded text-sm dark:text-gray-300">
                 {debugMessage}
@@ -441,11 +543,38 @@ const MentorDashboard: React.FC = () => {
 
       <div className="mt-2">
         {activeTab === "sessions" && (
-          <SessionList
-            sessions={sessionState.sessions.filter(s => s.mentorId === mentorId)}
-            onCancelSession={handleCancelSession}
-            currentUserId={authState.user?.id || ""}
-          />
+          <>
+            {/* Debug information - only show in development */}
+            {window.location.hostname === 'localhost' && (
+              <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-md">
+                <h4 className="text-sm font-medium text-blue-800 dark:text-blue-400 mb-2">Debug Info:</h4>
+                                 <p className="text-xs text-blue-600 dark:text-blue-300">
+                   Total sessions: {sessionState.sessions.length} | 
+                   User ID: {authState.user?.id} | 
+                   Mentor Profile ID: {mentorId} | 
+                   Filtered for mentor: {sessionState.sessions.filter(s => s.mentorId === authState.user?.id).length}
+                 </p>
+                {sessionState.sessions.length > 0 && (
+                  <details className="mt-2">
+                    <summary className="text-xs text-blue-600 dark:text-blue-300 cursor-pointer">View all sessions</summary>
+                    <pre className="text-xs mt-1 bg-white dark:bg-gray-800 p-2 rounded overflow-auto max-h-32">
+                      {JSON.stringify(sessionState.sessions.map(s => ({ 
+                        id: s.id, 
+                        mentorId: s.mentorId, 
+                        menteeId: s.menteeId, 
+                        status: s.status 
+                      })), null, 2)}
+                    </pre>
+                  </details>
+                )}
+              </div>
+            )}
+            <SessionList
+              sessions={sessionState.sessions.filter(s => s.mentorId === authState.user?.id)}
+              onCancelSession={handleCancelSession}
+              currentUserId={authState.user?.id || ""}
+            />
+          </>
         )}
 
         {activeTab === "calendar" && (

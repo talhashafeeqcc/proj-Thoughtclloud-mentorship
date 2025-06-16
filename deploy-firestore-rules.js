@@ -3,7 +3,7 @@
  * Run with: node deploy-firestore-rules.js
  */
 
-const { exec } = require("child_process");
+import { exec } from "child_process";
 
 console.log("Deploying Firestore rules...");
 

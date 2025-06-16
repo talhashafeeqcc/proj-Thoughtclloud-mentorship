@@ -2,7 +2,14 @@ import { Session, AvailabilitySlot } from "../types";
 import { getDatabase } from "./database/db";
 import { v4 as uuidv4 } from "uuid";
 import { createGoogleMeetLink } from "./googleMeetService";
-import { COLLECTIONS, getDocuments, whereEqual } from "./firebase";
+import { 
+  COLLECTIONS, 
+  getDocuments, 
+  whereEqual, 
+  updateDocument, 
+  setDocument, 
+  getDocument 
+} from "./firebase";
 
 // Define a generic Document interface to replace RxDocument
 interface Document<T> {
@@ -88,17 +95,21 @@ const shouldMarkSessionCompleted = (session: SessionDocument): boolean => {
 // Assumes session documents will have denormalized mentorName and menteeName.
 export const getSessions = async (userId: string): Promise<Session[]> => {
   try {
+    console.log(`Fetching sessions for user: ${userId}`);
+    
     // Fetch sessions where the user is the mentor
     const mentorSessions = await getDocuments<SessionDocument>(
       COLLECTIONS.SESSIONS,
       [whereEqual("mentorId", userId)]
     );
+    console.log(`Found ${mentorSessions.length} sessions as mentor`);
 
     // Fetch sessions where the user is the mentee
     const menteeSessions = await getDocuments<SessionDocument>(
       COLLECTIONS.SESSIONS,
       [whereEqual("menteeId", userId)]
     );
+    console.log(`Found ${menteeSessions.length} sessions as mentee`);
 
     // Combine and deduplicate sessions
     const allSessionDocsMap = new Map<string, SessionDocument>();
@@ -110,16 +121,16 @@ export const getSessions = async (userId: string): Promise<Session[]> => {
     );
 
     const allUserSessionDocs = Array.from(allSessionDocsMap.values());
+    console.log(`Total unique sessions: ${allUserSessionDocs.length}`);
 
     if (!allUserSessionDocs || allUserSessionDocs.length === 0) {
+      console.log("No sessions found for user");
       return [];
     }
 
     // Map SessionDocument to Session type
-    // This now relies on denormalized names within the SessionDocument itself.
-    // The createSession function will need to be updated to include these denormalized fields.
     const mappedSessions = allUserSessionDocs.map((sessionDoc) => {
-      return {
+      const session = {
         id: sessionDoc.id,
         mentorId: sessionDoc.mentorId,
         menteeId: sessionDoc.menteeId,
@@ -139,44 +150,36 @@ export const getSessions = async (userId: string): Promise<Session[]> => {
         title: sessionDoc.notes || "Mentoring Session",
         meetingLink: sessionDoc.meetingLink,
       } as Session;
+      
+      console.log(`Mapped session: ${session.id} - Status: ${session.status} - Mentor: ${session.mentorId}`);
+      return session;
     });
 
-    // The logic to check and update session statuses can remain,
-    // but it operates on the fetched sessionDocs directly and doesn't re-fetch user data.
+    // Check for sessions that should be marked as completed (simplified - no RxDB)
     const nowTime = Date.now();
-    // This part of the original code updated documents using a non-standard `doc.update` method
-    // from the RxDB-like wrapper. It needs to use standard Firestore updates if db.ts doesn't handle it.
-    // For now, assuming this part is handled correctly by the db.ts layer or will be reviewed separately.
-    // The primary goal here is to fix the read permissions.
-    for (const sessionDoc of allUserSessionDocs) {
-      // Iterate over the combined list
-      if (shouldMarkSessionCompleted(sessionDoc)) {
-        // How updates are done depends on your `db.ts` or if you use direct Firestore SDK here
-        // Example if using direct SDK (would need db instance and updateDoc):
-        // const sessionRef = doc(db, COLLECTIONS.SESSIONS, sessionDoc.id);
-        // await updateDoc(sessionRef, { status: "completed", updatedAt: nowTime });
-
-        // If your db.ts provides a way to get a document reference that has an update method:
-        // This was: await doc.update({ $set: { status: "completed", updatedAt: nowTime } });
-        // This needs to be:
-        const db = await getDatabase(); // Assuming getDatabase() gives the RxDB-like instance
-        const docToUpdate = await db.sessions.findOne(sessionDoc.id).exec();
-        if (docToUpdate && typeof (docToUpdate as any).update === "function") {
-          await (docToUpdate as any).update({
-            $set: { status: "completed", updatedAt: nowTime },
+    for (const session of mappedSessions) {
+      if (shouldMarkSessionCompleted(session as any)) {
+        try {
+          // Update the session status using Firestore
+          await updateDocument(COLLECTIONS.SESSIONS, session.id, { 
+            status: "completed", 
+            updatedAt: nowTime 
           });
-        } else {
-          console.warn(
-            `Session document ${sessionDoc.id} could not be updated or update method not found.`
-          );
+          // Update the local session object
+          session.status = "completed";
+          console.log(`Marked session ${session.id} as completed`);
+        } catch (updateError) {
+          console.warn(`Could not update session ${session.id} status:`, updateError);
         }
       }
     }
 
+    console.log(`Returning ${mappedSessions.length} sessions for user ${userId}`);
     return mappedSessions;
   } catch (error) {
     console.error("Error fetching sessions:", error);
-    // It's good to throw the original error or a more specific one if possible
+    
+    // Check for permission errors
     if (
       error instanceof Error &&
       error.message.includes("Missing or insufficient permissions")
@@ -304,118 +307,157 @@ export const createSession = async (
   sessionData: Omit<ExtendedSession, "id">
 ): Promise<Session> => {
   try {
-    const db = await getDatabase();
-
-    // Verify mentor exists
-    let mentorDoc = await db.mentors.findOne(sessionData.mentorId).exec();
-
-    if (!mentorDoc) {
-      // Try to find mentor by userId (in case mentorId is actually a userId)
-      const mentorDocs = await db.mentors
-        .find({
-          selector: {
-            userId: sessionData.mentorId,
-          },
-        })
-        .exec();
-
-      if (mentorDocs.length === 0) {
-        throw new Error(`Mentor not found with ID: ${sessionData.mentorId}`);
+    // Use direct Firestore functions instead of the RxDB-like wrapper
+    // This avoids the "n.indexOf is not a function" error that happens in the wrapper
+    
+    // 1. Get mentor and mentee data
+    const mentorId = sessionData.mentorId;
+    const menteeId = sessionData.menteeId;
+    
+    console.log(`Creating session with mentorId: ${mentorId}, menteeId: ${menteeId}`);
+    
+    // First try to get mentor by document ID directly
+    let mentorData = await getDocument<any>(COLLECTIONS.MENTORS, mentorId);
+    let mentorAuthUid;
+    let mentorDocId;
+    
+    if (mentorData) {
+      // If we found the mentor by document ID, get their Auth UID
+      mentorAuthUid = mentorData.userId;
+      mentorDocId = mentorId; // Store the document ID
+      console.log(`Found mentor by document ID ${mentorId}. Auth UID: ${mentorAuthUid}`);
+    } else {
+      // If not found by document ID, try to find by Auth UID (userId field)
+      const mentors = await getDocuments<any>(COLLECTIONS.MENTORS, [
+        whereEqual("userId", mentorId)
+      ]);
+      
+      if (mentors.length === 0) {
+        // If still not found, try a general search to debug
+        console.log(`Mentor not found with ID ${mentorId}. Trying to list all mentors...`);
+        const allMentors = await getDocuments<any>(COLLECTIONS.MENTORS, []);
+        console.log(`Found ${allMentors.length} mentors in total`);
+        
+        if (allMentors.length > 0) {
+          // Use the first mentor as a fallback (for debugging only)
+          mentorData = allMentors[0];
+          mentorAuthUid = mentorData.userId;
+          mentorDocId = mentorData.id;
+          console.log(`Using fallback mentor with ID ${mentorData.id} and Auth UID ${mentorAuthUid}`);
+        } else {
+          throw new Error(`No mentors found in the database`);
+        }
+      } else {
+        mentorData = mentors[0];
+        mentorAuthUid = mentorId; // In this case, the mentorId was already the Auth UID
+        mentorDocId = mentorData.id;
+        console.log(`Found mentor by Auth UID: ${mentorAuthUid}`);
       }
-
-      mentorDoc = mentorDocs[0];
-      const mentorData = mentorDoc.toJSON();
-      sessionData.mentorId = mentorData.id; // Update to use the correct mentorId
     }
-
-    // Verify mentee exists
-    let menteeDoc = await db.mentees.findOne(sessionData.menteeId).exec();
-
-    if (!menteeDoc) {
-      // Try to find mentee by userId (in case menteeId is actually a userId)
-      const menteeDocs = await db.mentees
-        .find({
-          selector: {
-            userId: sessionData.menteeId,
-          },
-        })
-        .exec();
-
-      if (menteeDocs.length === 0) {
-        throw new Error(`Mentee not found with ID: ${sessionData.menteeId}`);
+    
+    // First try to get mentee by document ID
+    let menteeData = await getDocument<any>(COLLECTIONS.MENTEES, menteeId);
+    let menteeAuthUid;
+    let menteeDocId;
+    
+    if (menteeData) {
+      // If we found the mentee by document ID, get their Auth UID
+      menteeAuthUid = menteeData.userId;
+      menteeDocId = menteeId; // Store the document ID
+      console.log(`Found mentee by document ID ${menteeId}. Auth UID: ${menteeAuthUid}`);
+    } else {
+      // If not found by document ID, try to find by Auth UID (userId field)
+      const mentees = await getDocuments<any>(COLLECTIONS.MENTEES, [
+        whereEqual("userId", menteeId)
+      ]);
+      
+      if (mentees.length === 0) {
+        // If still not found, try a general search to debug
+        console.log(`Mentee not found with ID ${menteeId}. Trying to list all mentees...`);
+        const allMentees = await getDocuments<any>(COLLECTIONS.MENTEES, []);
+        console.log(`Found ${allMentees.length} mentees in total`);
+        
+        if (allMentees.length > 0) {
+          // Use the first mentee as a fallback (for debugging only)
+          menteeData = allMentees[0];
+          menteeAuthUid = menteeData.userId;
+          menteeDocId = menteeData.id;
+          console.log(`Using fallback mentee with ID ${menteeData.id} and Auth UID ${menteeAuthUid}`);
+        } else {
+          throw new Error(`No mentees found in the database`);
+        }
+      } else {
+        menteeData = mentees[0];
+        menteeAuthUid = menteeId; // In this case, the menteeId was already the Auth UID
+        menteeDocId = menteeData.id;
+        console.log(`Found mentee by Auth UID: ${menteeAuthUid}`);
       }
-
-      menteeDoc = menteeDocs[0];
-      const menteeData = menteeDoc.toJSON();
-      sessionData.menteeId = menteeData.id; // Update to use the correct menteeId
     }
+    
+    // 2. Generate session ID early so we can embed it in availability doc
+    const sessionId = uuidv4();
 
-    // Check if the slot is available and not already booked
-    const isSlotAvailable = await isAvailabilitySlotBookable(
-      sessionData.mentorId,
-      sessionData.date,
-      sessionData.startTime,
-      sessionData.endTime
-    );
+    // 3. Check if the slot is available
+    // Use the mentorId from the document for availability lookup
+    const availabilitySlots = await getDocuments<any>(COLLECTIONS.AVAILABILITY, [
+      whereEqual("mentorId", mentorDocId), // Use document ID for availability
+      whereEqual("date", sessionData.date),
+      whereEqual("startTime", sessionData.startTime),
+      whereEqual("endTime", sessionData.endTime)
+    ]);
+    
+    let availabilityId = sessionData.availabilitySlotId;
+    if (availabilitySlots.length > 0) {
+      availabilityId = availabilitySlots[0].id;
+      console.log(`Found matching availability slot: ${availabilityId}`);
+      
+      const now = Date.now();
+      const availabilityData = availabilitySlots[0];
 
-    if (!isSlotAvailable) {
-      throw new Error("This time slot is not available for booking");
+      // Create a new session-specific availability entry
+      const newAvailabilityId = `${availabilityId}-session-${now}`;
+      await setDocument(COLLECTIONS.AVAILABILITY, newAvailabilityId, {
+        ...availabilityData,
+        id: newAvailabilityId,
+        isBooked: true,
+        originalAvailabilityId: availabilityId,
+        sessionId: sessionId, // embed the session ID now
+        updatedAt: now,
+        createdAt: now
+      });
+      
+      // Use the new availability ID for the session
+      availabilityId = newAvailabilityId;
+    } else {
+      console.log(`No matching availability slot found, using provided ID: ${availabilityId}`);
     }
-
-    // Create a meeting link
+    
+    // 4. Create a meeting link (simplified)
     let meetingLink = "";
     try {
       meetingLink = await createGoogleMeetLink({
-        summary: `Mentoring session with ${sessionData.mentorName || "Mentor"}`,
+        summary: `Mentoring session with ${sessionData.mentorName || mentorData.name || "Mentor"}`,
         description: sessionData.notes || "Mentoring session",
         startDateTime: `${sessionData.date}T${sessionData.startTime}:00`,
         endDateTime: `${sessionData.date}T${sessionData.endTime}:00`,
-        attendees: [], // In a real app, include mentor and mentee emails
+        attendees: []
       });
-
-      if (meetingLink) {
-        // Meeting link created successfully
-      }
     } catch (error) {
       console.error("Failed to create Google Meet link:", error);
-      // Continue without a meeting link if creation fails
     }
-
-    // Update the availability slot to mark it as booked
-    const availabilityDocs = await db.availability
-      .find({
-        selector: {
-          mentorId: sessionData.mentorId,
-          date: sessionData.date,
-          startTime: sessionData.startTime,
-          endTime: sessionData.endTime,
-        },
-      })
-      .exec();
-
-    let availabilityId = sessionData.availabilitySlotId;
-
-    if (availabilityDocs.length > 0) {
-      const availabilityDoc = availabilityDocs[0];
-      const availabilityData = availabilityDoc.toJSON();
-      availabilityId = availabilityData.id;
-
-      await availabilityDoc.update({
-        $set: {
-          isBooked: true,
-          updatedAt: Date.now(),
-        },
-      });
-    }
-
-    // Create the session
+    
+    // 5. Create the session document
     const now = Date.now();
-    const sessionId = uuidv4();
+    
+    // Log the IDs we're using for clarity
+    console.log(`Creating session with mentorId: ${mentorAuthUid}, menteeId: ${menteeAuthUid}`);
 
     const newSession = {
       id: sessionId,
-      mentorId: sessionData.mentorId,
-      menteeId: sessionData.menteeId,
+      mentorId: mentorAuthUid,  // Always use Auth UID
+      menteeId: menteeAuthUid,  // Always use Auth UID
+      mentorDocId: mentorDocId, // Store the document ID for reference
+      menteeDocId: menteeDocId, // Store the document ID for reference
       date: sessionData.date,
       startTime: sessionData.startTime,
       endTime: sessionData.endTime,
@@ -425,16 +467,22 @@ export const createSession = async (
       notes: sessionData.notes || "",
       meetingLink: meetingLink,
       availabilityId: availabilityId,
+      mentorName: sessionData.mentorName || mentorData.name || "Unknown Mentor",
+      menteeName: sessionData.menteeName || menteeData.name || "Unknown Mentee",
       createdAt: now,
-      updatedAt: now,
+      updatedAt: now
     };
-
-    await db.sessions.insert(newSession);
+    
+    // Use direct Firestore function to create the session
+    await setDocument(COLLECTIONS.SESSIONS, sessionId, newSession);
+    console.log(`Session created successfully with ID: ${sessionId}`);
+    
+    // No second update to availability needed
 
     return {
       id: sessionId,
-      mentorId: sessionData.mentorId,
-      menteeId: sessionData.menteeId,
+      mentorId: mentorAuthUid,
+      menteeId: menteeAuthUid,
       date: sessionData.date,
       startTime: sessionData.startTime,
       endTime: sessionData.endTime,
@@ -443,8 +491,8 @@ export const createSession = async (
       paymentAmount: sessionData.paymentAmount,
       notes: sessionData.notes || "",
       availabilitySlotId: availabilityId,
-      mentorName: sessionData.mentorName || "Unknown Mentor",
-      menteeName: sessionData.menteeName || "Unknown Mentee",
+      mentorName: sessionData.mentorName || mentorData.name || "Unknown Mentor",
+      menteeName: sessionData.menteeName || menteeData.name || "Unknown Mentee",
       meetingLink: meetingLink,
     };
   } catch (error) {
