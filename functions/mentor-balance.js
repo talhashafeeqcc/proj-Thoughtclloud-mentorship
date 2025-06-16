@@ -1,4 +1,4 @@
-import getStripeInstance from "./stripeConfig.js";
+import { getStripeInstance } from "./stripeConfig.js";
 import { getMentorById } from "./firestoreHelpers.js";
 
 // Netlify function for getting a mentor's Stripe balance

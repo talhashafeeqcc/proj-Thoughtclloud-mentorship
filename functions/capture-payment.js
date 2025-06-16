@@ -1,4 +1,4 @@
-import getStripeInstance from "./stripeConfig.js";
+import { getStripeInstance } from "./stripeConfig.js";
 
 // Netlify function for capturing authorized payments
 export const handler = async (event, context) => {

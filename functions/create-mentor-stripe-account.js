@@ -1,4 +1,4 @@
-import getStripeInstance from './stripeConfig.js';
+import { getStripeInstance } from './stripeConfig.js';
 
 // Netlify function for creating mentor Stripe accounts
 export const handler = async (event, context) => {

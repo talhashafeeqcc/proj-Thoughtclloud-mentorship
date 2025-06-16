@@ -34,7 +34,7 @@ console.log("🔑 Key prefix:", stripeSecretKey.substring(0, 12) + "...");
 let stripe = null;
 let stripeInitialized = false;
 
-export async function getStripeInstance() {
+export const getStripeInstance = async () => {
   if (stripeInitialized && stripe) {
     return stripe;
   }
@@ -117,7 +117,4 @@ export async function getStripeInstance() {
     console.error("Error stack:", error.stack);
     throw new Error(`Stripe initialization failed: ${error.message}`);
   }
-}
-
-// Default export for backward compatibility
-export default getStripeInstance;
+};

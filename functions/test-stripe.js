@@ -1,4 +1,4 @@
-import getStripeInstance from './stripeConfig.js';
+import { getStripeInstance } from './stripeConfig.js';
 
 export const handler = async (event, context) => {
   console.log('🧪 Stripe Test Function Started');
