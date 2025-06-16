@@ -42,46 +42,56 @@ export const getStripeInstance = async () => {
   try {
     console.log('📦 Attempting to import Stripe...');
     
-    // Try different import methods for better compatibility
     let StripeConstructor;
+
+    // Helper to extract constructor from a module/object
+    const extractStripeCtor = (mod) => {
+      if (!mod) return undefined;
+      if (typeof mod === 'function') return mod; // CommonJS default export
+      if (typeof mod.default === 'function') return mod.default; // ESM default export is fn
+      if (typeof mod.Stripe === 'function') return mod.Stripe; // named export
+      if (mod.default && typeof mod.default.Stripe === 'function') return mod.default.Stripe; // nested
+      return undefined;
+    };
     
     try {
-      // Method 1: Dynamic import
-      console.log('🔄 Trying dynamic import...');
+      // Method 1: Dynamic import (ESM)
+      console.log('🔄 Trying dynamic import of "stripe" ...');
       const stripeModule = await import('stripe');
-      StripeConstructor = stripeModule.default;
-      console.log('✅ Dynamic import successful');
-      console.log('Module type:', typeof stripeModule);
-      console.log('Default export type:', typeof stripeModule.default);
-      console.log('Default export name:', stripeModule.default?.name);
+      StripeConstructor = extractStripeCtor(stripeModule);
+      if (StripeConstructor) {
+        console.log('✅ Dynamic import provided valid constructor');
+      } else {
+        console.warn('⚠️ Dynamic import succeeded but did not return constructor. Trying fallback...');
+      }
     } catch (dynamicError) {
       console.error('❌ Dynamic import failed:', dynamicError.message);
-      
+    }
+
+    // Fallback to require if constructor still not found
+    if (!StripeConstructor) {
+      console.log('🔄 Attempting require fallback for "stripe" ...');
       try {
-        // Method 2: Static import fallback
-        console.log('🔄 Trying require fallback...');
-        StripeConstructor = require('stripe');
-        console.log('✅ Require fallback successful');
+        // Use createRequire to support ESM
+        const { createRequire } = await import('module');
+        const req = createRequire(import.meta.url);
+        const reqStripe = req('stripe');
+        StripeConstructor = extractStripeCtor(reqStripe);
+        if (StripeConstructor) {
+          console.log('✅ Require fallback provided valid constructor');
+        } else {
+          console.error('❌ Require fallback did not return constructor');
+        }
       } catch (requireError) {
         console.error('❌ Require fallback failed:', requireError.message);
-        throw new Error(`All import methods failed: Dynamic: ${dynamicError.message}, Require: ${requireError.message}`);
       }
     }
-    
-    // Validate the constructor
-    if (!StripeConstructor) {
-      throw new Error('Stripe constructor is null or undefined');
+
+    // Final validation
+    if (!StripeConstructor || typeof StripeConstructor !== 'function') {
+      throw new Error(`Stripe constructor could not be resolved. Final type: ${typeof StripeConstructor}`);
     }
-    
-    if (typeof StripeConstructor !== 'function') {
-      console.error('❌ Stripe constructor validation failed:');
-      console.error('Type:', typeof StripeConstructor);
-      console.error('Value:', StripeConstructor);
-      console.error('Constructor name:', StripeConstructor?.constructor?.name);
-      throw new Error(`Stripe is not a constructor function. Type: ${typeof StripeConstructor}`);
-    }
-    
-    console.log('✅ Stripe constructor validated');
+    console.log('✅ Stripe constructor resolved successfully');
     console.log('Constructor name:', StripeConstructor.name);
     
     // Initialize Stripe instance
@@ -118,3 +128,4 @@ export const getStripeInstance = async () => {
     throw new Error(`Stripe initialization failed: ${error.message}`);
   }
 };
+
