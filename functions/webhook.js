@@ -1,4 +1,4 @@
-import stripe from './stripeConfig.js';
+import getStripeInstance from './stripeConfig.js';
 
 // Set the webhook signing secret provided by Stripe
 const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET || process.env.VITE_STRIPE_WEBHOOK_SECRET;
@@ -24,6 +24,9 @@ export const handler = async (event, context) => {
   const rawBody = event.body; // Netlify provides the raw body
 
   try {
+    // Initialize Stripe
+    const stripe = await getStripeInstance();
+    
     let stripeEvent;
 
     // Verify the event came from Stripe

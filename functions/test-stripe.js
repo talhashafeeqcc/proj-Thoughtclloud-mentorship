@@ -1,4 +1,4 @@
-import stripeConfig from './stripeConfig.js';
+import getStripeInstance from './stripeConfig.js';
 
 export const handler = async (event, context) => {
   console.log('🧪 Stripe Test Function Started');
@@ -49,7 +49,7 @@ export const handler = async (event, context) => {
     let stripeConfigResult = null;
     try {
       console.log('Testing stripe config...');
-      const stripe = await stripeConfig.getInstance();
+      const stripe = await getStripeInstance();
       stripeConfigResult = {
         success: true,
         hasInstance: !!stripe,

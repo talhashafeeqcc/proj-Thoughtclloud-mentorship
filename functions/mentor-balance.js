@@ -1,4 +1,4 @@
-import stripe from "./stripeConfig.js";
+import getStripeInstance from "./stripeConfig.js";
 import { getMentorById } from "./firestoreHelpers.js";
 
 // Netlify function for getting a mentor's Stripe balance
@@ -32,6 +32,9 @@ export const handler = async (event, context) => {
 
   try {
     console.log(`Retrieving balance for mentor: ${mentorId}`);
+
+    // Initialize Stripe
+    const stripe = await getStripeInstance();
 
     // Get the mentor document from Firebase
     const mentor = await getMentorById(mentorId);

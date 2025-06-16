@@ -1,4 +1,4 @@
-import stripe from "./stripeConfig.js";
+import getStripeInstance from "./stripeConfig.js";
 
 // Netlify function for capturing authorized payments
 export const handler = async (event, context) => {
@@ -18,6 +18,8 @@ export const handler = async (event, context) => {
   }
 
   try {
+    // Initialize Stripe
+    const stripe = await getStripeInstance();
     const body = JSON.parse(event.body);
     const { paymentIntentId, applicationFee, mentorStripeAccountId } = body;
 

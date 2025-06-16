@@ -34,7 +34,7 @@ console.log("🔑 Key prefix:", stripeSecretKey.substring(0, 12) + "...");
 let stripe = null;
 let stripeInitialized = false;
 
-async function initializeStripe() {
+export async function getStripeInstance() {
   if (stripeInitialized && stripe) {
     return stripe;
   }
@@ -119,16 +119,5 @@ async function initializeStripe() {
   }
 }
 
-// Export the initialization function and a getter
-export { initializeStripe };
-
-// For backward compatibility, try to initialize immediately but handle errors gracefully
-export default {
-  async getInstance() {
-    return await initializeStripe();
-  },
-  // Synchronous access (will be null until initialized)
-  get current() {
-    return stripe;
-  }
-};
+// Default export for backward compatibility
+export default getStripeInstance;

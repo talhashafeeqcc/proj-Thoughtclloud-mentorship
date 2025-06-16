@@ -1,4 +1,4 @@
-import stripe from "./stripeConfig.js";
+import getStripeInstance from "./stripeConfig.js";
 import { getMentorById } from "./firestoreHelpers.js";
 
 // Netlify function for creating mentor payouts
@@ -31,6 +31,9 @@ export const handler = async (event, context) => {
   }
 
   try {
+    // Initialize Stripe
+    const stripe = await getStripeInstance();
+    
     const body = JSON.parse(event.body);
     const { amount, currency, description } = body;
 
