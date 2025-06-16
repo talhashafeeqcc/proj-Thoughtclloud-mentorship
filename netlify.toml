@@ -7,6 +7,13 @@
 # [build.environment]
 #   VITE_API_URL = "https://thoughtcloud-mentorship.netlify.app"
 
+# Test endpoint for debugging
+[[redirects]]
+  from = "/api/test-stripe"
+  to = "/.netlify/functions/test-stripe"
+  status = 200
+  force = true
+
 # Redirect all API requests to the specific Netlify Functions
 [[redirects]]
   from = "/api/create-payment-intent"
