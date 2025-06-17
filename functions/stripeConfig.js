@@ -30,102 +30,19 @@ console.log("✅ Stripe secret key found and validated");
 console.log("🔑 Key type:", stripeSecretKey.startsWith('sk_test_') ? 'TEST' : 'LIVE');
 console.log("🔑 Key prefix:", stripeSecretKey.substring(0, 12) + "...");
 
-// Initialize Stripe with better error handling
-let stripe = null;
-let stripeInitialized = false;
+// Simplified Stripe initialization -----------------------------------
+import Stripe from 'stripe';
 
-export const getStripeInstance = async () => {
-  if (stripeInitialized && stripe) {
-    return stripe;
-  }
+// Initialize Stripe once at Cold-start time and reuse the instance for every invocation.
+const stripe = new Stripe(stripeSecretKey, {
+  apiVersion: '2023-10-16',
+  // We are in a JavaScript (not TypeScript) file, so disable type checks
+  typescript: false,
+});
 
-  try {
-    console.log('📦 Attempting to import Stripe...');
-    
-    let StripeConstructor;
+console.log('✅ Stripe instance created (simplified initialisation)');
 
-    // Helper to extract constructor from a module/object
-    const extractStripeCtor = (mod) => {
-      if (!mod) return undefined;
-      if (typeof mod === 'function') return mod; // CommonJS default export
-      if (typeof mod.default === 'function') return mod.default; // ESM default export is fn
-      if (typeof mod.Stripe === 'function') return mod.Stripe; // named export
-      if (mod.default && typeof mod.default.Stripe === 'function') return mod.default.Stripe; // nested
-      return undefined;
-    };
-    
-    try {
-      // Method 1: Dynamic import (ESM)
-      console.log('🔄 Trying dynamic import of "stripe" ...');
-      const stripeModule = await import('stripe');
-      StripeConstructor = extractStripeCtor(stripeModule);
-      if (StripeConstructor) {
-        console.log('✅ Dynamic import provided valid constructor');
-      } else {
-        console.warn('⚠️ Dynamic import succeeded but did not return constructor. Trying fallback...');
-      }
-    } catch (dynamicError) {
-      console.error('❌ Dynamic import failed:', dynamicError.message);
-    }
-
-    // Fallback to require if constructor still not found
-    if (!StripeConstructor) {
-      console.log('🔄 Attempting require fallback for "stripe" ...');
-      try {
-        // Use createRequire to support ESM
-        const { createRequire } = await import('module');
-        const req = createRequire(import.meta.url);
-        const reqStripe = req('stripe');
-        StripeConstructor = extractStripeCtor(reqStripe);
-        if (StripeConstructor) {
-          console.log('✅ Require fallback provided valid constructor');
-        } else {
-          console.error('❌ Require fallback did not return constructor');
-        }
-      } catch (requireError) {
-        console.error('❌ Require fallback failed:', requireError.message);
-      }
-    }
-
-    // Final validation
-    if (!StripeConstructor || typeof StripeConstructor !== 'function') {
-      throw new Error(`Stripe constructor could not be resolved. Final type: ${typeof StripeConstructor}`);
-    }
-    console.log('✅ Stripe constructor resolved successfully');
-    console.log('Constructor name:', StripeConstructor.name);
-    
-    // Initialize Stripe instance
-    console.log('🔧 Creating Stripe instance...');
-    stripe = new StripeConstructor(stripeSecretKey, {
-      apiVersion: '2023-10-16',
-      typescript: false,
-    });
-    
-    console.log("✅ Stripe instance created successfully");
-    console.log("Instance type:", typeof stripe);
-    console.log("Instance constructor name:", stripe.constructor.name);
-    console.log("Instance has paymentIntents:", !!stripe.paymentIntents);
-    console.log("paymentIntents type:", typeof stripe.paymentIntents);
-    console.log("paymentIntents.create type:", typeof stripe.paymentIntents?.create);
-    
-    // Additional validation
-    if (!stripe.paymentIntents) {
-      throw new Error("Stripe instance missing paymentIntents property");
-    }
-    
-    if (typeof stripe.paymentIntents.create !== 'function') {
-      throw new Error(`stripe.paymentIntents.create is not a function. Type: ${typeof stripe.paymentIntents.create}`);
-    }
-    
-    console.log("✅ All Stripe validations passed");
-    stripeInitialized = true;
-    
-    return stripe;
-    
-  } catch (error) {
-    console.error("❌ CRITICAL: Failed to create Stripe instance:", error);
-    console.error("Error stack:", error.stack);
-    throw new Error(`Stripe initialization failed: ${error.message}`);
-  }
-};
+// Export a thin helper that always returns the already-initialised instance.
+export const getStripeInstance = async () => stripe;
+// --------------------------------------------------------------------
 
