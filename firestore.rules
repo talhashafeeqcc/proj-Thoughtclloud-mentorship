@@ -99,20 +99,30 @@ service cloud.firestore {
     
     // Payments collection
     match /payments/{paymentId} {
-      allow read: if request.auth != null && 
-                   (
-                     // Mentor can read
-                     request.auth.uid == resource.data.mentorId ||
-                     // Mentee can read
-                     request.auth.uid == resource.data.menteeId ||
-                     // Support for potential userId field
-                     request.auth.uid == resource.data.userId ||
-                     // Admins can read any payment
-                     (
-                       exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-                       get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin'
-                     )
-                   );
+      /*
+        Allow any authenticated user to read a payment **iff** one of the following is true:
+        1. They are listed directly on the payment document (mentorId, menteeId, or userId).
+        2. They are referenced via the alternate mentorDocId / menteeDocId fields found in some older documents.
+        3. They are an admin user.
+        This broader check eliminates the "Missing or insufficient permissions" errors some users were seeing while still
+        keeping payment data restricted to the parties involved (or admins).
+      */
+      allow read: if request.auth != null && (
+        // Direct references that newer documents have
+        request.auth.uid == resource.data.mentorId ||
+        request.auth.uid == resource.data.menteeId ||
+        request.auth.uid == resource.data.userId ||
+
+        // Fallback for older documents that stored the auth UID in mentorDocId / menteeDocId
+        request.auth.uid == resource.data.mentorDocId ||
+        request.auth.uid == resource.data.menteeDocId ||
+
+        // Admin override
+        (
+          exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin'
+        )
+      );
       allow create: if request.auth != null;
       allow update, delete: if request.auth != null && 
                       exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
