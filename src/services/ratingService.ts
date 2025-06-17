@@ -158,10 +158,11 @@ export const createRating = async (
     const now = Date.now();
     const ratingId = uuidv4();
 
+    // Use the mentor *document* ID when available so profile pages (which query by docId) can find the rating.
     const newRating = {
       id: ratingId,
       sessionId: ratingData.sessionId,
-      mentorId: session.mentorId, // Get the mentor ID from the session
+      mentorId: (session.mentorDocId || session.mentorId),
       menteeId: ratingData.menteeId,
       score: ratingData.score,
       review: ratingData.review || "",
