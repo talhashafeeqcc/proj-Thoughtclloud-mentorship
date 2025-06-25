@@ -173,7 +173,15 @@ export const connectMentorToStripe = async (mentorId: string, email: string, cou
         });
 
         if (!response.ok) {
-            throw new Error('Network response was not ok');
+            // Try to parse error body to get meaningful message
+            let message = `Request failed with status ${response.status}`;
+            try {
+                const errBody = await response.json();
+                if (errBody?.error) message = errBody.error;
+            } catch (_) {
+                // fallback ignore
+            }
+            throw new Error(message);
         }
 
         const data = await response.json();
