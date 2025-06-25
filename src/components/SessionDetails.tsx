@@ -18,6 +18,7 @@ import {
   FaCheckCircle,
   FaBan
 } from "react-icons/fa";
+import { useSession } from "../context/SessionContext";
 
 interface SessionDetailsProps {
   sessionId: string;
@@ -28,6 +29,8 @@ const SessionDetails: React.FC<SessionDetailsProps> = ({
   sessionId,
   currentUserId,
 }) => {
+  // Access cached sessions so we can fall back if Firestore blocks the direct read
+  const { sessionState } = useSession();
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -41,41 +44,69 @@ const SessionDetails: React.FC<SessionDetailsProps> = ({
 
   // Define fetchSessionDetails using useCallback
   const fetchSessionDetails = useCallback(async () => {
-    try {
-      setLoading(true);
-      const sessionData = await getSessionById(sessionId);
-      setSession(sessionData);
+    let attempts = 0;
+    const maxAttempts = 3;
 
-      // Check if session has been rated
-      const isRated = await hasSessionRating(sessionId);
-      setRated(isRated);
-
-      // If the session has been rated, fetch the rating details
-      if (isRated && sessionData.mentorId) {
-        const mentorRatings = await getMentorRatings(sessionData.mentorId);
-        const rating = mentorRatings.find(r => r.sessionId === sessionId);
-        if (rating) {
-          setSessionRating(rating);
-        }
-      }
-
-      // Fetch payment information (may fail due to permissions)
+    const tryFetch = async (): Promise<void> => {
+      attempts += 1;
       try {
-        const payment = await getSessionPayment(sessionId);
-        setPaymentInfo(payment);
-      } catch (paymentErr: any) {
-        // Log and ignore payment permission errors so the rest of the details render
-        console.warn("Unable to fetch payment info (continuing without it):", paymentErr?.message || paymentErr);
-        setPaymentInfo(null);
-        // Do NOT propagate the error – it would break the whole page for mentees
+        setLoading(true);
+        const sessionData = await getSessionById(sessionId);
+        setSession(sessionData);
+
+        // Check if session has been rated
+        const isRated = await hasSessionRating(sessionId);
+        setRated(isRated);
+
+        // If the session has been rated, fetch the rating details
+        if (isRated && sessionData.mentorId) {
+          const mentorRatings = await getMentorRatings(sessionData.mentorId);
+          const rating = mentorRatings.find(r => r.sessionId === sessionId);
+          if (rating) {
+            setSessionRating(rating);
+          }
+        }
+
+        // Fetch payment information (may fail due to permissions)
+        try {
+          const payment = await getSessionPayment(sessionId);
+          setPaymentInfo(payment);
+        } catch (paymentErr: any) {
+          // Log and ignore payment permission errors so the rest of the details render
+          console.warn("Unable to fetch payment info (continuing without it):", paymentErr?.message || paymentErr);
+          setPaymentInfo(null);
+          // Do NOT propagate the error – it would break the whole page for mentees
+        }
+      } catch (err: any) {
+        // If we received a permission error and haven't exhausted retries, wait and retry
+        const isPermissionErr =
+          err instanceof Error && err.message.includes("permission");
+        if (isPermissionErr && attempts < maxAttempts) {
+          console.warn(
+            `Permission error fetching session. Retry ${attempts}/${maxAttempts} after delay...`
+          );
+          await new Promise((res) => setTimeout(res, 500 * attempts)); // back-off
+          return tryFetch();
+        }
+
+        console.error("Error fetching session details:", err);
+
+        // Fallback: if Firestore denies direct read, try to locate the session in context state
+        const localFallback = sessionState.sessions.find((s) => s.id === sessionId);
+        if (localFallback) {
+          console.warn("Using cached session from context due to read permission error.");
+          setSession(localFallback);
+          setError(null);
+        } else {
+          setError(err.message || "Failed to load session details");
+        }
+      } finally {
+        setLoading(false);
       }
-    } catch (err: any) {
-      console.error("Error fetching session details:", err);
-      setError(err.message || "Failed to load session details");
-    } finally {
-      setLoading(false);
-    }
-  }, [sessionId]);
+    };
+
+    await tryFetch();
+  }, [sessionId, sessionState.sessions]);
 
   useEffect(() => {
     fetchSessionDetails();
