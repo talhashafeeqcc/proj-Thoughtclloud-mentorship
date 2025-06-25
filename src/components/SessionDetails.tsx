@@ -59,9 +59,16 @@ const SessionDetails: React.FC<SessionDetailsProps> = ({
         }
       }
 
-      // Fetch payment information
-      const payment = await getSessionPayment(sessionId);
-      setPaymentInfo(payment);
+      // Fetch payment information (may fail due to permissions)
+      try {
+        const payment = await getSessionPayment(sessionId);
+        setPaymentInfo(payment);
+      } catch (paymentErr: any) {
+        // Log and ignore payment permission errors so the rest of the details render
+        console.warn("Unable to fetch payment info (continuing without it):", paymentErr?.message || paymentErr);
+        setPaymentInfo(null);
+        // Do NOT propagate the error – it would break the whole page for mentees
+      }
     } catch (err: any) {
       console.error("Error fetching session details:", err);
       setError(err.message || "Failed to load session details");
@@ -121,11 +128,12 @@ const SessionDetails: React.FC<SessionDetailsProps> = ({
       
       // Refresh session data
       fetchSessionDetails();
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Error completing session:", error);
+      const errMessage = error instanceof Error ? error.message : String(error);
       setActionMessage({
         type: 'error',
-        text: `Failed to complete session: ${error.message}`
+        text: `Failed to complete session: ${errMessage}`
       });
     } finally {
       setProcessing(false);
@@ -157,11 +165,12 @@ const SessionDetails: React.FC<SessionDetailsProps> = ({
       
       // Refresh session data
       fetchSessionDetails();
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Error cancelling session:", error);
+      const errMessage = error instanceof Error ? error.message : String(error);
       setActionMessage({
         type: 'error',
-        text: `Failed to cancel session: ${error.message}`
+        text: `Failed to cancel session: ${errMessage}`
       });
     } finally {
       setProcessing(false);
