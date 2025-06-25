@@ -159,13 +159,13 @@ export const getMentorBalance = async (mentorId: string) => {
 export const connectMentorToStripe = async (mentorId: string, email: string, country: string) => {
     try {
         // Send request to our backend API
-        const response = await fetch(getApiUrl('api/create-connect-account'), {
+        const response = await fetch(getApiUrl(`api/mentor-stripe-account/${mentorId}`), {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
+                'Origin': window.location.origin,
             },
             body: JSON.stringify({
-                mentorId,
                 email,
                 country
             }),
