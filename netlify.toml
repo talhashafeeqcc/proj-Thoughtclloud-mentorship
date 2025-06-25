@@ -58,7 +58,7 @@
   force = true
 
 [[redirects]]
-  from = "/api/mentor-stripe-account/*"
+  from = "/api/create-mentor-stripe-account/*"
   to = "/.netlify/functions/create-mentor-stripe-account/:splat"
   status = 200
   force = true
