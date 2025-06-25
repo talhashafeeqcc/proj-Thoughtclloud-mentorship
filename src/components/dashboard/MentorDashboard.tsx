@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from "react"
 import AvailabilityCalendar from "./AvailabilityCalendar";
 import AvailabilityManager from "./AvailabilityManager";
 import { useAuth } from "../../context/AuthContext";
-import { FaCalendarAlt, FaCalendarCheck, FaList, FaTools, FaWallet, FaMoneyBillWave, FaHourglassHalf } from "react-icons/fa";
+import { FaCalendarAlt, FaCalendarCheck, FaList, FaTools, FaWallet, FaMoneyBillWave, FaHourglassHalf, FaLink } from "react-icons/fa";
 import SessionList from "./SessionList";
 import { clearDatabase } from "../../services/database/db";
 // import { seedDatabase } from "../../services/database/seedData";
@@ -10,6 +10,7 @@ import { retryBootstrap } from "../../services/database/bootstrap";
 import ProfileCompletionBanner from "./ProfileCompletionBanner";
 import { useSession } from "../../context/SessionContext";
 import { getMentorByUserId, createMentorPayout } from "../../services/mentorService";
+import { connectMentorToStripe } from "../../services/stripe";
 import { getMentorBalance } from "../../services/stripe";
 import { motion } from "framer-motion";
 import { MentorProfile, AvailabilitySlot } from "../../types";
@@ -64,6 +65,7 @@ const MentorDashboard: React.FC = () => {
   // State for storing mentor balance
   const [balance, setBalance] = useState<MentorBalance | null>(null);
   const [balanceLoading, setBalanceLoading] = useState(false);
+  const [connectingStripe, setConnectingStripe] = useState(false);
   // Add state for mentorProfile
   const [mentorProfile, setMentorProfile] = useState<MentorProfile | null>(null);
 
@@ -253,6 +255,26 @@ const MentorDashboard: React.FC = () => {
     }
   };
 
+  // Handle connecting mentor to Stripe
+  const handleConnectStripe = async () => {
+    if (!mentorId || !authState.user?.email) return;
+    try {
+      setConnectingStripe(true);
+      const result = await connectMentorToStripe(mentorId, authState.user.email, "US");
+      if (result?.accountLink) {
+        // Redirect mentor to Stripe onboarding
+        window.location.href = result.accountLink;
+      } else {
+        alert("Failed to initiate Stripe onboarding. Please try again later.");
+      }
+    } catch (err) {
+      console.error("Stripe connect error:", err);
+      alert("Unable to connect Stripe account. Please try again later.");
+    } finally {
+      setConnectingStripe(false);
+    }
+  };
+
   // Fetch mentor profile data
   useEffect(() => {
     // Set mounted status
@@ -408,8 +430,9 @@ const MentorDashboard: React.FC = () => {
           </div>
         ) : balance ? (
           <>
-            {balance.connected === false ? (
-              <div className="p-4 bg-orange-50 dark:bg-orange-900/20 rounded-md">
+            {/* Warning banner if Stripe isn't connected */}
+            {balance.connected === false && (
+              <div className="p-4 mb-4 bg-orange-50 dark:bg-orange-900/20 rounded-md">
                 <p className="text-sm text-orange-600 dark:text-orange-400 font-medium">
                   {balance.message || "Connect your Stripe account to receive payments."}
                 </p>
@@ -418,48 +441,61 @@ const MentorDashboard: React.FC = () => {
                     {balance.error}
                   </p>
                 )}
-              </div>
-            ) : (
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                <div className="bg-blue-50 dark:bg-blue-900/30 p-3 rounded-md">
-                  <h4 className="text-sm text-gray-600 dark:text-gray-300">Available</h4>
-                  <p className="text-xl font-semibold dark:text-white">
-                    {balance.available.length > 0 
-                      ? formatCurrency(balance.available[0].amount, balance.available[0].currency)
-                      : '$0.00'}
-                  </p>
-                  {balance.available.length > 0 && balance.available[0].amount > 0 && (
-                    <button 
-                      onClick={async () => {
-                        try {
-                          setBalanceLoading(true);
-                          await createMentorPayout(mentorId, balance.available[0].amount, balance.available[0].currency);
-                          // Refresh balance after withdrawal
-                          const balanceData = await getMentorBalance(mentorId);
-                          setBalance(balanceData);
-                        } catch (error) {
-                          console.error("Error creating payout:", error);
-                          alert("Failed to process withdrawal. Please try again later.");
-                        } finally {
-                          setBalanceLoading(false);
-                        }
-                      }}
-                      className="mt-2 bg-blue-500 hover:bg-blue-600 text-white text-sm py-1 px-3 rounded"
-                    >
-                      Withdraw
-                    </button>
+                <button
+                  onClick={handleConnectStripe}
+                  disabled={connectingStripe}
+                  className="mt-3 inline-flex items-center bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white text-sm font-medium py-2 px-4 rounded"
+                >
+                  {connectingStripe ? (
+                    <span className="animate-spin rounded-full h-4 w-4 border-t-2 border-white border-solid mr-2"></span>
+                  ) : (
+                    <FaLink className="h-4 w-4 mr-2" />
                   )}
-                </div>
-                <div className="bg-gray-50 dark:bg-gray-700 p-3 rounded-md">
-                  <h4 className="text-sm text-gray-600 dark:text-gray-300">Pending</h4>
-                  <p className="text-xl font-semibold dark:text-white">
-                    {balance.pending.length > 0 
-                      ? formatCurrency(balance.pending[0].amount, balance.pending[0].currency)
-                      : '$0.00'}
-                  </p>
-                </div>
+                  {connectingStripe ? "Connecting..." : "Connect Stripe Account"}
+                </button>
               </div>
             )}
+
+            {/* Always show balance amounts */}
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+              <div className="bg-blue-50 dark:bg-blue-900/30 p-3 rounded-md">
+                <h4 className="text-sm text-gray-600 dark:text-gray-300">Available</h4>
+                <p className="text-xl font-semibold dark:text-white">
+                  {balance.available.length > 0 
+                    ? formatCurrency(balance.available[0].amount, balance.available[0].currency)
+                    : '$0.00'}
+                </p>
+                {balance.available.length > 0 && balance.available[0].amount > 0 && (
+                  <button 
+                    onClick={async () => {
+                      try {
+                        setBalanceLoading(true);
+                        await createMentorPayout(mentorId, balance.available[0].amount, balance.available[0].currency);
+                        // Refresh balance after withdrawal
+                        const balanceData = await getMentorBalance(mentorId);
+                        setBalance(balanceData);
+                      } catch (error) {
+                        console.error("Error creating payout:", error);
+                        alert("Failed to process withdrawal. Please try again later.");
+                      } finally {
+                        setBalanceLoading(false);
+                      }
+                    }}
+                    className="mt-2 bg-blue-500 hover:bg-blue-600 text-white text-sm py-1 px-3 rounded"
+                  >
+                    Withdraw
+                  </button>
+                )}
+              </div>
+              <div className="bg-gray-50 dark:bg-gray-700 p-3 rounded-md">
+                <h4 className="text-sm text-gray-600 dark:text-gray-300">Pending</h4>
+                <p className="text-xl font-semibold dark:text-white">
+                  {balance.pending.length > 0 
+                    ? formatCurrency(balance.pending[0].amount, balance.pending[0].currency)
+                    : '$0.00'}
+                </p>
+              </div>
+            </div>
           </>
         ) : (
           <div className="text-gray-600 dark:text-gray-300">

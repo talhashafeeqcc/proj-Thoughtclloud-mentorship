@@ -129,15 +129,6 @@ const MentorList: React.FC = () => {
             {filteredMentors.length === 1 ? "Mentor" : "Mentors"} Available
           </span>
         </div>
-        <motion.button
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-          onClick={handleRefresh}
-          className="bg-indigo-100 dark:bg-indigo-900/40 hover:bg-indigo-200 dark:hover:bg-indigo-800/60 text-indigo-700 dark:text-indigo-300 font-medium py-2 px-4 rounded-lg inline-flex items-center transition-colors"
-        >
-          <RefreshCw className="h-4 w-4 mr-2" />
-          Refresh
-        </motion.button>
       </div>
 
       {filteredMentors.length === 0 ? (
