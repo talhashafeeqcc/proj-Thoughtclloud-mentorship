@@ -93,7 +93,7 @@ service cloud.firestore {
     
     // Ratings collection
     match /ratings/{ratingId} {
-      allow read: if request.auth != null; // Anyone logged in can view ratings
+      allow read: if true; // Public read access so ratings are visible without login
       allow create: if request.auth != null; // Anyone logged in can create ratings
       allow update, delete: if request.auth != null && 
                       (request.auth.uid == resource.data.userId || 

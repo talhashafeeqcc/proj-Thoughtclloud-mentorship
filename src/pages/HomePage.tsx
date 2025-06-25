@@ -43,20 +43,20 @@ const HomePage: React.FC = () => {
           <motion.div 
             animate={{ 
               scale: [1, 1.2, 1],
-              opacity: [0.05, 0.08, 0.05],
+              opacity: [0.15, 0.25, 0.15],
             }}
             transition={{ 
               duration: 8,
               repeat: Infinity,
               ease: "easeInOut" 
             }}
-            className="absolute top-1/4 -left-20 w-96 h-96 bg-purple-300 dark:bg-purple-400 rounded-full blur-3xl"
+            className="absolute top-1/4 -left-20 w-96 h-96 bg-purple-300 dark:bg-purple-400 rounded-full blur-2xl"
           ></motion.div>
           
           <motion.div 
             animate={{ 
               scale: [1, 1.3, 1],
-              opacity: [0.07, 0.1, 0.07],
+              opacity: [0.2, 0.3, 0.2],
               x: [0, 20, 0]
             }}
             transition={{ 
@@ -65,27 +65,61 @@ const HomePage: React.FC = () => {
               ease: "easeInOut",
               delay: 1
             }}
-            className="absolute bottom-1/4 -right-20 w-[30rem] h-[30rem] bg-indigo-400 dark:bg-indigo-500 rounded-full blur-3xl"
+            className="absolute bottom-1/4 -right-20 w-[30rem] h-[30rem] bg-indigo-400 dark:bg-indigo-500 rounded-full blur-2xl"
+          ></motion.div>
+          
+          {/* Additional floating bubbles */}
+          <motion.div 
+            animate={{ 
+              scale: [1, 1.4, 1],
+              opacity: [0.1, 0.2, 0.1],
+              y: [0, -30, 0]
+            }}
+            transition={{ 
+              duration: 12,
+              repeat: Infinity,
+              ease: "easeInOut",
+              delay: 3
+            }}
+            className="absolute top-1/2 left-1/2 w-64 h-64 bg-pink-300 dark:bg-pink-400 rounded-full blur-xl"
+          ></motion.div>
+          
+          <motion.div 
+            animate={{ 
+              scale: [1, 1.1, 1],
+              opacity: [0.15, 0.25, 0.15],
+              x: [0, -25, 0],
+              y: [0, 15, 0]
+            }}
+            transition={{ 
+              duration: 14,
+              repeat: Infinity,
+              ease: "easeInOut",
+              delay: 2
+            }}
+            className="absolute top-1/3 right-1/3 w-48 h-48 bg-yellow-300 dark:bg-yellow-400 rounded-full blur-xl"
           ></motion.div>
           
           {/* Geometric shapes */}
           <motion.div 
             animate={{ 
               rotate: [0, 10, 0],
-              y: [0, -15, 0]
+              y: [0, -15, 0],
+              opacity: [0.3, 0.5, 0.3]
             }}
             transition={{ 
               duration: 15, 
               repeat: Infinity,
               ease: "easeInOut"
             }}
-            className="absolute top-32 right-1/4 w-32 h-32 border-4 border-white/10 rounded-xl"
+            className="absolute top-32 right-1/4 w-32 h-32 border-4 border-white/20 rounded-xl"
           ></motion.div>
           
           <motion.div 
             animate={{ 
               rotate: [0, -5, 0],
-              x: [0, 10, 0]
+              x: [0, 10, 0],
+              opacity: [0.3, 0.5, 0.3]
             }}
             transition={{ 
               duration: 12, 
@@ -93,7 +127,7 @@ const HomePage: React.FC = () => {
               ease: "easeInOut",
               delay: 2
             }}
-            className="absolute bottom-20 left-1/3 w-20 h-20 border-4 border-white/10 rounded-full"
+            className="absolute bottom-20 left-1/3 w-20 h-20 border-4 border-white/20 rounded-full"
           ></motion.div>
           
           {/* Floating particles */}
@@ -105,16 +139,16 @@ const HomePage: React.FC = () => {
                   x: Math.random() * 100 + "%", 
                   y: Math.random() * 100 + "%",
                   scale: Math.random() * 0.5 + 0.5,
-                  opacity: Math.random() * 0.3 + 0.1
+                  opacity: Math.random() * 0.5 + 0.2
                 }}
                 animate={{ 
                   y: [0, "-20px", 0, "20px", 0],
                   opacity: [
-                    Math.random() * 0.2 + 0.1,
-                    Math.random() * 0.2 + 0.3,
-                    Math.random() * 0.2 + 0.1,
-                    Math.random() * 0.2 + 0.3,
-                    Math.random() * 0.2 + 0.1
+                    Math.random() * 0.3 + 0.2,
+                    Math.random() * 0.4 + 0.4,
+                    Math.random() * 0.3 + 0.2,
+                    Math.random() * 0.4 + 0.4,
+                    Math.random() * 0.3 + 0.2
                   ]
                 }}
                 transition={{ 
@@ -122,7 +156,7 @@ const HomePage: React.FC = () => {
                   repeat: Infinity,
                   ease: "easeInOut"
                 }}
-                className="absolute w-2 h-2 bg-white rounded-full"
+                className="absolute w-2 h-2 bg-white rounded-full shadow-sm"
               ></motion.div>
             ))}
           </div>

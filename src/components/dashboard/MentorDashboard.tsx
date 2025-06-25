@@ -88,13 +88,18 @@ const MentorDashboard: React.FC = () => {
   const handleCalendarTab = useCallback(() => handleTabChange("calendar"), [handleTabChange]);
   const handleManageTab = useCallback(() => handleTabChange("manage"), [handleTabChange]);
 
-  // Define this callback at the component level to ensure consistent hooks order
+  // Determine user role for booking permissions
+  const isMentee = authState.user?.role === "mentee";
+
+  // Only allow mentees to select a slot for booking. Mentors will see the calendar in read-only mode.
   const onSlotSelect = useCallback((slot: AvailabilitySlot | null) => {
+    if (!isMentee) return; // Prevent mentors (or unauthenticated users) from booking
+
     if (slot) {
       setSelectedSlot(slot);
       setIsBookingModalOpen(true);
     }
-  }, []);
+  }, [isMentee]);
 
   // Handle session cancellation and refresh calendar
   const handleCancelSession = useCallback(async (sessionId: string) => {
@@ -582,6 +587,8 @@ const MentorDashboard: React.FC = () => {
             mentorId={mentorId}
             key={`calendar-${availabilityVersion}`}
             onSlotSelect={onSlotSelect}
+            disabled={!isMentee}
+            readOnly={!isMentee}
             versionKey={availabilityVersion}
           />
         )}
@@ -594,14 +601,16 @@ const MentorDashboard: React.FC = () => {
         )}
       </div>
 
-      {/* Booking Modal */}
-      <BookingModal
-        isOpen={isBookingModalOpen}
-        onClose={handleCloseBookingModal}
-        onConfirm={handleConfirmBooking}
-        slot={selectedSlot}
-        mentor={mentorProfile}
-      />
+      {/* Render the booking modal only for mentees */}
+      {isMentee && (
+        <BookingModal
+          isOpen={isBookingModalOpen}
+          onClose={handleCloseBookingModal}
+          onConfirm={handleConfirmBooking}
+          slot={selectedSlot}
+          mentor={mentorProfile}
+        />
+      )}
     </motion.div>
   );
 };
