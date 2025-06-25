@@ -86,14 +86,17 @@ export const getMentors = async (): Promise<MentorProfile[]> => {
         // For now, defaulting to empty array as per previous structure for the list.
         const availability: AvailabilitySlot[] = []; // Placeholder, adjust if summary needed
 
+        const safeName = mentorDoc.name || mentorDoc.email?.split("@")[0] || "Mentor";
+
         return {
-          ...mentorDoc, // Spread all fields from MentorDocument (id, userId, name, email, profilePicture, expertise, etc.)
-          role: "mentor" as const, // Ensure role is correctly set
+          ...mentorDoc,
+          name: safeName,
+          profilePicture: mentorDoc.profilePicture || "", // leave empty string; UI handles fallback
+          role: "mentor" as const,
           availability,
           ratings,
           averageRating,
-          // Ensure any other MentorProfile specific fields are handled
-        } as MentorProfile; // Cast to MentorProfile
+        } as MentorProfile;
       })
     );
 
@@ -130,14 +133,17 @@ export const getMentorById = async (
     const ratings = await getMentorRatings(mentorId);
     const averageRating = await getMentorAverageRating(mentorId);
 
+    const safeName = mentorDoc.name || mentorDoc.email?.split("@")[0] || "Mentor";
+
     return {
-      ...mentorDoc, // Spread all fields from MentorDocument
-      role: "mentor" as const, // Ensure role is correctly set
+      ...mentorDoc,
+      name: safeName,
+      profilePicture: mentorDoc.profilePicture || "", // leave empty string; UI handles fallback
+      role: "mentor" as const,
       availability,
       ratings,
       averageRating,
-      // Ensure any other MentorProfile specific fields are handled
-    } as MentorProfile; // Cast to MentorProfile
+    } as MentorProfile;
   } catch (error) {
     console.error(`Failed to get mentor with ID ${mentorId}:`, error);
     throw new Error(
@@ -208,8 +214,12 @@ export const createMentorProfile = async (
 
     // The document in /mentors now contains all necessary public info
     // Map newMentorDoc to the MentorProfile type for return
+    const safeName = newMentorDoc.name || newMentorDoc.email?.split("@")[0] || "Mentor";
+
     return {
       ...newMentorDoc,
+      name: safeName,
+      profilePicture: newMentorDoc.profilePicture || "", // leave empty string; UI handles fallback
       role: "mentor" as const,
       // id is already mentorId
       // name, email, profilePicture are already in newMentorDoc
@@ -283,8 +293,12 @@ export const updateMentorProfile = async (
       console.log(`Created new mentor profile for ID: ${mentorId}`);
 
       // Return the newly created profile
+      const safeName = newMentorProfile.name || newMentorProfile.email?.split("@")[0] || "Mentor";
+
       return {
         ...newMentorProfile,
+        name: safeName,
+        profilePicture: newMentorProfile.profilePicture || "", // leave empty string; UI handles fallback
         role: "mentor" as const,
         availability: [],
         ratings: [],
@@ -326,8 +340,12 @@ export const updateMentorProfile = async (
     }
 
     // Map updatedMentorDoc to the MentorProfile type for return
+    const safeName = updatedMentorDoc.name || updatedMentorDoc.email?.split("@")[0] || "Mentor";
+
     return {
       ...updatedMentorDoc,
+      name: safeName,
+      profilePicture: updatedMentorDoc.profilePicture || "", // leave empty string; UI handles fallback
       role: "mentor" as const,
       // id is already mentorId
       // name, email, profilePicture are already in updatedMentorDoc

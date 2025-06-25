@@ -350,6 +350,12 @@ const ProfileSettings: React.FC = () => {
     if (!formData.name?.trim()) {
       newErrors.name = "Name is required";
       isValid = false;
+    } else {
+      const nameRegex = /^[A-Za-zÀ-ÖØ-öø-ÿ'\-\s]+$/;
+      if (!nameRegex.test(formData.name.trim())) {
+        newErrors.name = "Name can only contain letters, spaces, hyphens, and apostrophes";
+        isValid = false;
+      }
     }
 
     if (!formData.email?.trim()) {

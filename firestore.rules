@@ -20,8 +20,8 @@ service cloud.firestore {
     
     // Mentors collection
     match /mentors/{mentorId} {
-      // Anyone logged in can read mentors
-      allow read: if request.auth != null;
+      // Public read access so mentor list is visible without login
+      allow read: if true;
       
       // Allow users to create and update their own mentor profile with a simpler rule
       allow create, update, delete: if request.auth != null && 
@@ -65,7 +65,7 @@ service cloud.firestore {
       // Allow creating availability documents
       allow create: if request.auth != null;
       
-      // Allow updating availability if you are the mentor, involved in a session, or an admin
+      // Allow updating availability if you are the mentor, booking the slot, involved in a session, or an admin
       allow update, delete: if request.auth != null && 
                     (
                       // Direct match with Auth UID (mentor)
@@ -74,6 +74,10 @@ service cloud.firestore {
                       // Check if the current user is the mentor via mentor document lookup
                       exists(/databases/$(database)/documents/mentors/$(resource.data.mentorId)) &&
                       get(/databases/$(database)/documents/mentors/$(resource.data.mentorId)).data.userId == request.auth.uid ||
+                      
+                      // Allow any authenticated user to book an available slot: only change isBooked from false->true and set updatedAt/sessionId.
+                      (resource.data.isBooked == false && request.resource.data.isBooked == true &&
+                       request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isBooked','updatedAt','sessionId'])) ||
                       
                       // Allow users to update availability when cancelling their sessions
                       // This allows setting isBooked back to false when a session is cancelled

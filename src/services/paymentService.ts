@@ -23,6 +23,7 @@ interface PaymentDocument {
   sessionId: string;
   mentorId: string;
   menteeId: string;
+  userId?: string;
   amount: number;
   status: string;
   date: string;
@@ -139,6 +140,7 @@ export const processPayment = async (
       sessionId: sessionId,
       mentorId: session.mentorId,
       menteeId: session.menteeId,
+      userId: session.menteeId,
       amount: amount,
       status: "authorized" as const, // Changed from "completed" to "authorized"
       date: new Date().toISOString().split("T")[0],

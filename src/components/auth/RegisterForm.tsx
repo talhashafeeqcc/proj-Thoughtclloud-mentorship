@@ -25,6 +25,12 @@ const RegisterForm: React.FC = () => {
     clearError();
     
     // Validate form
+    const nameRegex = /^[A-Za-zÀ-ÖØ-öø-ÿ'\-\s]+$/;
+    if (!nameRegex.test(name.trim())) {
+      setFormError('Name can only contain letters, spaces, hyphens, and apostrophes');
+      return;
+    }
+    
     if (password !== confirmPassword) {
       setFormError('Passwords do not match');
       return;

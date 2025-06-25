@@ -61,6 +61,9 @@ const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
   // Add debug state
   const [showDebug, setShowDebug] = useState(false);
 
+  // Track manual refreshes
+  const [refreshTick, setRefreshTick] = useState(0);
+
   useEffect(() => {
     const fetchAvailability = async () => {
       setLoading(true);
@@ -151,7 +154,7 @@ const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
     };
 
     fetchAvailability();
-  }, [mentorId, selectedDate, sessions, effectiveVersionKey]); // Add effectiveVersionKey as a dependency to trigger re-fetch
+  }, [mentorId, selectedDate, sessions, effectiveVersionKey, refreshTick]); // Include refreshTick to trigger manual refresh
 
   const daysInMonth = (date: Date) => {
     return new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
@@ -335,7 +338,11 @@ const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
           ${isPastDay ? "opacity-50" : ""}
           text-gray-800 dark:text-gray-200
         `}
-        onClick={() => handleDayClick(day, formattedDate)}
+        onClick={() => {
+          if (!isPastDay) {
+            handleDayClick(day, formattedDate);
+          }
+        }}
       >
         {day}
         <div className="flex justify-center mt-1 space-x-1">
@@ -352,11 +359,8 @@ const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
 
   // Add a manual refresh function
   const handleRefresh = () => {
-    // Just changing versionKey in parent component would trigger refresh
-    // but we can also force a refetch here directly
-    setLoading(true);
-    // This will trigger the useEffect to re-run due to dependency on loading state
-    setTimeout(() => setLoading(false), 100);
+    // Bump the refreshTick which is in the useEffect dependency list
+    setRefreshTick(prev => prev + 1);
   };
 
   if (loading && availabilitySlots.length === 0) {
@@ -428,24 +432,33 @@ const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
             {new Date(selectedDaySlots[0].date).toLocaleDateString()}
           </h3>
           <ul className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-            {selectedDaySlots.map((slot) => (
-              <li
-                key={slot.id}
-                className={`p-3 rounded transition-all flex items-center justify-center
-                  ${
-                    slot.isBooked
-                      ? "bg-purple-100 dark:bg-purple-900/40 text-purple-800 dark:text-purple-200 cursor-not-allowed"
-                      : selectedSlotId === slot.id
-                      ? "bg-blue-500 dark:bg-blue-600 text-white font-medium shadow-md cursor-pointer"
-                      : "bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 cursor-pointer"
-                  }`}
-                onClick={() => !slot.isBooked && handleSlotClick(slot)}
-              >
-                {slot.isBooked && <FaLock className="mr-2 text-xs" />}
-                {!slot.isBooked && selectedSlotId === slot.id && <FaCheck className="mr-2 text-xs" />}
-                {formatTime(slot.startTime)} - {formatTime(slot.endTime)}
-              </li>
-            ))}
+            {selectedDaySlots.map((slot) => {
+              const slotStart = new Date(`${slot.date}T${slot.startTime}`);
+              if (slotStart.getTime() < Date.now()) {
+                return null;
+              }
+
+              return (
+                <li
+                  key={slot.id}
+                  className={`p-3 rounded transition-all flex items-center justify-center
+                    ${
+                      slot.isBooked
+                        ? "bg-purple-100 dark:bg-purple-900/40 text-purple-800 dark:text-purple-200 cursor-not-allowed"
+                        : selectedSlotId === slot.id
+                        ? "bg-blue-500 dark:bg-blue-600 text-white font-medium shadow-md cursor-pointer"
+                        : "bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 cursor-pointer"
+                    }`}
+                  onClick={() => {
+                    if (!slot.isBooked && slotStart.getTime() > Date.now()) handleSlotClick(slot);
+                  }}
+                >
+                  {slot.isBooked && <FaLock className="mr-2 text-xs" />}
+                  {!slot.isBooked && selectedSlotId === slot.id && <FaCheck className="mr-2 text-xs" />}
+                  {formatTime(slot.startTime)} - {formatTime(slot.endTime)}
+                </li>
+              );
+            })}
           </ul>
         </div>
       )}

@@ -394,10 +394,15 @@ export const createSession = async (
       }
     }
     
-    // 2. Generate session ID early so we can embed it in availability doc
+    // 2. Prevent mentors from booking with themselves
+    if (mentorAuthUid === menteeAuthUid) {
+      throw new Error("You cannot book a session with yourself.");
+    }
+    
+    // 3. Generate session ID early so we can embed it in availability doc
     const sessionId = uuidv4();
 
-    // 3. Check if the slot is available
+    // 4. Check if the slot is available
     // Use the mentorId from the document for availability lookup
     const availabilitySlots = await getDocuments<any>(COLLECTIONS.AVAILABILITY, [
       whereEqual("mentorId", mentorDocId), // Use document ID for availability
@@ -412,27 +417,25 @@ export const createSession = async (
       console.log(`Found matching availability slot: ${availabilityId}`);
       
       const now = Date.now();
-      const availabilityData = availabilitySlots[0];
-
-      // Create a new session-specific availability entry
-      const newAvailabilityId = `${availabilityId}-session-${now}`;
-      await setDocument(COLLECTIONS.AVAILABILITY, newAvailabilityId, {
-        ...availabilityData,
-        id: newAvailabilityId,
-        isBooked: true,
-        originalAvailabilityId: availabilityId,
-        sessionId: sessionId, // embed the session ID now
-        updatedAt: now,
-        createdAt: now
-      });
-      
-      // Use the new availability ID for the session
-      availabilityId = newAvailabilityId;
+      // Instead of creating a duplicate availability entry, simply mark the
+      // original slot as booked and reference it in the session. This prevents
+      // the mentor's calendar from showing replicated slots.
+      await setDocument(
+        COLLECTIONS.AVAILABILITY,
+        availabilityId,
+        {
+          ...availabilitySlots[0],
+          isBooked: true,
+          sessionId: sessionId,
+          updatedAt: now,
+          id: availabilityId,
+        }
+      );
     } else {
       console.log(`No matching availability slot found, using provided ID: ${availabilityId}`);
     }
     
-    // 4. Create a meeting link (simplified)
+    // 5. Create a meeting link (simplified)
     let meetingLink = "";
     try {
       meetingLink = await createGoogleMeetLink({
@@ -446,7 +449,7 @@ export const createSession = async (
       console.error("Failed to create Google Meet link:", error);
     }
     
-    // 5. Create the session document
+    // 6. Create the session document
     const now = Date.now();
     
     // Log the IDs we're using for clarity
@@ -749,6 +752,12 @@ export const isAvailabilitySlotBookable = async (
     }
 
     const availabilitySlot = availabilityDocs[0].toJSON();
+
+    // Prevent booking slots in the past
+    const slotStart = new Date(`${availabilitySlot.date}T${availabilitySlot.startTime}`);
+    if (slotStart.getTime() < Date.now()) {
+      return false;
+    }
 
     if (availabilitySlot.isBooked) {
       // Double-check if there's actually an active session for this slot
