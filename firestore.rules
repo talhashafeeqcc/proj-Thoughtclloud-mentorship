@@ -127,10 +127,25 @@ service cloud.firestore {
           get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin'
         )
       );
+
+      // Allow creating payment records
       allow create: if request.auth != null;
-      allow update, delete: if request.auth != null && 
-                      exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-                      get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+
+      // Allow mentors or mentees involved in the payment to update the **status** field (e.g. to mark as refunded)
+      // We restrict the writable fields to just `status` and `updatedAt` to avoid unwanted modifications.
+      allow update: if request.auth != null && (
+        // Involved parties
+        (request.auth.uid == resource.data.mentorId ||
+         request.auth.uid == resource.data.menteeId ||
+         request.auth.uid == resource.data.userId) &&
+        // Only allow changing status and updatedAt fields
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt'])
+      );
+
+      // Admins can freely update or delete any payment document
+      allow update, delete: if request.auth != null &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
   }
 } 
